@@ -73,8 +73,6 @@ function doGet() {
   // Set Dynamic Favicon
   if (settings.systemLogoId) {
     htmlOutput.setFaviconUrl(settings.systemLogoUrl + "&ext=.png");
-  } else {
-    htmlOutput.setFaviconUrl(settings.appFallbackLogo);
   }
   
   return htmlOutput;

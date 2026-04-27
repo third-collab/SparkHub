@@ -17,7 +17,7 @@ function getSystemSettings() {
   try {
     var props = PropertiesService.getScriptProperties();
     var logoId = props.getProperty('SYSTEM_LOGO_ID');
-    var logoUrl = logoId ? ("https://drive.google.com/thumbnail?id=" + logoId + "&sz=w500") : "";
+    var logoUrl = logoId ? ("https://drive.google.com/thumbnail?id=" + logoId + "&sz=w500") : ("https://drive.google.com/thumbnail?id=1HLIJ-GJSHOmh7CPGR56x5fKH8sptM44e&sz=w500");
     var appSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M54 20 L30 55 L52 55 L42 80 L70 42 L48 42 Z' fill='%236366F1'/%3E%3Ccircle cx='68' cy='28' r='7' fill='%2306B6D4'/%3E%3C/svg%3E";
     
     function clean(val, fallback) {
