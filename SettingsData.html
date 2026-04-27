@@ -1,0 +1,492 @@
+<!-- 
+  [SPARKHUB INTEGRITY HEADER: START]
+  FILE: SettingsData.html
+  VERSION: 1.4 (Universal Tab Navigation + Registry Logic Restoration)
+  SYNC STATUS: Fully Synchronized with Settings.gs & Index.html
+-->
+
+<!-- 
+  Settings Management Module - Frontend
+  Standardized under SparkHub Architecture Blueprint.
+  
+  CORE RESPONSIBILITIES:
+  - System Identity & Environment Management.
+  - Dynamic Theme Engine (Visual Identity).
+  - Cloud Infrastructure Configuration (Folder & DB IDs).
+  - Module & Plugin Registry Management.
+-->
+
+<style>
+  /* --- Module-Specific Styles (Add-on Isolation) --- */
+  .settings-loading-overlay {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--border-radius-large);
+    flex-direction: column;
+    gap: 15px;
+    backdrop-filter: blur(2px);
+  }
+  
+  #readOnlySettingsView .form-wrapper,
+  #editSettingsView .form-wrapper { position: relative; min-height: 500px; }
+  
+  .sys-logo-preview {
+    height: 80px; 
+    object-fit: contain; 
+    background: #fff; 
+    padding: 10px; 
+    border-radius: 12px; 
+    border: 1px solid #e2e8f0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .theme-swatch-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+  }
+
+  /* Registry Tag Styling */
+  .registry-tag {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0;
+    transition: 0.2s;
+  }
+  .registry-tag::before {
+    content: "•";
+    margin-right: 8px;
+    color: var(--brand-primary);
+    font-size: 20px;
+    line-height: 1;
+  }
+  .registry-tag:hover { border-color: var(--brand-primary); background: white; }
+</style>
+
+<!-- Read Only Settings View -->
+<div id="readOnlySettingsView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+  
+  <div class="form-wrapper">
+    <div id="ro-settings-overlay" class="settings-loading-overlay"><div class="spinner-client"></div><span>Synchronizing Settings...</span></div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+       <h2 style="margin:0; color: var(--brand-dark);">System Configuration</h2>
+       <button class="btn-primary" onclick="openEditSettings()">Edit System Settings</button>
+    </div>
+    
+    <!-- Tab Navigation: Restored for Infrastructure/Registry -->
+    <div class="tab-nav">
+      <button type="button" class="tab-btn active" id="btn-set-ro-sys" onclick="navigateClientTab('set-ro', 'sys')">Identity & Theme</button>
+      <button type="button" class="tab-btn" id="btn-set-ro-infra" onclick="navigateClientTab('set-ro', 'infra')">Infrastructure</button>
+      <button type="button" class="tab-btn" id="btn-set-ro-registry" onclick="navigateClientTab('set-ro', 'registry')">Modules & Plugins</button>
+    </div>
+
+    <!-- TAB: Identity & Theme -->
+    <div id="set-ro-sys" class="tab-content" style="display: block;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 50px; font-size: 14px; margin-top: 25px;">
+         <div>
+            <h4 style="color:var(--brand-primary); margin-top:0; border-bottom: 2px solid #f1f5f9; padding-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-size:12px;">Branding & Identity</h4>
+            <div style="margin: 20px 0; text-align: center; background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0;">
+               <img id="ro-settings-logo" src="" class="sys-logo-preview" style="display: block; margin: 0 auto 20px auto;">
+               <h3 id="ro-settings-sysname" style="margin:0; font-size: 24px;"></h3>
+               <div id="ro-settings-env-box" style="margin-top:12px;"></div>
+            </div>
+            <p><strong>Administrator Email:</strong> <span id="ro-settings-email" style="color:var(--brand-primary); font-weight:700;"></span></p>
+         </div>
+         <div>
+            <h4 style="color:var(--brand-primary); margin-top:0; border-bottom: 2px solid #f1f5f9; padding-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-size:12px;">Visual Identity Tokens</h4>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 20px;">
+               <div style="display:flex; align-items:center; gap:15px;"><div id="swatch-primary" class="theme-swatch-box"></div><span><strong>Primary Color:</strong> <code id="ro-settings-primary"></code></span></div>
+               <div style="display:flex; align-items:center; gap:15px;"><div id="swatch-accent" class="theme-swatch-box"></div><span><strong>Accent Color:</strong> <code id="ro-settings-accent"></code></span></div>
+               <div style="display:flex; align-items:center; gap:15px;"><div id="swatch-dark" class="theme-swatch-box"></div><span><strong>Dark Token:</strong> <code id="ro-settings-dark"></code></span></div>
+               <div style="display:flex; align-items:center; gap:15px;"><div id="swatch-hover" class="theme-swatch-box"></div><span><strong>Hover State:</strong> <code id="ro-settings-hover"></code></span></div>
+               <div style="display:flex; align-items:center; gap:15px;"><div id="swatch-bg" class="theme-swatch-box"></div><span><strong>Dashboard BG:</strong> <code id="ro-settings-bg"></code></span></div>
+            </div>
+         </div>
+      </div>
+    </div>
+
+    <!-- TAB: Infrastructure (Database & Root Storage) -->
+    <div id="set-ro-infra" class="tab-content" style="display: none;">
+      <div style="margin-top: 25px; font-size: 14px; max-width: 800px;">
+        <h4 style="color:var(--brand-primary); margin-top:0; border-bottom: 2px solid #f1f5f9; padding-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-size:12px;">Google Cloud Infrastructure</h4>
+        <div style="display:flex; flex-direction:column; gap:20px; margin-top:20px;">
+          <p><strong>System Root Folder ID:</strong><br><span id="ro-settings-rootid" style="font-family: 'JetBrains Mono', monospace; font-size:13px; color: #0f172a; font-weight: 700; background:#f1f5f9; padding:4px 8px; border-radius:4px;"></span></p>
+          <p><strong>Main Spreadsheet Registry ID:</strong><br><span id="ro-settings-dbid" style="font-family: 'JetBrains Mono', monospace; font-size:13px; color: #0f172a; background:#f1f5f9; padding:4px 8px; border-radius:4px;"></span></p>
+          <p><strong>Notification Database ID:</strong><br><span id="ro-settings-notifid" style="font-family: 'JetBrains Mono', monospace; font-size:13px; color: #0f172a; background:#f1f5f9; padding:4px 8px; border-radius:4px;"></span></p>
+        </div>
+        
+        <h4 style="color:var(--brand-primary); margin-top:40px; border-bottom: 2px solid #f1f5f9; padding-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-size:12px;">Email Asset Fallbacks</h4>
+        <p style="margin-top:15px;"><strong>External Logo URL:</strong> <br><span id="ro-settings-fallback" style="word-break: break-all; font-family: monospace; color: #64748b; font-size: 12px; background:#f8fafc; padding:10px; border:1px solid #eee; display:block; margin-top:8px;"></span></p>
+      </div>
+    </div>
+
+    <!-- TAB: Modules & Plugins Registry -->
+    <div id="set-ro-registry" class="tab-content" style="display: none;">
+      <div style="margin-top: 25px;">
+        <h4 style="color:var(--brand-primary); border-bottom: 2px solid #f1f5f9; padding-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-size:12px;">Active Add-on Modules</h4>
+        <div id="ro-registry-modules" style="padding: 20px 0; display: flex; flex-wrap: wrap;"></div>
+        
+        <h4 style="color:var(--brand-primary); margin-top:30px; border-bottom: 2px solid #f1f5f9; padding-bottom:8px; text-transform:uppercase; letter-spacing:1px; font-size:12px;">Active UI Plugins</h4>
+        <div id="ro-registry-plugins" style="padding: 20px 0; display: flex; flex-wrap: wrap;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Settings Form -->
+<div id="editSettingsView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('readOnlySettingsView')">&#8592; Back to Settings</button>
+  
+  <div class="form-wrapper">
+    <div id="edt-settings-overlay" class="settings-loading-overlay"><div class="spinner-client"></div><span id="edt-settings-overlay-txt">Saving Settings...</span></div>
+    <h2 style="margin-top:0; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">Edit System Settings</h2>
+    
+    <div class="tab-nav" style="margin-top: 25px;">
+      <button type="button" class="tab-btn active" id="btn-set-edt-config" onclick="navigateClientTab('set-edt', 'config')">Identity & Infra</button>
+      <button type="button" class="tab-btn" id="btn-set-edt-theme" onclick="navigateClientTab('set-edt', 'theme')">Theme Engine</button>
+      <button type="button" class="tab-btn" id="btn-set-edt-registry" onclick="navigateClientTab('set-edt', 'registry')">Modules & Plugins</button>
+    </div>
+
+    <form id="editSettingsForm" onsubmit="handleSettingsSubmit(event)">
+      <!-- EDIT TAB: Identity & Infra -->
+      <div id="set-edt-config" class="tab-content" style="display: block;">
+        <h3 style="margin-top: 30px; font-size: 16px; color: var(--brand-dark); border-left: 4px solid var(--brand-primary); padding-left: 15px;">System Identity & Storage</h3>
+        <div class="form-row" style="margin-top: 20px;">
+          <div class="form-group"><label>Environment Profile *</label>
+            <select id="edt-settings-env" class="form-control" required>
+              <option value="Production">Production (Live)</option>
+              <option value="Sandbox">Sandbox (Intercept Emails)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Admin Contact Email *</label><input type="email" id="edt-settings-email" class="form-control" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>System Label *</label><input type="text" id="edt-settings-sysname" class="form-control" required></div>
+          <div class="form-group"><label>Header Logo Sync</label>
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <img id="edt-settings-logo-preview" src="" class="sys-logo-preview" style="height:45px;">
+              <input type="file" id="edt-settings-logo-input" accept="image/*" onchange="previewSettingsLogo(this)">
+            </div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: 15px;"><label>Cloud Root Folder ID *</label><input type="text" id="edt-settings-rootid" class="form-control" required></div>
+        <div class="form-group" style="margin-top: 15px;"><label>Master Registry Spreadsheet ID *</label><input type="text" id="edt-settings-dbid" class="form-control" required></div>
+        <div class="form-group" style="margin-top: 15px;"><label>Email Asset Fallback URL *</label><input type="url" id="edt-settings-fallback" class="form-control" required></div>
+      </div>
+
+      <!-- EDIT TAB: Theme Engine -->
+      <div id="set-edt-theme" class="tab-content" style="display: none;">
+        <h3 style="margin-top: 30px; font-size: 16px; color: var(--brand-dark); border-left: 4px solid var(--brand-primary); padding-left: 15px;">Visual Identity Configuration</h3>
+        <div class="form-row" style="margin-top: 20px;">
+          <div class="form-group"><label>Primary Branding</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="color" id="edt-theme-primary-pick" oninput="syncColorInput(this, 'edt-theme-primary')" style="width:45px; height:45px; padding:0; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
+              <input type="text" id="edt-theme-primary" class="form-control" oninput="syncColorInput(this, 'edt-theme-primary-pick')">
+            </div>
+          </div>
+          <div class="form-group"><label>Accent Highlight</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="color" id="edt-theme-accent-pick" oninput="syncColorInput(this, 'edt-theme-accent')" style="width:45px; height:45px; padding:0; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
+              <input type="text" id="edt-theme-accent" class="form-control" oninput="syncColorInput(this, 'edt-theme-accent-pick')">
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Dark Theme Token</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="color" id="edt-theme-dark-pick" oninput="syncColorInput(this, 'edt-theme-dark')" style="width:45px; height:45px; padding:0; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
+              <input type="text" id="edt-theme-dark" class="form-control" oninput="syncColorInput(this, 'edt-theme-dark-pick')">
+            </div>
+          </div>
+          <div class="form-group"><label>Hover State Color</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="color" id="edt-theme-hover-pick" oninput="syncColorInput(this, 'edt-theme-hover')" style="width:45px; height:45px; padding:0; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
+              <input type="text" id="edt-theme-hover" class="form-control" oninput="syncColorInput(this, 'edt-theme-hover-pick')">
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Main Dashboard Background</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="color" id="edt-theme-bg-pick" oninput="syncColorInput(this, 'edt-theme-bg')" style="width:45px; height:45px; padding:0; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer;">
+              <input type="text" id="edt-theme-bg" class="form-control" oninput="syncColorInput(this, 'edt-theme-bg-pick')">
+            </div>
+          </div>
+          <div class="form-group"></div>
+        </div>
+      </div>
+
+      <!-- EDIT TAB: Registry Management -->
+      <div id="set-edt-registry" class="tab-content" style="display: none;">
+        <h3 style="margin-top: 30px; font-size: 16px; color: var(--brand-dark); border-left: 4px solid var(--brand-primary); padding-left: 15px;">Modular Component Control</h3>
+        <p style="font-size: 13px; color: #64748b; margin: 15px 0 25px 0;">Manually trigger the installation of new Add-ons or activate UI Plugins to extend system functionality.</p>
+        
+        <div style="background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px;">
+          <label style="font-weight: 700; font-size: 13px; color: #475569; display: block; margin-bottom: 10px;">Install Core Module</label>
+          <div style="display: flex; gap: 12px;">
+            <input type="text" id="ins-mod-name" class="form-control" placeholder="e.g., Clients, Notifications, Calendar">
+            <button type="button" class="btn-primary" onclick="handleModuleInstall()" style="min-width: 120px;">Run Installer</button>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <label style="font-weight: 700; font-size: 13px; color: #475569; display: block; margin-bottom: 10px;">Activate UI Plugin</label>
+          <div style="display: flex; gap: 12px;">
+            <input type="text" id="ins-plg-name" class="form-control" placeholder="e.g., NotifBell, UserBar, LiveClock">
+            <button type="button" class="btn-primary" onclick="handlePluginInstall()" style="min-width: 120px;">Enable Plugin</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 50px;">
+        <button type="submit" class="btn-primary" id="edt-settings-submit" style="padding: 15px 60px; font-size: 15px;">Save Global Sync</button>
+      </div>
+    </form>
+    <div id="edt-settings-msg" class="status-msg" style="text-align: right; margin-top: 20px; font-weight: 700;"></div>
+  </div>
+</div>
+
+<script>
+  /* ========================================================================
+     1. UNIVERSAL TAB NAVIGATOR (Architecture Fix)
+     ======================================================================== */
+
+  /**
+   * UNIVERSAL TAB NAVIGATOR
+   * Refactored to use dynamic container discovery. This ensures tabs work in
+   * Settings, Users, and Clients regardless of load order.
+   */
+  function navigateClientTab(prefix, tabId) {
+    var target = document.getElementById(prefix + '-' + tabId);
+    if (!target) return;
+    
+    // Dynamically find the parent container
+    var container = target.closest('.container');
+    if (!container) return;
+    
+    // Purge states in this container only
+    container.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    // Activate
+    target.style.display = 'block';
+    var btn = document.getElementById('btn-' + prefix + '-' + tabId);
+    if (btn) btn.classList.add('active');
+  }
+
+  function syncColorInput(source, targetId) {
+    var target = document.getElementById(targetId);
+    target.value = source.value.toUpperCase();
+  }
+
+  /* ========================================================================
+     2. SETTINGS FETCHING & RENDERING
+     ======================================================================== */
+
+  function loadSettings() {
+    toggleSettingsOverlay('ro-settings-overlay', true, 'Pulling Registry Config...');
+    google.script.run.withSuccessHandler(function(data) {
+      toggleSettingsOverlay('ro-settings-overlay', false);
+      
+      document.getElementById('ro-settings-sysname').innerText = data.systemName;
+      document.getElementById('ro-settings-email').innerText = data.adminEmail || 'Not Set';
+      document.getElementById('ro-settings-fallback').innerText = data.emailFallbackLogo || '';
+      document.getElementById('ro-settings-rootid').innerText = data.rootFolderId || 'Not Configured';
+      document.getElementById('ro-settings-dbid').innerText = data.mainDbId || 'Not Configured';
+      document.getElementById('ro-settings-notifid').innerText = data.notifDbId || 'Not Configured';
+      
+      // Theme Restoration
+      document.getElementById('ro-settings-primary').innerText = data.themePrimary;
+      document.getElementById('swatch-primary').style.backgroundColor = data.themePrimary;
+      document.getElementById('ro-settings-accent').innerText = data.themeAccent;
+      document.getElementById('swatch-accent').style.backgroundColor = data.themeAccent;
+      document.getElementById('ro-settings-dark').innerText = data.themeDark;
+      document.getElementById('swatch-dark').style.backgroundColor = data.themeDark;
+      document.getElementById('ro-settings-hover').innerText = data.themeHover;
+      document.getElementById('swatch-hover').style.backgroundColor = data.themeHover;
+      document.getElementById('ro-settings-bg').innerText = data.themeBg;
+      document.getElementById('swatch-bg').style.backgroundColor = data.themeBg;
+      
+      document.getElementById('ro-settings-logo').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
+      
+      var env = data.environment || 'Sandbox';
+      var envBox = document.getElementById('ro-settings-env-box');
+      if (envBox) {
+        var pillClass = env === 'Production' ? 'badge-active' : 'badge-onboarding';
+        envBox.innerHTML = `<span class="badge ${pillClass}">${env} Profile</span>`;
+      }
+
+      // Registry Rendering
+      renderRegistryList('ro-registry-modules', data.installedModules);
+      renderRegistryList('ro-registry-plugins', data.installedPlugins);
+      
+    }).getSystemSettings();
+  }
+
+  function renderRegistryList(containerId, registryString) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    if (!registryString) {
+      container.innerHTML = '<p style="font-size: 13px; color: #94a3b8; font-style: italic; margin-left:10px;">No custom components established in registry.</p>';
+      return;
+    }
+    var items = registryString.split(',');
+    container.innerHTML = '';
+    items.forEach(function(item) {
+      if (!item) return;
+      var tag = document.createElement('span');
+      tag.className = 'registry-tag';
+      tag.innerText = item.trim();
+      container.appendChild(tag);
+    });
+  }
+
+  /* ========================================================================
+     3. EDIT & INSTALLATION HANDLERS
+     ======================================================================== */
+
+  function openEditSettings() {
+    switchView('editSettingsView');
+    navigateClientTab('set-edt', 'config');
+    
+    // MR HUB MANDATE: The Purge
+    document.getElementById('edt-settings-msg').innerHTML = '';
+    
+    toggleSettingsOverlay('edt-settings-overlay', true, 'Initializing Theme Engine...');
+    
+    google.script.run.withSuccessHandler(function(data) {
+      toggleSettingsOverlay('edt-settings-overlay', false);
+      
+      document.getElementById('edt-settings-env').value = data.environment || 'Production';
+      document.getElementById('edt-settings-email').value = data.adminEmail || '';
+      document.getElementById('edt-settings-sysname').value = data.systemName;
+      document.getElementById('edt-settings-fallback').value = data.emailFallbackLogo || '';
+      document.getElementById('edt-settings-rootid').value = data.rootFolderId || '';
+      document.getElementById('edt-settings-dbid').value = data.mainDbId || '';
+      
+      document.getElementById('edt-theme-primary').value = data.themePrimary;
+      document.getElementById('edt-theme-primary-pick').value = data.themePrimary;
+      document.getElementById('edt-theme-accent').value = data.themeAccent;
+      document.getElementById('edt-theme-accent-pick').value = data.themeAccent;
+      document.getElementById('edt-theme-dark').value = data.themeDark;
+      document.getElementById('edt-theme-dark-pick').value = data.themeDark;
+      document.getElementById('edt-theme-hover').value = data.themeHover;
+      document.getElementById('edt-theme-hover-pick').value = data.themeHover;
+      document.getElementById('edt-theme-bg').value = data.themeBg;
+      document.getElementById('edt-theme-bg-pick').value = data.themeBg;
+      
+      document.getElementById('edt-settings-logo-preview').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
+      document.getElementById('edt-settings-submit').disabled = false;
+    }).getSystemSettings();
+  }
+
+  function handleModuleInstall() {
+    var name = document.getElementById('ins-mod-name').value;
+    if (!name) return;
+    toggleSettingsOverlay('edt-settings-overlay', true, 'Executing Modular Installation...');
+    google.script.run.withSuccessHandler(function(res) {
+      toggleSettingsOverlay('edt-settings-overlay', false);
+      var msg = document.getElementById('edt-settings-msg');
+      msg.innerHTML = res;
+      msg.style.color = res.includes("Success") ? "green" : "red";
+      document.getElementById('ins-mod-name').value = '';
+    }).performModuleInstallation(name);
+  }
+
+  function handlePluginInstall() {
+    var name = document.getElementById('ins-plg-name').value;
+    if (!name) return;
+    toggleSettingsOverlay('edt-settings-overlay', true, 'Activating Plugin Interface...');
+    google.script.run.withSuccessHandler(function(res) {
+      toggleSettingsOverlay('edt-settings-overlay', false);
+      var msg = document.getElementById('edt-settings-msg');
+      msg.innerHTML = res;
+      msg.style.color = res.includes("Success") ? "green" : "red";
+      document.getElementById('ins-plg-name').value = '';
+    }).performPluginInstallation(name);
+  }
+
+  function handleSettingsSubmit(e) {
+    if(e) e.preventDefault();
+    var btn = document.getElementById('edt-settings-submit');
+    var msgEl = document.getElementById('edt-settings-msg');
+    btn.disabled = true;
+    
+    var payload = {
+      environment: document.getElementById('edt-settings-env').value,
+      adminEmail: document.getElementById('edt-settings-email').value,
+      systemName: document.getElementById('edt-settings-sysname').value,
+      fallbackLogoUrl: document.getElementById('edt-settings-fallback').value,
+      rootFolderId: document.getElementById('edt-settings-rootid').value,
+      mainDbId: document.getElementById('edt-settings-dbid').value,
+      themePrimary: document.getElementById('edt-theme-primary').value,
+      themeAccent: document.getElementById('edt-theme-accent').value,
+      themeDark: document.getElementById('edt-theme-dark').value,
+      themeHover: document.getElementById('edt-theme-hover').value,
+      themeBg: document.getElementById('edt-theme-bg').value
+    };
+    
+    var logoSrc = document.getElementById('edt-settings-logo-preview').src;
+    if (logoSrc.startsWith('data:image')) {
+      toggleSettingsOverlay('edt-settings-overlay', true, 'Compressing Logo Assets...');
+      // Use existing compress function or standard canvas resize logic
+      google.script.run.withSuccessHandler(function(res) {
+        if (res.error) { toggleSettingsOverlay('edt-settings-overlay', false); msgEl.innerHTML = res.error; btn.disabled = false; } 
+        else { payload.systemLogoId = res.id; finalizeSettingsSync(payload); }
+      }).uploadSystemLogo(logoSrc, "system_logo.png");
+    } else { finalizeSettingsSync(payload); }
+    
+    function finalizeSettingsSync(p) {
+      toggleSettingsOverlay('edt-settings-overlay', true, 'Merging Ecosystem Registry...');
+      google.script.run.withSuccessHandler(function(res) {
+        toggleSettingsOverlay('edt-settings-overlay', false);
+        if (res.toLowerCase().includes("success")) {
+          // Instant Dynamic Theme Inject
+          var r = document.documentElement;
+          r.style.setProperty('--brand-primary', p.themePrimary);
+          r.style.setProperty('--brand-accent', p.themeAccent);
+          r.style.setProperty('--brand-dark', p.themeDark);
+          r.style.setProperty('--brand-hover', p.themeHover);
+          r.style.setProperty('--brand-bg', p.themeBg);
+          loadSettings();
+          switchView('readOnlySettingsView');
+        } else { msgEl.innerHTML = res; btn.disabled = false; }
+      }).saveSystemSettings(p);
+    }
+  }
+
+  function toggleSettingsOverlay(id, show, text) {
+    var overlay = document.getElementById(id);
+    if (!overlay) return;
+    overlay.style.display = show ? 'flex' : 'none';
+    if (text) { var txtEl = overlay.querySelector('span'); if (txtEl) txtEl.innerText = text; }
+  }
+
+  function previewSettingsLogo(input) {
+    if (input.files && input.files[0]) {
+      var reader = new FileReader();
+      reader.onload = function(e) { document.getElementById('edt-settings-logo-preview').src = e.target.result; };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+</script>
+
+<!-- [SPARKHUB INTEGRITY ANCHOR: END] -->

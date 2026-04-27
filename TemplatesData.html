@@ -1,0 +1,467 @@
+<!-- 
+  [SPARKHUB INTEGRITY HEADER: START]
+  FILE: TemplatesData.html
+  VERSION: 1.2 (10-Column Logic Parity + Internal Description Restoration)
+  SYNC STATUS: Fully Synchronized with Templates.gs & EmailEngine.gs
+-->
+
+<!-- 
+  Templates Management Module - Frontend
+  Standardized under SparkHub Architecture Blueprint.
+  
+  CORE RESPONSIBILITIES:
+  - System-wide Email and Communication Management.
+  - Live Template Previewing with dynamic wrapper injection.
+  - Test Email dispatch for quality assurance.
+  - Rich Text Editing (Quill) for communication bodies.
+-->
+
+<style>
+  /* --- Module-Specific Styles --- */
+  .template-loading-overlay {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--border-radius-large);
+    flex-direction: column;
+    gap: 15px;
+    backdrop-filter: blur(2px);
+  }
+  
+  #templatesListView .table-container,
+  #editTemplateView .form-wrapper,
+  #readOnlyTemplateView .form-wrapper { 
+    position: relative; 
+    min-height: 500px;
+  }
+
+  .preview-frame-container {
+    background: #f1f5f9;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-top: 20px;
+    min-height: 400px;
+  }
+
+  .preview-iframe {
+    width: 100%;
+    height: 600px;
+    background: white;
+    border: none;
+    border-radius: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .placeholder-tag {
+    display: inline-block;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #cbd5e1;
+  }
+  .placeholder-tag:hover { 
+    background: var(--brand-primary); 
+    color: white; 
+    border-color: var(--brand-primary);
+    transform: translateY(-1px);
+  }
+
+  /* Status specific styles for template list */
+  .tpl-trigger-code {
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--brand-primary);
+    font-weight: 600;
+  }
+</style>
+
+<!-- List View: Master Template Directory -->
+<div id="templatesListView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+  
+  <div class="view-header-bar">
+    <h2>Communication Library</h2>
+    <button class="btn-primary" onclick="openAddTemplateForm()">+ Create Template</button>
+  </div>
+
+  <!-- Standardized Filter Bar (Part III.1) -->
+  <div class="filter-wrapper">
+    <input type="text" id="tpl-filter-search" class="filter-input" placeholder="Search by Template Name, Subject, or Trigger Handle..." onkeyup="applyTemplateFilters()">
+    <button class="btn-filter-toggle" onclick="toggleFilter('tpl-adv')">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+       Filters
+    </button>
+  
+    <div id="tpl-adv" class="filter-advanced">
+      <div class="custom-dropdown">
+        <button class="dropdown-btn" onclick="toggleDropdown('tpl-status-drop')">Status ▼</button>
+        <div class="dropdown-content" id="tpl-status-drop">
+          <label><input type="checkbox" class="tpl-filter-status-cb" value="Active" checked onchange="applyTemplateFilters()"> Active</label>
+          <label><input type="checkbox" class="tpl-filter-status-cb" value="Draft" checked onchange="applyTemplateFilters()"> Draft</label>
+        </div>
+      </div>
+
+      <div class="custom-dropdown">
+        <button class="dropdown-btn" onclick="toggleDropdown('tpl-wrapper-drop')">Wrapper ▼</button>
+        <div class="dropdown-content" id="tpl-wrapper-drop">
+          <label><input type="checkbox" class="tpl-filter-wrap-cb" value="Internal" checked onchange="applyTemplateFilters()"> Internal</label>
+          <label><input type="checkbox" class="tpl-filter-wrap-cb" value="External" checked onchange="applyTemplateFilters()"> External</label>
+        </div>
+      </div>
+
+      <!-- Red Ghost Reset Button (Part III.1 Mandate) -->
+      <button type="button" class="btn-reset-filters" onclick="resetTemplateFilters()">Reset Library Filters</button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <div id="tpl-list-overlay" class="template-loading-overlay"><div class="spinner-client"></div><span>Syncing Library...</span></div>
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" onclick="handleTemplateSort('name')">Template Name <span id="tsort-name" class="sort-icon"></span></th>
+          <th class="sortable" onclick="handleTemplateSort('category')">Category <span id="tsort-category" class="sort-icon"></span></th>
+          <th>Trigger Event</th>
+          <th>Subject Line</th>
+          <th class="sortable" onclick="handleTemplateSort('status')">Status <span id="tsort-status" class="sort-icon"></span></th>
+          <th style="text-align:right;">Action</th>
+        </tr>
+      </thead>
+      <tbody id="templateTableBody">
+        <tr><td colspan="6" style="text-align:center; padding: 40px;">Initializing registry...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Template Form (Full 10-Column Logic restoration) -->
+<div id="editTemplateView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
+  <div class="form-wrapper">
+    <div id="edit-template-overlay" class="template-loading-overlay"><div class="spinner-client"></div><span id="edit-tpl-overlay-text">Merging Data...</span></div>
+    <h2 style="margin-top: 0; color: var(--brand-dark);">Edit Master Template</h2>
+    
+    <form id="editTemplateForm" onsubmit="handleTemplateSubmit(event)">
+      <input type="hidden" id="edt-tpl-rowIndex">
+      <input type="hidden" id="edt-tpl-id">
+      
+      <button type="button" class="accordion active" onclick="toggleAccordion(this)">1. Identity & System Binding</button>
+      <div class="panel" style="display: block;">
+        <div class="form-row" style="margin-top:15px;">
+          <div class="form-group"><label>Display Name *</label><input type="text" id="edt-tpl-name" class="form-control" required placeholder="Internal name for library"></div>
+          <div class="form-group"><label>Communication Category</label><input type="text" id="edt-tpl-cat" class="form-control" placeholder="e.g., Onboarding, Sales, Admin"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Trigger Handle (EmailEngine Match) *</label><input type="text" id="edt-tpl-trigger" class="form-control" placeholder="e.g., New Client Welcome" required></div>
+          <div class="form-group"><label>HTML Wrapper</label>
+            <select id="edt-tpl-wrapper" class="form-control">
+              <option value="Internal">Internal (Branded Hub)</option>
+              <option value="External">External (Standard Client-Facing)</option>
+              <option value="Minimal">Minimal (No Sidebar)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Template Status</label>
+            <select id="edt-tpl-status" class="form-control">
+              <option value="Active">Active (Live Triggers)</option>
+              <option value="Draft">Draft (Disabled)</option>
+            </select>
+          </div>
+        </div>
+        <!-- RESTORED: Column 4 Mapping (Description) -->
+        <div class="form-group" style="margin-top:15px;">
+          <label>Internal Description & Usage Notes</label>
+          <textarea id="edt-tpl-description" class="form-control" style="height: 80px;" placeholder="Explain when this template is sent and who is the audience..."></textarea>
+        </div>
+      </div>
+
+      <button type="button" class="accordion" onclick="toggleAccordion(this)">2. Composition & Placeholders</button>
+      <div class="panel">
+        <div class="form-group" style="margin-top:15px;">
+           <label>Email Subject Line *</label>
+           <input type="text" id="edt-tpl-subject" class="form-control" required placeholder="Enter subject with {{placeholders}} if needed">
+        </div>
+        <div class="form-group" style="margin-top:20px;">
+           <label>Main Body (Dynamic Component)</label>
+           <div id="tpl-quill-editor" style="height: 450px; border-radius: 4px; border: 1px solid #cbd5e1; background: white;"></div>
+        </div>
+        <div style="margin-top:20px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+           <label style="font-size:12px; color:var(--brand-primary); font-weight:800; display:block; margin-bottom:12px; text-transform:uppercase;">Registry Placeholder Suggestions (Click to copy)</label>
+           <div id="placeholder-container"></div>
+           <p style="font-size:11px; color:#94a3b8; margin-top:12px; font-style:italic;">Note: Placeholders are case-sensitive. Use double curly braces, e.g., {{brandName}}.</p>
+        </div>
+      </div>
+
+      <div class="action-buttons" style="display: flex; justify-content: space-between; margin-top: 45px; align-items: center;">
+        <button type="button" class="btn-reset-filters" onclick="sendTestEmail()" style="padding: 12px 24px;">Send Test Preview Email</button>
+        <button type="submit" class="btn-primary" id="edt-tpl-submit-btn" style="padding: 12px 40px;">Sync to Master Registry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Read Only Preview (Dashboard Extension) -->
+<div id="readOnlyTemplateView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
+  <div class="form-wrapper">
+    <div id="ro-template-overlay" class="template-loading-overlay"><div class="spinner-client"></div><span>Rendering Live Preview...</span></div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
+       <div>
+          <h2 id="ro-tpl-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
+          <p id="ro-tpl-subline" style="margin:8px 0 0 0; color:#64748b; font-size:14px; font-weight: 500;"></p>
+       </div>
+       <button id="ro-tpl-edit-btn" class="btn-primary" style="padding: 10px 24px;">Edit Logic</button>
+    </div>
+
+    <div class="preview-frame-container">
+       <div style="margin-bottom: 10px; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Branded Environment Preview:</div>
+       <iframe id="tpl-preview-frame" class="preview-iframe"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ========================================================================
+     1. GLOBAL STATE & COMPONENT SYNC
+     ======================================================================== */
+  var GLOBAL_TEMPLATE_DATA = [];
+  var CURRENT_TPL_SORT_COLUMN = 'name';
+  var CURRENT_TPL_SORT_DESC = false;
+  var tplQuill;
+
+  /**
+   * Action Verb: loadTemplatesTable()
+   */
+  function loadTemplatesTable() {
+    toggleTemplateOverlay('tpl-list-overlay', true);
+    google.script.run.withSuccessHandler(function(templates) {
+      toggleTemplateOverlay('tpl-list-overlay', false);
+      GLOBAL_TEMPLATE_DATA = templates || [];
+      applyTemplateFilters();
+    }).getTemplatesList();
+  }
+
+  function applyTemplateFilters() {
+    var search = document.getElementById('tpl-filter-search').value.toLowerCase();
+    var checkedStats = Array.from(document.querySelectorAll('.tpl-filter-status-cb:checked')).map(cb => cb.value);
+    var checkedWraps = Array.from(document.querySelectorAll('.tpl-filter-wrap-cb:checked')).map(cb => cb.value);
+
+    var filtered = GLOBAL_TEMPLATE_DATA.filter(function(t) {
+      var matchS = (t.name + t.subject + (t.trigger || "")).toLowerCase().includes(search);
+      var matchSt = checkedStats.length === 0 || checkedStats.includes(t.status);
+      var matchW = checkedWraps.length === 0 || checkedWraps.includes(t.wrapper);
+      return matchS && matchSt && matchW;
+    });
+
+    filtered.sort(function(a, b) {
+      var vA = String(a[CURRENT_TPL_SORT_COLUMN] || "").toLowerCase();
+      var vB = String(b[CURRENT_TPL_SORT_COLUMN] || "").toLowerCase();
+      if (vA < vB) return CURRENT_TPL_SORT_DESC ? 1 : -1;
+      if (vA > vB) return CURRENT_TPL_SORT_DESC ? -1 : 1;
+      return 0;
+    });
+
+    renderTemplateTableRows(filtered);
+  }
+
+  function renderTemplateTableRows(data) {
+    var tbody = document.getElementById('templateTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px;">No communication templates match these filters.</td></tr>'; return; }
+
+    data.forEach(function(t) {
+      var tr = document.createElement('tr');
+      tr.style.cursor = "pointer";
+      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyTemplate(t.rowIndex); };
+      
+      var pillClass = t.status === 'Active' ? 'badge-active' : 'badge-onboarding';
+      tr.innerHTML = `
+        <td><strong>${t.name}</strong></td>
+        <td>${t.category || "-"}</td>
+        <td><span class="tpl-trigger-code">${t.trigger || "N/A"}</span></td>
+        <td><small style="color:#64748b;">${t.subject}</small></td>
+        <td><span class="badge ${pillClass}">${t.status}</span></td>
+        <td style="text-align:right;"><button class="btn-edit" onclick="openEditTemplateForm(${t.rowIndex}); event.stopPropagation();">Edit</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function resetTemplateFilters() {
+    document.getElementById('tpl-filter-search').value = '';
+    document.querySelectorAll('.tpl-filter-status-cb, .tpl-filter-wrap-cb').forEach(cb => cb.checked = true);
+    applyTemplateFilters();
+  }
+
+  function toggleTemplateOverlay(id, show, text) {
+    var overlay = document.getElementById(id);
+    if (overlay) { overlay.style.display = show ? 'flex' : 'none'; if (text) { var t = overlay.querySelector('span'); if(t) t.innerText = text; } }
+  }
+
+  function handleTemplateSort(col) {
+    if (CURRENT_TPL_SORT_COLUMN === col) CURRENT_TPL_SORT_DESC = !CURRENT_TPL_SORT_DESC;
+    else { CURRENT_TPL_SORT_COLUMN = col; CURRENT_TPL_SORT_DESC = false; }
+    applyTemplateFilters();
+  }
+
+  /* ========================================================================
+     2. FORM HANDLERS (CRUD + Technical Anchor Audit)
+     ======================================================================== */
+
+  function openAddTemplateForm() {
+    resetAccordions('editTemplateView');
+    switchView('editTemplateView');
+    document.getElementById('editTemplateForm').reset();
+    document.getElementById('edt-tpl-rowIndex').value = "";
+    document.getElementById('edt-tpl-id').value = "";
+    if (tplQuill) tplQuill.setContents([]);
+    initTplEditor();
+    loadPlaceholderSuggestions();
+  }
+
+  function openEditTemplateForm(rowIndex) {
+    resetAccordions('editTemplateView');
+    switchView('editTemplateView');
+    initTplEditor();
+    loadPlaceholderSuggestions();
+    
+    // MR HUB MANDATE: The Purge
+    document.getElementById('editTemplateForm').reset();
+    if(tplQuill) tplQuill.setContents([]);
+    
+    toggleTemplateOverlay('edit-template-overlay', true, 'Pulling Master Template...');
+
+    google.script.run.withSuccessHandler(function(data) {
+      toggleTemplateOverlay('edit-template-overlay', false);
+      if (data.error) { alert(data.error); return; }
+      
+      /* TECHNICAL ANCHOR: Mapping of all 10 schema columns */
+      document.getElementById('edt-tpl-rowIndex').value = data.rowIndex;
+      document.getElementById('edt-tpl-id').value = data.id || "";
+      document.getElementById('edt-tpl-name').value = data.name;
+      document.getElementById('edt-tpl-cat').value = data.category || "";
+      document.getElementById('edt-tpl-description').value = data.description || ""; // Restored
+      document.getElementById('edt-tpl-trigger').value = data.trigger || "";
+      document.getElementById('edt-tpl-wrapper').value = data.wrapper || "Internal";
+      document.getElementById('edt-tpl-status').value = data.status || "Draft";
+      document.getElementById('edt-tpl-subject').value = data.subject || "";
+      
+      if (tplQuill) tplQuill.clipboard.dangerouslyPasteHTML(data.body || "");
+    }).getTemplateById(rowIndex);
+  }
+
+  function handleTemplateSubmit(e) {
+    if(e) e.preventDefault();
+    toggleTemplateOverlay('edit-template-overlay', true, 'Synchronizing Registry Logic...');
+    
+    var payload = {
+      rowIndex: document.getElementById('edt-tpl-rowIndex').value,
+      id: document.getElementById('edt-tpl-id').value,
+      name: document.getElementById('edt-tpl-name').value,
+      category: document.getElementById('edt-tpl-cat').value,
+      description: document.getElementById('edt-tpl-description').value, // Restored
+      trigger: document.getElementById('edt-tpl-trigger').value,
+      wrapper: document.getElementById('edt-tpl-wrapper').value,
+      status: document.getElementById('edt-tpl-status').value,
+      subject: document.getElementById('edt-tpl-subject').value,
+      body: tplQuill ? tplQuill.root.innerHTML : ""
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleTemplateOverlay('edit-template-overlay', false);
+      if (res.includes("Success")) { loadTemplatesTable(); switchView('templatesListView'); }
+      else alert(res);
+    }).updateTemplateRecord(payload);
+  }
+
+  /* ========================================================================
+     3. RICH TEXT & PREVIEW ENGINE (Technical Anchor Restored)
+     ======================================================================== */
+
+  function initTplEditor() {
+    if (!tplQuill && document.getElementById('tpl-quill-editor')) {
+      tplQuill = new Quill('#tpl-quill-editor', { 
+        theme: 'snow', 
+        placeholder: 'Design your message using HTML or Rich Text. Use {{placeholders}} to merge registry data...',
+        modules: {
+          toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link', 'image', 'clean']
+          ]
+        }
+      });
+    }
+  }
+
+  function loadPlaceholderSuggestions() {
+    var container = document.getElementById('placeholder-container');
+    if (container.innerHTML !== "") return;
+    google.script.run.withSuccessHandler(function(placeholders) {
+      container.innerHTML = placeholders.map(p => `<span class="placeholder-tag" onclick="copyPlaceholder('{{${p}}}')">{{${p}}}</span>`).join('');
+    }).getPlaceholderSuggestions();
+  }
+
+  function copyPlaceholder(text) {
+    var el = document.createElement('textarea'); el.value = text; document.body.appendChild(el);
+    el.select(); document.execCommand('copy'); document.body.removeChild(el);
+    // Visual Feedback
+    var btn = event.target; var original = btn.innerText; btn.innerText = "Copied!"; btn.style.background = "#15803d"; btn.style.color = "white";
+    setTimeout(() => { btn.innerText = original; btn.style.background = ""; btn.style.color = ""; }, 1000);
+  }
+
+  function openReadOnlyTemplate(rowIndex) {
+    switchView('readOnlyTemplateView');
+    /* MR HUB MANDATE: THE INSTANT PURGE (Prevents Ghost Data) */
+    document.getElementById('ro-tpl-name').innerText = "";
+    document.getElementById('ro-tpl-subline').innerText = "Loading attributes...";
+    document.getElementById('tpl-preview-frame').srcdoc = "<html><body style='font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:90vh; color:#94a3b8;'><div>Rendering Branded Hub Preview...</div></body></html>";
+    
+    toggleTemplateOverlay('ro-template-overlay', true);
+
+    google.script.run.withSuccessHandler(function(data) {
+      document.getElementById('ro-tpl-name').innerText = data.name;
+      document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
+      document.getElementById('ro-tpl-edit-btn').onclick = () => openEditTemplateForm(data.rowIndex);
+      
+      // Fetch rendered preview via EmailEngine.gs 10-column logic
+      google.script.run.withSuccessHandler(function(html) {
+        toggleTemplateOverlay('ro-template-overlay', false);
+        document.getElementById('tpl-preview-frame').srcdoc = html;
+      }).getRenderedTemplatePreview(data.rowIndex);
+      
+    }).getTemplateById(rowIndex);
+  }
+
+  function sendTestEmail() {
+    var rowIndex = document.getElementById('edt-tpl-rowIndex').value;
+    if (!rowIndex) { alert("Please save the template as a record before dispatching a test email."); return; }
+    var email = prompt("Enter recipient email for branded test dispatch:", CURRENT_USERNAME + "@rhinocentral.com");
+    if (!email) return;
+    
+    toggleTemplateOverlay('edit-template-overlay', true, 'Dispatching QA Test Message...');
+    google.script.run.withSuccessHandler(function(res) {
+      toggleTemplateOverlay('edit-template-overlay', false);
+      alert(res);
+    }).sendTestEmailAction(rowIndex, email);
+  }
+</script>
+<!-- [SPARKHUB INTEGRITY ANCHOR: END] -->
