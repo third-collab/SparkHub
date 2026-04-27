@@ -74,6 +74,10 @@ function doGet() {
   if (settings.systemLogoId) {
     htmlOutput.setFaviconUrl(settings.systemLogoUrl + "&ext=.png");
   }
+  else {
+    // Ensure this points to a standard URL (e.g., .png), not a Data URI/SVG
+    htmlOutput.setFaviconUrl(settings.appFallbackLogo);
+  }
   
   return htmlOutput;
 }

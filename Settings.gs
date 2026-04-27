@@ -18,7 +18,7 @@ function getSystemSettings() {
     var props = PropertiesService.getScriptProperties();
     var logoId = props.getProperty('SYSTEM_LOGO_ID');
     var logoUrl = logoId ? ("https://drive.google.com/thumbnail?id=" + logoId + "&sz=w500") : ("https://drive.google.com/thumbnail?id=1HLIJ-GJSHOmh7CPGR56x5fKH8sptM44e&sz=w500");
-    var appSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M54 20 L30 55 L52 55 L42 80 L70 42 L48 42 Z' fill='%236366F1'/%3E%3Ccircle cx='68' cy='28' r='7' fill='%2306B6D4'/%3E%3C/svg%3E";
+    var appSvg = "https://i.imgur.com/0iPmgVk.png";
     
     function clean(val, fallback) {
       if (!val) return fallback;
@@ -44,11 +44,11 @@ function getSystemSettings() {
       notifDbId: props.getProperty('NOTIF_DATABASE_ID') || '',
       installedModules: props.getProperty('INSTALLED_MODULES') || '',
       installedPlugins: props.getProperty('INSTALLED_PLUGINS') || '',
-      themePrimary: getSafeProp('THEME_PRIMARY', '#C40004'), 
-      themeAccent: getSafeProp('THEME_ACCENT', '#FDDD64'),   
-      themeDark: getSafeProp('THEME_DARK', '#323232'),
+      themePrimary: getSafeProp('THEME_PRIMARY', '#666DF2'), 
+      themeAccent: getSafeProp('THEME_ACCENT', '#0BC4D9'),   
+      themeDark: getSafeProp('THEME_DARK', '#0D0D0D'),
       themeBg: getSafeProp('THEME_BG', '#FDDD64'),
-      themeHover: getSafeProp('THEME_HOVER', '#A30003')
+      themeHover: getSafeProp('THEME_HOVER', '#7E84F2')
     };
   } catch(e) {
     return { environment: 'Production', systemName: 'SparkHub', themePrimary: '#C40004' };
