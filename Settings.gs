@@ -32,13 +32,13 @@ function getSystemSettings() {
     }
 
     return {
-      environment: props.getProperty('ENVIRONMENT') || 'Production',
+      environment: props.getProperty('ENVIRONMENT') || 'Sandbox',
       adminEmail: props.getProperty('ADMIN_EMAIL') || '',
       systemName: props.getProperty('SYSTEM_NAME') || 'SparkHub',
       systemLogoUrl: logoUrl,
       systemLogoId: logoId || '',
       appFallbackLogo: appSvg,
-      emailFallbackLogo: props.getProperty('EMAIL_FALLBACK_LOGO') || '',
+      emailFallbackLogo: props.getProperty('EMAIL_FALLBACK_LOGO') || 'https://i.imgur.com/Nlcwog7.png',
       rootFolderId: props.getProperty('ROOT_FOLDER_ID') || '',
       mainDbId: props.getProperty('DATABASE_ID') || '',
       notifDbId: props.getProperty('NOTIF_DATABASE_ID') || '',
