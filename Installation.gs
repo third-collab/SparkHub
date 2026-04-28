@@ -47,15 +47,12 @@ function performUiInstallation(data) {
     
     // Set up the automated daily triggers immediately after install
     setupSystemTriggers();
-    
-    // ==========================================
-    // INITIAL SYSTEM LOGS
-    // Now that both DBs are built and IDs are saved, it is safe to log!
-    // ==========================================
-    var adminUsername = installerEmail.split('@')[0];
-    logSystemAction("System", "SYSTEM", "System Installation", "INFO", "Core Architecture", "SparkHub system installed and databases initialized.");
-    logSystemAction("Users", "CREATE", "Add User", "INFO", adminUsername, "Master Administrator profile auto-generated during installation.");
-    // ==========================================
+
+    // Trigger the "System:INSTALL" Handle to send the Installation Confirmation email
+    SystemEvent.emit("System", "INSTALL", "System Installation", "Core Architecture", "SparkHub system installed and databases initialized.", installerEmail);
+
+    // Inside performUiInstallation, after setupSystemTriggers():
+    SystemEvent.emit("System", "INSTALL", "System Installation", "Core Architecture", "SparkHub system installed.", installerEmail);
     
     props.setProperty('ENVIRONMENT', 'Sandbox');
 
@@ -152,6 +149,10 @@ function setupCoreDatabase(rootFolder) {
   if (usersSheet.getLastRow() === 1) {
     var adminEmail = Session.getActiveUser().getEmail();
     usersSheet.appendRow([new Date(), adminEmail.split('@')[0], "Administrator", adminEmail, "", "System", "Admin", "Active", new Date()]);
+    // Inside setupCoreDatabase, after usersSheet.appendRow() for Admin:
+    // Trigger the "Users:CREATE" Handle to send the User Welcome email to the new Admin
+    SystemEvent.emit("Users", "CREATE", "Add User", adminUsername, "Master Administrator profile auto-generated during installation.", adminEmail);
+    SystemEvent.emit("Users", "CREATE", "Add User", adminUsername, "Master Admin profile auto-generated.", adminEmail);
   }
 
   // 2. Schema: Roles
@@ -203,12 +204,6 @@ function seedCoreAssets(ss) {
     tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Security", "Account access email", "Installer", "Users:CREATE", "Access Granted: {{systemName}}", "<p>Hello {{username}},</p><p>Your account is ready.</p>", "Active", "Internal Hub"]);
   }
 }
-
-// Inside performUiInstallation, after setupSystemTriggers():
-SystemEvent.emit("System", "INSTALL", "System Installation", "Core Architecture", "SparkHub system installed.", installerEmail);
-
-// Inside setupCoreDatabase, after usersSheet.appendRow() for Admin:
-SystemEvent.emit("Users", "CREATE", "Add User", adminUsername, "Master Admin profile auto-generated.", adminEmail);
 
 /**
  * Initializes a strictly dedicated Database for System Logs.

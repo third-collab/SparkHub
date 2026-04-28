@@ -1,6 +1,6 @@
 /**
  * Event Broker - Core Orchestrator
- * Updated to support targeted email recipients.
+ * Automatically routes system events to interested modules.
  */
 var SystemEvent = (function() {
   
@@ -8,7 +8,7 @@ var SystemEvent = (function() {
     var payload = {
       module: module, 
       type: type, 
-      handle: module + ":" + type, // The unique Event Handle (e.g., Users:CREATE)
+      handle: module + ":" + type, 
       name: name,
       entity: entity, 
       details: details,
@@ -22,14 +22,16 @@ var SystemEvent = (function() {
       Logs.handleSystemEvent(payload);
     }
 
-    // 2. Extensions Notification
-    var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
+    // 2. Dynamic Discovery
+    var props = PropertiesService.getScriptProperties();
+    var installed = props.getProperty('INSTALLED_MODULES');
     if (installed) {
       installed.split(',').forEach(function(modName) {
         var mod = modName.trim();
         var handlerName = mod + "_on" + type;
-        if (typeof this[handlerName] === 'function') {
-          try { this[handlerName](payload); } catch(e) { console.error("Handler error: " + e.message); }
+        // Use globalThis to safely access global functions in V8
+        if (typeof globalThis[handlerName] === 'function') {
+          try { globalThis[handlerName](payload); } catch(e) { console.error("Handler error: " + e.message); }
         }
       });
     }
