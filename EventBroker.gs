@@ -1,59 +1,42 @@
 /**
  * Event Broker - Core Orchestrator
- * Manages system-wide hooks and module subscriptions.
+ * Automatically routes system events to interested modules.
  */
 var SystemEvent = (function() {
   
-  // The Master Hook Registry
-  // Format: "Module:Action": [functionReference, ...]
-  var registry = {
-    // Every action is automatically hooked to the Logs handler
-    "ANY:ANY": ["Logs.handleSystemEvent"],
-    
-    // Example of specific module subscriptions
-    "Users:CREATE": ["Templates.handleEventEmail"],
-    "Users:UPDATE": ["Templates.handleEventEmail"]
-  };
-
-  /**
-   * Broadcasts a system event to all subscribers.
-   * @param {string} module - Originating module.
-   * @param {string} type - Action type (CREATE, UPDATE, DELETE, etc).
-   * @param {string} name - Action name (e.g., 'Add User').
-   * @param {string} entity - Target entity name/ID.
-   * @param {string} details - Log text or data payload.
-   */
   function emit(module, type, name, entity, details) {
-    var eventKey = module + ":" + type;
-    var subscribers = [];
+    var payload = {
+      module: module, type: type, name: name,
+      entity: entity, details: details,
+      timestamp: new Date(), user: getLoggedInUsername()
+    };
 
-    // 1. Get Global Subscribers
-    if (registry["ANY:ANY"]) subscribers = subscribers.concat(registry["ANY:ANY"]);
+    // 1. MANDATORY: System Logging
+    if (typeof Logs !== 'undefined' && Logs.handleSystemEvent) {
+      Logs.handleSystemEvent(payload);
+    }
 
-    // 2. Get Module/Action Specific Subscribers
-    if (registry[eventKey]) subscribers = subscribers.concat(registry[eventKey]);
-
-    // 3. Execute Handlers
-    subscribers.forEach(function(handlerPath) {
-      try {
-        var parts = handlerPath.split('.');
-        var func = parts.length > 1 ? this[parts[0]][parts[1]] : this[parts[0]];
-        
-        if (typeof func === 'function') {
-          func({
-            module: module,
-            type: type,
-            name: name,
-            entity: entity,
-            details: details,
-            timestamp: new Date(),
-            user: getLoggedInUsername()
-          });
+    // 2. DYNAMIC DISCOVERY: Notify all extension modules
+    var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
+    if (installed) {
+      installed.split(',').forEach(function(modName) {
+        var mod = modName.trim();
+        // Look for: [Module]_on[Action] (e.g., Clients_onCREATE)
+        var handlerName = mod + "_on" + type;
+        if (typeof this[handlerName] === 'function') {
+          try {
+            this[handlerName](payload);
+          } catch(e) {
+            console.error("Extension handler error [" + handlerName + "]: " + e.message);
+          }
         }
-      } catch (e) {
-        console.error("Broker Execution Failure [" + handlerPath + "]: " + e.message);
-      }
-    });
+      });
+    }
+    
+    // 3. SPECIAL CASE: Templates (Emails)
+    if (typeof Templates !== 'undefined' && Templates.handleEventEmail) {
+      Templates.handleEventEmail(payload);
+    }
   }
 
   return { emit: emit };

@@ -170,5 +170,70 @@ function getRenderedTemplatePreview(rowIndex) {
 }
 
 /**
- * [SPARKHUB INTEGRITY ANCHOR: END]
+ * Failsafe: Builds the Wrappers sheet if it doesn't exist.
  */
+/**
+ * Failsafe: Builds the Wrappers sheet and seeds it with your provided files.
+ */
+function ensureWrappersSheet() {
+  var ss = getMainDb();
+  var sheet = ss.getSheetByName("Wrappers") || ss.insertSheet("Wrappers");
+  
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, 4).setValues([["Wrapper ID", "Name", "HTML Content", "Status"]]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+
+    // SEEDING FROM YOUR PROVIDED FILES
+    var internalHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #F1C40F;"><img src="cid:logo" alt="Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">MegaRhino</h1></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.<br>Please do not reply to this email.</div></div></div>`;
+    
+    var externalHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #eee;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #ddd; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h2 style="color: #333; margin: 0;">MegaRhino</h2></div><div style="color: #555; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px;">Sent from the MegaRhino Team.<br><span style="font-size: 11px;">Please do not reply to this email.</span></div></div></div>`;
+
+    sheet.appendRow(["W-INT-HUB", "Internal Hub", internalHtml, "Active"]);
+    sheet.appendRow(["W-EXT-CLIENT", "External Client", externalHtml, "Active"]);
+  }
+  return sheet;
+}
+
+function getWrappersList() {
+  try {
+    var sheet = ensureWrappersSheet();
+    var data = sheet.getDataRange().getValues();
+    data.shift();
+    return data.map(function(row, i) {
+      return { rowIndex: i + 2, id: row[0], name: row[1], html: row[2], status: row[3] };
+    });
+  } catch (e) { return []; }
+}
+
+/**
+ * REPLACED: Helper to fetch wrapper content from Database instead of File.
+ */
+function getWrapperContent(wrapperName) {
+  try {
+    var sheet = ensureWrappersSheet();
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][1] === wrapperName && data[i][3] === "Active") {
+        return data[i][2]; // Return the HTML content from Column 3
+      }
+    }
+    // Fallback if not found
+    return "{{USER_MESSAGE_CONTENT}}";
+  } catch (e) { return "{{USER_MESSAGE_CONTENT}}"; }
+}
+
+/**
+ * Saves or updates a wrapper record.
+ */
+function updateWrapperRecord(data) {
+  try {
+    var sheet = ensureWrappersSheet();
+    var values = [data.id || "W-" + Utilities.getUuid().substring(0,8).toUpperCase(), data.name, data.html, data.status];
+    if (data.rowIndex) {
+      sheet.getRange(parseInt(data.rowIndex), 1, 1, 4).setValues([values]);
+    } else {
+      sheet.appendRow(values);
+    }
+    return "Success! Wrapper updated.";
+  } catch (e) { return "Error: " + e.message; }
+}

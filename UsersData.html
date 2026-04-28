@@ -298,21 +298,8 @@
 
   // The Magic Plugin Matrix: Automatically reveals new permissions!
   function getSystemPermissionMatrix() {
-    var matrix = {
-       "Core System": ["Manage Settings", "Manage Roles"],
-       "Access & Users": ["View Users", "Manage Users"],
-       "Templates": ["View Templates", "Manage Templates"],
-       "System Logs": ["View Logs"] // <-- NEW LOGS PERMISSION
-    };
-    
-    // Dynamically inject if other modules are installed
-    if (typeof INSTALLED_MODULES !== 'undefined' && INSTALLED_MODULES) {
-      var mods = INSTALLED_MODULES.split(',');
-      if (mods.includes('Clients')) {
-        matrix["Clients Module"] = ["View Clients", "Manage Clients", "Delete Clients", "Export Clients"];
-      }
-    }
-    return matrix;
+    // This is now a simple bridge to get data during UI initialization
+    return google.script.run.getDynamicPermissionMatrix();
   }
 
   function initUserBarPlugin() {
@@ -562,11 +549,10 @@
     });
   }
 
-  function renderPermissionMatrix(savedPerms) {
+  // Ensure renderPermissionMatrix accepts the new matrix parameter
+  function renderPermissionMatrix(savedPerms, matrix) {
     var container = document.getElementById('permission-matrix-container');
-    var matrix = getSystemPermissionMatrix();
     container.innerHTML = '';
-
     for (var category in matrix) {
       var html = `<div class="perm-group"><div class="perm-group-title">${category}</div><div class="perm-group-items">`;
       matrix[category].forEach(function(perm) {
@@ -583,7 +569,11 @@
     document.getElementById('roleForm').reset();
     document.getElementById('edt-role-rowIndex').value = '';
     document.getElementById('role-form-title').innerText = "Create New Role";
-    renderPermissionMatrix({}); // Blank permissions
+    
+    // Fetch dynamic matrix from backend before rendering
+    google.script.run.withSuccessHandler(function(matrix) {
+       renderPermissionMatrix({}, matrix);
+    }).getDynamicPermissionMatrix();
   }
 
   function openEditRoleForm(rowIndex) {

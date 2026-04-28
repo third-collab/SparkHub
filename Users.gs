@@ -230,3 +230,33 @@ function verifyUserCredentials(loginId, password) {
     return { success: false, message: "System error during authentication." };
   }
 }
+
+/**
+ * Aggregates all system permissions dynamically.
+ */
+function getDynamicPermissionMatrix() {
+  // 1. Core Permissions
+  var matrix = {
+    "Core System": ["Manage Settings", "Manage Roles"],
+    "Access & Users": ["View Users", "Manage Users"],
+    "Templates": ["View Templates", "Manage Templates"],
+    "System Logs": ["View Logs"]
+  };
+
+  // 2. Discover Module-Specific Permissions
+  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
+  if (installed) {
+    installed.split(',').forEach(function(modName) {
+      var mod = modName.trim();
+      // Convention: Modules can provide a global function [ModuleName]_getPermissions()
+      var funcName = mod + "_getPermissions";
+      if (typeof this[funcName] === 'function') {
+        matrix[mod + " Module"] = this[funcName]();
+      } else {
+        // Fallback CRUD
+        matrix[mod + " Module"] = ["View " + mod, "Manage " + mod];
+      }
+    });
+  }
+  return matrix;
+}

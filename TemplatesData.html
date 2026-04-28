@@ -116,56 +116,60 @@
   
   <div class="view-header-bar">
     <h2>Communication Library</h2>
-    <button class="btn-primary perm-protected" onclick="openAddTemplateForm()" data-perm-category="Templates" data-perm-action="Manage Templates">+ Create Template</button>
   </div>
 
-  <!-- Standardized Filter Bar (Part III.1) -->
-  <div class="filter-wrapper">
-    <input type="text" id="tpl-filter-search" class="filter-input" placeholder="Search by Template Name, Subject, or Trigger Handle..." onkeyup="applyTemplateFilters()">
-    <button class="btn-filter-toggle" onclick="toggleFilter('tpl-adv')">
-       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-       Filters
-    </button>
-  
-    <div id="tpl-adv" class="filter-advanced">
-      <div class="custom-dropdown">
-        <button class="dropdown-btn" onclick="toggleDropdown('tpl-status-drop')">Status ▼</button>
-        <div class="dropdown-content" id="tpl-status-drop">
-          <label><input type="checkbox" class="tpl-filter-status-cb" value="Active" checked onchange="applyTemplateFilters()"> Active</label>
-          <label><input type="checkbox" class="tpl-filter-status-cb" value="Draft" checked onchange="applyTemplateFilters()"> Draft</label>
-        </div>
-      </div>
-
-      <div class="custom-dropdown">
-        <button class="dropdown-btn" onclick="toggleDropdown('tpl-wrapper-drop')">Wrapper ▼</button>
-        <div class="dropdown-content" id="tpl-wrapper-drop">
-          <label><input type="checkbox" class="tpl-filter-wrap-cb" value="Internal" checked onchange="applyTemplateFilters()"> Internal</label>
-          <label><input type="checkbox" class="tpl-filter-wrap-cb" value="External" checked onchange="applyTemplateFilters()"> External</label>
-        </div>
-      </div>
-
-      <!-- Red Ghost Reset Button (Part III.1 Mandate) -->
-      <button type="button" class="btn-reset-filters" onclick="resetTemplateFilters()">Reset Library Filters</button>
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div class="tab-nav" style="margin: 0; border: none;">
+      <button class="tab-btn active" id="btn-tpl-lib" onclick="toggleTemplateSubView('lib')">Email Templates</button>
+      <button class="tab-btn" id="btn-tpl-wraps" onclick="toggleTemplateSubView('wraps')">Wrapper Layouts</button>
+    </div>
+    <div id="tpl-action-btns">
+       <button class="btn-primary perm-protected" onclick="openAddTemplateForm()" data-perm-category="Templates" data-perm-action="Manage Templates">+ Create Template</button>
     </div>
   </div>
 
-  <div class="table-container">
-    <div id="tpl-list-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Syncing Library...</span></div>
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" onclick="handleTemplateSort('name')">Template Name <span id="tsort-name" class="sort-icon"></span></th>
-          <th class="sortable" onclick="handleTemplateSort('category')">Category <span id="tsort-category" class="sort-icon"></span></th>
-          <th>Trigger Event</th>
-          <th>Subject Line</th>
-          <th class="sortable" onclick="handleTemplateSort('status')">Status <span id="tsort-status" class="sort-icon"></span></th>
-          <th style="text-align:right;">Action</th>
-        </tr>
-      </thead>
-      <tbody id="templateTableBody">
-        <tr><td colspan="6" style="text-align:center; padding: 40px;">Initializing registry...</td></tr>
-      </tbody>
-    </table>
+  <div id="wrapper-sub-view" style="display:none;">
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Wrapper Name</th>
+            <th>Status</th>
+            <th style="text-align:right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="wrapperTableBody">
+          </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="template-sub-view">
+    <div class="filter-wrapper">
+       <input type="text" id="tpl-filter-search" class="filter-input" placeholder="Search by Template Name, Subject, or Trigger Handle..." onkeyup="applyTemplateFilters()">
+       <button class="btn-filter-toggle" onclick="toggleFilter('tpl-adv')">Filters</button>
+       <div id="tpl-adv" class="filter-advanced">
+         <button type="button" class="btn-reset-filters" onclick="resetTemplateFilters()">Reset Library Filters</button>
+       </div>
+    </div>
+
+    <div class="table-container">
+      <div id="tpl-list-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Syncing Library...</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="handleTemplateSort('name')">Template Name</th>
+            <th class="sortable" onclick="handleTemplateSort('category')">Category</th>
+            <th>Trigger Event</th>
+            <th>Subject Line</th>
+            <th class="sortable" onclick="handleTemplateSort('status')">Status</th>
+            <th style="text-align:right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="templateTableBody">
+          </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -252,6 +256,34 @@
        <div style="margin-bottom: 10px; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Branded Environment Preview:</div>
        <iframe id="tpl-preview-frame" class="preview-iframe"></iframe>
     </div>
+  </div>
+</div>
+
+<div id="editWrapperView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="toggleTemplateSubView('wraps')">&#8592; Back to Layouts</button>
+  <div class="form-wrapper">
+    <div id="edit-wrap-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Saving Layout...</span></div>
+    <h2 id="wrap-form-title" style="margin-top: 0; color: var(--brand-dark);">Design Wrapper Layout</h2>
+    <form id="editWrapperForm" onsubmit="handleWrapperSubmit(event)">
+      <input type="hidden" id="edt-wrap-rowIndex">
+      <input type="hidden" id="edt-wrap-id">
+      <div class="form-row" style="margin-top:25px;">
+        <div class="form-group"><label>Layout Name *</label><input type="text" id="edt-wrap-name" class="form-control" required placeholder="e.g., Monthly Newsletter"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="edt-wrap-status" class="form-control">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:20px;">
+        <label>HTML Blueprint (Use <code>{{USER_MESSAGE_CONTENT}}</code> where the message should appear)</label>
+        <textarea id="edt-wrap-html" class="form-control" style="height: 400px; font-family: monospace; font-size: 13px;" required></textarea>
+      </div>
+      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
+        <button type="submit" class="btn-primary" style="padding: 12px 40px;">Save Global Layout</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -355,7 +387,43 @@
     loadPlaceholderSuggestions();
   }
 
+  /**
+   * Toggles between Template List and Wrapper List
+   */
+  function toggleTemplateSubView(view) {
+    var lib = document.getElementById('template-sub-view');
+    var wraps = document.getElementById('wrapper-sub-view');
+    var actBtns = document.getElementById('tpl-action-btns');
+    
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    if (view === 'lib') {
+      lib.style.display = 'block'; wraps.style.display = 'none';
+      document.getElementById('btn-tpl-lib').classList.add('active');
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddTemplateForm()">+ Create Template</button>`;
+      loadTemplatesTable();
+    } else {
+      lib.style.display = 'none'; wraps.style.display = 'block';
+      document.getElementById('btn-tpl-wraps').classList.add('active');
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddWrapperForm()">+ Create Wrapper</button>`;
+      loadWrappersTable();
+    }
+  }
+
+  /**
+   * Fetches wrappers and updates the dropdown in the Template Editor.
+   */
+  function syncWrapperDropdown() {
+    google.script.run.withSuccessHandler(function(wrappers) {
+      var select = document.getElementById('edt-tpl-wrapper');
+      if (!select) return;
+      select.innerHTML = wrappers.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+    }).getWrappersList();
+  }
+
+  // Add this to your existing openEditTemplateForm
   function openEditTemplateForm(rowIndex) {
+    syncWrapperDropdown(); // Refresh the list from the DB
     resetAccordions('editTemplateView');
     switchView('editTemplateView');
     initTplEditor();

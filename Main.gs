@@ -12,79 +12,54 @@
  * Handles environment detection, dynamic branding, and registry-based rendering.
  * @return {HtmlService.HtmlOutput} The evaluated HTML template.
  */
+/**
+ * Entry point for the SparkHub Web Application.
+ * Handles environment detection, dynamic branding, and registry-based rendering.
+ */
 function doGet() {
   var props = PropertiesService.getScriptProperties();
   var env = props.getProperty('ENVIRONMENT');
   var userEmail = Session.getActiveUser().getEmail();
-  
-  // 1. INSTALLATION CHECK
   var isInstalled = (env !== null && env !== "");
-  
-  // 2. FETCH SYSTEM SETTINGS (Registry + Theme)
   var settings = getSystemSettings();
   
-  // 3. APP INITIALIZATION
   var template = HtmlService.createTemplateFromFile('Index');
   template.isInstalled = isInstalled;
   template.userEmail = userEmail;
   template.systemName = settings.systemName;
   
-  // Pass Registry data to allow Index.html to perform conditional rendering
+  // DYNAMIC UI REGISTRY: List core files + any discovered modules
+  var includes = ['SettingsData', 'UsersData', 'TemplatesData', 'LogsData'];
+  if (settings.installedModules) {
+    settings.installedModules.split(',').forEach(function(m) {
+      var fileName = m.trim() + "Data";
+      if (includes.indexOf(fileName) === -1) includes.push(fileName);
+    });
+  }
+  template.includeList = includes; 
+
+  // Passing Theme & Settings
   template.installedModules = settings.installedModules;
   template.installedPlugins = settings.installedPlugins;
-  
-  // Hybrid Logo Logic
   template.systemLogoUrl = settings.systemLogoId ? settings.systemLogoUrl : settings.appFallbackLogo;
   template.appFallbackLogo = settings.appFallbackLogo;
-  
-  // Pass Theme Engine variables
   template.themePrimary = settings.themePrimary;
   template.themeAccent = settings.themeAccent;
   template.themeDark = settings.themeDark;
   template.themeBg = settings.themeBg;
   template.themeHover = settings.themeHover;
 
-  // 4. SECURITY & PERMISSIONS
-  if (isInstalled) {
-    var role = 'Guest';
-    
-    // EXPLICIT AUTHENTICATION OVERRIDE
-    if (settings.authMode === 'Local') {
-      role = 'Guest'; // Defer entirely to frontend localStorage
-    } else {
-      // SSO Mode
-      if (userEmail !== '') {
-        role = getUserRole();
-      }
-    }
-
-    if (role === 'Inactive') {
-      return serveAccessDeniedScreen(settings);
-    }
-    
-    template.userRole = role;
-    template.username = (role === 'Guest') ? '' : getLoggedInUsername();
-    template.userPermissions = (role === 'Guest') ? '{}' : getUserPermissions(role);
-  } else {
-    template.userRole = "Administrator";
-    template.username = userEmail.split('@')[0];
-    template.userPermissions = '{"ALL":["ALL"]}';
-  }
+  // Security & Routing
+  var role = isInstalled ? (userEmail === '' ? 'Guest' : getUserRole()) : "Administrator";
+  if (role === 'Inactive') return serveAccessDeniedScreen(settings);
   
-  var htmlOutput = template.evaluate()
+  template.userRole = role;
+  template.username = (role === 'Guest') ? '' : getLoggedInUsername();
+  template.userPermissions = (role === 'Guest' || !isInstalled) ? '{"ALL":["ALL"]}' : getUserPermissions(role);
+
+  return template.evaluate()
       .setTitle(settings.systemName)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      
-  // Set Dynamic Favicon
-  if (settings.systemLogoId) {
-    htmlOutput.setFaviconUrl(settings.systemLogoUrl + "&ext=.png");
-  }
-  else {
-    // Ensure this points to a standard URL (e.g., .png), not a Data URI/SVG
-    htmlOutput.setFaviconUrl(settings.appFallbackLogo);
-  }
-  
-  return htmlOutput;
 }
 
 /**

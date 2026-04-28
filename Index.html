@@ -106,10 +106,12 @@
     <div class="card-grid" id="grid-internal"></div>
   </div>
 
-  <?!= include('SettingsData'); ?>
-  <? if (installedPlugins.indexOf('UserBar') !== -1 || true) { ?> <?!= include('UsersData'); ?> <? } ?>
-  <?!= include('TemplatesData'); ?>
-  <?!= include('LogsData'); ?>
+  <? includeList.forEach(function(fileName) { ?>
+    <? try { ?>
+      <?!= include(fileName); ?>
+    <? } catch(e) { ?>
+      <? } ?>
+  <? }); ?>
 
   <script>
     /* --- CORE SYSTEM SCRIPTS --- */
