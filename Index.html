@@ -144,25 +144,32 @@
       var loginId = document.getElementById('login-id').value;
       var pass = document.getElementById('login-pass').value;
 
-      google.script.run.withSuccessHandler(function(res) {
-        if (res.success) {
-          // Cache session in browser
-          var sessionPayload = { username: res.username, role: res.role, permissions: res.permissions };
-          localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            // Cache session in browser
+            var sessionPayload = { username: res.username, role: res.role, permissions: res.permissions };
+            localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
 
-          // Hydrate JS Globals
-          CURRENT_USERNAME = res.username;
-          CURRENT_USER_ROLE = res.role;
-          CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
+            // Hydrate JS Globals
+            CURRENT_USERNAME = res.username;
+            CURRENT_USER_ROLE = res.role;
+            CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
 
-          // Boot the App
-          document.getElementById('loginScreen').style.display = 'none';
-          bootApplication();
-        } else {
+            // Boot the App
+            document.getElementById('loginScreen').style.display = 'none';
+            bootApplication();
+          } else {
+            btn.innerText = "Sign In"; btn.disabled = false;
+            msg.innerText = res.message;
+          }
+        })
+        .withFailureHandler(function(error) {
+          // THIS CATCHES SERVER CRASHES AND MISSING FUNCTIONS
           btn.innerText = "Sign In"; btn.disabled = false;
-          msg.innerText = res.message;
-        }
-      }).verifyUserCredentials(loginId, pass);
+          msg.innerText = "Backend Error: " + error.message;
+        })
+        .verifyUserCredentials(loginId, pass);
     }
 
     // ----------------------------------------------------------------
