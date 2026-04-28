@@ -4,31 +4,31 @@
  */
 
 var Templates = {
+  /**
+   * Orchestrates email dispatch based on the Event Handle.
+   */
   handleEventEmail: function(payload) {
-    sendTriggerEmail(payload.name, payload.adminEmail, {
-      "username": payload.user,
-      "details": payload.details
+    if (!payload.recipientEmail) return;
+    
+    // We pass the payload handle (e.g. Users:CREATE) as the search key
+    sendTriggerEmail(payload.handle, payload.recipientEmail, {
+      "username": payload.entity,
+      "details": payload.details,
+      "systemName": getSystemSettings().systemName
     });
   }
 };
 
 function getTemplatesList() {
   try {
-    var sheet = getMainDb().getSheetByName("Templates");
-    if (!sheet) return [];
-    var data = sheet.getDataRange().getValues();
+    var data = getMainDb().getSheetByName("Templates").getDataRange().getValues();
     data.shift();
     return data.map(function(row, index) {
       return {
         rowIndex: index + 2,
-        timestamp: row[0], // NEW
-        id: row[1],
-        name: row[2],
-        category: row[3],
-        trigger: row[6], 
-        subject: row[7],
-        status: row[9] || "Draft",
-        wrapper: row[10] || "Internal"
+        timestamp: row[0], id: row[1], name: row[2], category: row[3],
+        trigger: row[6], // Handle is now Column G (Index 6)
+        subject: row[7], status: row[9], wrapper: row[10]
       };
     });
   } catch (e) { return []; }
@@ -36,21 +36,11 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    // Fetch 11 columns
-    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex, 10), 1, 1, 11).getValues()[0];
+    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getValues()[0];
     return {
-      rowIndex: rowIndex,
-      timestamp: row[0],
-      id: row[1],
-      name: row[2],
-      category: row[3],
-      description: row[4],
-      lastUpdatedBy: row[5],
-      trigger: row[6],
-      subject: row[7],
-      body: row[8],
-      status: row[9],
-      wrapper: row[10]
+      rowIndex: rowIndex, timestamp: row[0], id: row[1], name: row[2], category: row[3],
+      description: row[4], lastUpdatedBy: row[5], trigger: row[6], subject: row[7],
+      body: row[8], status: row[9], wrapper: row[10]
     };
   } catch (e) { return { error: e.message }; }
 }
@@ -59,9 +49,8 @@ function updateTemplateRecord(data) {
   try {
     var sheet = getMainDb().getSheetByName("Templates");
     var values = [
-      data.timestamp || new Date(), // Col 1: Timestamp
-      data.id || ("TPL-" + Utilities.formatDate(new Date(), "GMT", "yyyyMMdd-HHmm")),
-      data.name, data.category, data.description, getLoggedInUsername(), 
+      data.timestamp || new Date(), data.id || "TPL-" + Utilities.getUuid().substring(0,8),
+      data.name, data.category, data.description, getLoggedInUsername(),
       data.trigger, data.subject, data.body, data.status, data.wrapper
     ];
     if (data.rowIndex) {

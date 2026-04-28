@@ -183,24 +183,32 @@ function setupCoreDatabase(rootFolder) {
 function seedCoreAssets(ss) {
   var wrapSheet = ss.getSheetByName("Wrappers");
   if (wrapSheet.getLastRow() === 1) {
-    var internalHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #F1C40F;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">MegaRhino</h1></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.<br>Please do not reply to this email.</div></div></div>`; // [cite: 421, 422, 423]
+    var now = new Date();
     
-    var externalHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #eee;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #ddd; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h2 style="color: #333; margin: 0;">MegaRhino</h2></div><div style="color: #555; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px;">Sent from the MegaRhino Team.<br><span style="font-size: 11px;">Please do not reply to this email.</span></div></div></div>`; // [cite: 424, 425]
+    // Internal Wrapper Restoration
+    var internalHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #F1C40F;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">MegaRhino</h1></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.<br>Please do not reply to this email, as this address is not monitored.</div></div></div>`;
+    
+    // External Wrapper Restoration
+    var externalHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #eee;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #ddd; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h2 style="color: #333; margin: 0;">MegaRhino</h2></div><div style="color: #555; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px;">Sent from the MegaRhino Team.<br><span style="font-size: 11px;">Please do not reply to this email, as this address is not monitored.</span></div></div></div>`;
 
-    wrapSheet.appendRow([new Date(), "W-INTERNAL", "Internal Hub", internalHtml, "Active"]);
-    wrapSheet.appendRow([new Date(), "W-EXTERNAL", "External Client", externalHtml, "Active"]);
+    wrapSheet.appendRow([now, "W-INTERNAL", "Internal Hub", internalHtml, "Active"]);
+    wrapSheet.appendRow([now, "W-EXTERNAL", "External Client", externalHtml, "Active"]);
   }
 
   var tplSheet = ss.getSheetByName("Templates");
   if (tplSheet.getLastRow() === 1) {
-    // Initial System Template
-    tplSheet.appendRow([
-      new Date(), "TPL-WELCOME", "System Welcome", "Security", "Initial access email", 
-      "Installer", "User:CREATE", "Welcome to {{systemName}}", 
-      "<p>Hello {{username}},</p><p>Your account has been established.</p>", "Active", "Internal Hub"
-    ]);
+    var now = new Date();
+    // Seed System and User events with correct handles
+    tplSheet.appendRow([now, "TPL-SYS-INSTALL", "Installation Confirmation", "System", "Admin alert", "Installer", "System:INSTALL", "System Active: {{systemName}}", "<p>The SparkHub architecture has been deployed.</p>", "Active", "Internal Hub"]);
+    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Security", "Account access email", "Installer", "Users:CREATE", "Access Granted: {{systemName}}", "<p>Hello {{username}},</p><p>Your account is ready.</p>", "Active", "Internal Hub"]);
   }
 }
+
+// Inside performUiInstallation, after setupSystemTriggers():
+SystemEvent.emit("System", "INSTALL", "System Installation", "Core Architecture", "SparkHub system installed.", installerEmail);
+
+// Inside setupCoreDatabase, after usersSheet.appendRow() for Admin:
+SystemEvent.emit("Users", "CREATE", "Add User", adminUsername, "Master Admin profile auto-generated.", adminEmail);
 
 /**
  * Initializes a strictly dedicated Database for System Logs.

@@ -107,68 +107,47 @@ function getLogoBlob() {
 }
 
 /**
- * Sends an automated email based on a Trigger Event mapped in the Templates database.
- * Merges user data, applies Sandbox overrides, and attaches branding.
- * @param {string} triggerName - The name of the trigger event.
- * @param {string} toEmail - The intended recipient's email address.
- * @param {object} dataMap - Key-value pairs for {{placeholders}}.
+ * Sends an automated email based on a Trigger Event Handle.
+ * Updated: Restored Sandbox Interceptor and 11-column index logic.
  */
-function sendTriggerEmail(triggerName, toEmail, dataMap) {
+function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
   var sheet = getMainDb().getSheetByName("Templates");
   var data = sheet.getDataRange().getValues();
-  
-  // Fetch system-wide branding and environment settings
   var settings = getSystemSettings();
-  var sysName = settings.systemName;
   
-  var subject = "";
-  var templateFound = false;
   var templateIdx = -1;
-
   for (var i = 1; i < data.length; i++) {
-    var rowTrigger = data[i][5];
-    var rowStatus = data[i][8];
-    
-    if (rowTrigger === triggerName && rowStatus === "Active") {
-      subject = data[i][6];
+    // Column G (Index 6) is the Handle; Column J (Index 9) is Status
+    if (data[i][6] === triggerHandle && data[i][9] === "Active") {
       templateIdx = i;
-      templateFound = true;
       break;
     }
   }
 
-  if (!templateFound) {
-    console.log("No active template found for trigger: " + triggerName);
-    return;
-  }
+  if (templateIdx === -1) return;
 
-  var logoBlob = getLogoBlob();
-  var rawHtml = data[templateIdx][7];
-  var wrapperType = data[templateIdx][9]; 
-
-  // 1. Prepare Layout
-  var wrapperHtml = getWrapperContent(wrapperType);
-  var fullLayoutHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
+  var finalToEmail = toEmail;
+  var finalSubject = data[templateIdx][7]; // Column H (Subject)
+  var finalHtmlBody = data[templateIdx][8]; // Column I (Body)
+  var wrapperName = data[templateIdx][10]; // Column K (Wrapper)
+  
+  // 1. Prepare Layout from dynamic Database Wrappers
+  var wrapperHtml = getWrapperContent(wrapperName);
+  var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
 
   // 2. Perform Placeholder Swap
-  var finalSubject = subject;
-  var finalHtml = fullLayoutHtml;
-  
   for (var key in dataMap) {
     var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
     var replacement = dataMap[key] || "";
     finalSubject = finalSubject.replace(regex, replacement);
-    finalHtml = finalHtml.replace(regex, replacement);
+    fullHtml = fullHtml.replace(regex, replacement);
   }
 
-  // 3. Sandbox Environment Interceptor
-  var finalToEmail = toEmail;
-
+  // 3. RESTORED: Sandbox Environment Interceptor
   if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
     finalToEmail = settings.adminEmail;
     finalSubject = "[Sandbox Mail] " + finalSubject;
     
-    // Aggressive "program code" block for the override notification
     var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: \"Courier New\", Courier, monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
     sandboxWarning += "=========================================<br>";
     sandboxWarning += " SYSTEM OVERRIDE: SANDBOX ENVIRONMENT    <br>";
@@ -179,18 +158,18 @@ function sendTriggerEmail(triggerName, toEmail, dataMap) {
     sandboxWarning += "=========================================";
     sandboxWarning += "</div>";
     
-    finalHtml += sandboxWarning;
+    fullHtml += sandboxWarning;
   }
 
-  // 4. Dispatch Email
+  // 4. Dispatch Branded Email
   MailApp.sendEmail({
     to: finalToEmail,
     subject: finalSubject,
-    htmlBody: finalHtml,
+    htmlBody: fullHtml,
     noReply: true,
-    name: sysName,
+    name: settings.systemName,
     inlineImages: {
-      logo: logoBlob 
+      logo: getLogoBlob() 
     }
   });
 }
