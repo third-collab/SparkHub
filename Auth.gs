@@ -14,8 +14,8 @@ function getUserRole() {
     // Look up user by Work Email (Column D / Index 3)
     if (data[i][3] && data[i][3].toString().toLowerCase() === email.toLowerCase()) {
       
-      // Check Status (Column P / Index 15)
-      if (data[i][15] && data[i][15].toString() === 'Inactive') {
+      // Check Status (Column H / Index 7)
+      if (data[i][7] && data[i][7].toString() === 'Inactive') {
         return 'Inactive';
       }
       

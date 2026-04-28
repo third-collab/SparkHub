@@ -99,10 +99,12 @@ function updateTemplateRecord(data) {
     if (data.rowIndex) {
       var idx = parseInt(data.rowIndex, 10);
       sheet.getRange(idx, 1, 1, 10).setValues([values]);
-      logNotification("Templates", "Template Updated", "Modified template logic for: " + data.name, "All", "System Update");
+      // NEW LOG:
+      logSystemAction("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template logic or design was modified.");
     } else {
       sheet.appendRow(values);
-      logNotification("Templates", "New Template", "Added new system communication: " + data.name, "All", "System Update");
+      // NEW LOG:
+      logSystemAction("Templates", "CREATE", "Add Template", "INFO", data.name, "New system communication template registered.");
     }
 
     return "Success! Template synced to master registry.";

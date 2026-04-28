@@ -1,78 +1,74 @@
 /**
- * Run this function ONCE manually from the editor to set up the daily automation.
- * It tells Google to run the 'checkDailyEvents' function every day between 8 AM and 9 AM.
+ * Triggers Module
+ * Orchestrates automated system cron jobs.
  */
-function setupDailyTriggers() {
+
+/**
+ * Initializes all system-wide triggers.
+ * This is called automatically by Installation.gs during setup.
+ */
+function setupSystemTriggers() {
   // Clear existing triggers to avoid duplicates
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === "checkDailyEvents") {
-      ScriptApp.deleteTrigger(triggers[i]);
-    }
+    ScriptApp.deleteTrigger(triggers[i]);
   }
   
-  // Create the new daily trigger
-  ScriptApp.newTrigger("checkDailyEvents")
+  // Create the new daily trigger to fire between 1 AM and 2 AM
+  ScriptApp.newTrigger("executeDailyCronJobs")
     .timeBased()
     .everyDays(1)
-    .atHour(8) // Runs between 8 AM and 9 AM
+    .atHour(1) 
     .create();
-  console.log("Daily trigger setup complete!");
+    
+  console.log("Daily triggers initialized!");
 }
 
 /**
- * The main engine that scans for dates.
- * Orchestrates the scanning of both databases for relevant events.
+ * The main engine that runs every night.
+ * Fires the system ping and executes module-specific daily checks.
  */
-function checkDailyEvents() {
-  var today = new Date();
-  var currentMonth = today.getMonth(); // 0-indexed (Jan = 0)
-  var currentDate = today.getDate();
-
-  checkUserEvents(currentMonth, currentDate);
-}
-
-/**
- * Scans the Users sheet for Birthdays and Work Anniversaries.
- * Uses indices based on the Users sheet structure to log system notifications.
- * @param {number} currentMonth - The current month (0-11).
- * @param {number} currentDate - The current day of the month (1-31).
- */
-function checkUserEvents(currentMonth, currentDate) {
-  // Uses the Global Helper from Config.gs
-  var sheet = getMainDb().getSheetByName("Users");
-  var data = sheet.getDataRange().getValues();
-  var today = new Date();
+function executeDailyCronJobs() {
+  // 1. Report health to Master Webhook
+  sendDailyPing();
   
-  for (var i = 1; i < data.length; i++) {
-    var username = data[i][2];
-    var userEmail = data[i][5];
-    var birthday = new Date(data[i][7]); 
-    var hireDate = new Date(data[i][8]);
-
-    // 1. Check User Birthday
-    if (isValidDate(birthday) && birthday.getMonth() === currentMonth && birthday.getDate() === currentDate) {
-      // Notification for everyone else: Hidden from the birthday person
-      logNotification("Users", "User Birthday", "It's " + username + "'s birthday today! 🎂", "All", username);
-      // Notification JUST for the birthday person
-      logNotification("Users", "User Birthday", "Happy Birthday! 🎉 Have a great day!", username, "All");
-    }
-
-    // 2. Check User Work Anniversary
-    if (isValidDate(hireDate) && hireDate.getMonth() === currentMonth && hireDate.getDate() === currentDate) {
-      var years = today.getFullYear() - hireDate.getFullYear();
-      if (years > 0) {
-        logNotification("Users", "User Anniversary", username + " is celebrating " + years + " year(s) with MegaRhino! 🎈", "All", "");
-      }
-    }
-  }
+  // 2. Future Module Executions (e.g., Client alerts, Calendar reminders)
+  // checkClientEvents();
+  // processOverdueInvoices();
 }
 
 /**
- * Helper to ensure the cell actually contains a valid Date object before checking it.
- * @param {any} d - The value to check.
- * @return {boolean} - Returns true if the value is a valid Date object.
+ * Sends a lightweight health check to the Master Installations webhook.
+ * Authenticates using the specific Instance Secret.
  */
-function isValidDate(d) {
-  return d instanceof Date && !isNaN(d);
+function sendDailyPing() {
+  var props = PropertiesService.getScriptProperties();
+  var webhookUrl = "https://script.google.com/macros/s/AKfycbyderUFTDgJjjSb4ML2xpXzRnfKp_yBLkYlpaKdZcWZLowtmiutt-QZsg7OMq0enBJljw/exec"; // Same URL as Installation.gs
+  
+  var masterSecret = props.getProperty('WEBHOOK_SECRET');
+  var clientId = props.getProperty('CLIENT_ID');
+  var instanceSecret = props.getProperty('INSTANCE_SECRET');
+  
+  // If the system hasn't been fully configured, abort the ping.
+  if (!webhookUrl || !masterSecret || !clientId || !instanceSecret) return;
+
+  var payload = {
+    action: "ping",
+    secretKey: masterSecret,
+    clientId: clientId,
+    instanceSecret: instanceSecret,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    UrlFetchApp.fetch(webhookUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    // If ping fails (e.g. no internet, webhook down), fail silently to not interrupt other cron jobs
+    console.warn("Daily ping failed to send: " + e.message);
+  }
 }

@@ -10,26 +10,75 @@
  * Standardized under SparkHub Architecture Blueprint.
  * * CORE RESPONSIBILITIES:
  * - Orchestrates the "Core" system installation (Folders, Users DB, Templates DB).
- * - Provides modular entry points for "Add-on" installations (Clients, Notifications, Calendar).
+ * - Provides dynamic entry points for decoupled Add-on installations.
  * - Manages physical storage hierarchy in Google Drive.
  */
+// Establish the system version identifier
+var SPARKHUB_VERSION = "1.0.0";
+var MASTER_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyderUFTDgJjjSb4ML2xpXzRnfKp_yBLkYlpaKdZcWZLowtmiutt-QZsg7OMq0enBJljw/exec"; 
 
 /**
- * UI INSTALLATION HANDLER (CORE ONLY)
+ * UI INSTALLATION HANDLER
  * Triggered by the Installation Wizard in Index.html.
- * Sets the system to "Sandbox" by default upon first install.
  */
 function performUiInstallation(data) {
   try {
+    // Backend Validation: Prevent "SparkHub"
+    if (data.sysName.trim().toLowerCase() === 'sparkhub') {
+      throw new Error("System name 'SparkHub' is restricted. Please choose another name.");
+    }
+
     var props = PropertiesService.getScriptProperties();
-    props.setProperty('ROOT_FOLDER_ID', data.rootId);
-    props.setProperty('SYSTEM_NAME', data.sysName || 'SparkHub');
-    props.setProperty('ADMIN_EMAIL', Session.getActiveUser().getEmail());
+    var installerEmail = Session.getActiveUser().getEmail();
     
-    // Executes only Core infrastructure
+    // Auto-generate unique Identifiers
+    var clientId = "CID-" + Utilities.getUuid().substring(0, 8).toUpperCase();
+    var instanceSecret = Utilities.getUuid(); // The secure instance key
+
+    props.setProperty('ROOT_FOLDER_ID', data.rootId);
+    props.setProperty('SYSTEM_NAME', data.sysName);
+    props.setProperty('ADMIN_EMAIL', installerEmail);
+    props.setProperty('CLIENT_ID', clientId);
+    props.setProperty('INSTANCE_SECRET', instanceSecret); // Save locally
+    props.setProperty('SYSTEM_VERSION', SPARKHUB_VERSION);
+    
+    // Executes Core and Logs infrastructure
     runInstallation();
     
+    // Set up the automated daily triggers immediately after install
+    setupSystemTriggers();
+    
     props.setProperty('ENVIRONMENT', 'Sandbox');
+
+    // ==========================================
+    // FIRE POST REQUEST TO MASTER REGISTRY
+    // ==========================================
+    if (MASTER_WEBHOOK_URL !== "PASTE_YOUR_WEBHOOK_URL_HERE") {
+      var payload = {
+        action: "install", // Tell the webhook this is a new setup
+        secretKey: props.getProperty('WEBHOOK_SECRET') || "MISSING_KEY",
+        instanceSecret: instanceSecret, // Send the key for the master sheet to store
+        date: new Date().toISOString(),
+        clientId: clientId,
+        clientName: data.sysName,
+        clientEmail: installerEmail,
+        version: SPARKHUB_VERSION,
+        appUrl: ScriptApp.getService().getUrl(),
+        timezone: Session.getScriptTimeZone(),
+        rootId: data.rootId,
+        databaseId: props.getProperty('DATABASE_ID'),
+        status: "Active",
+        lastPing: new Date().toISOString()
+      };
+      
+      try {
+        UrlFetchApp.fetch(MASTER_WEBHOOK_URL, {
+          method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true 
+        });
+      } catch (webhookError) { console.error("Webhook reporting failed: " + webhookError.message); }
+    }
+    // ==========================================
+
     return "Success|" + ScriptApp.getService().getUrl();
   } catch (e) {
     return "Error: " + e.message;
@@ -58,6 +107,9 @@ function runInstallation() {
     // Core Database Initialization (Users & Templates Only)
     setupCoreDatabase(rootFolder);
     
+    // Dedicated Logs Database Initialization
+    setupLogsDatabase(rootFolder);
+    
     console.log("SUCCESS: Core infrastructure ready.");
   } catch (e) {
     throw new Error("Core installation failed: " + e.message);
@@ -67,20 +119,33 @@ function runInstallation() {
 /**
  * Initializes the Main Database with Core-only sheets (Users, Templates).
  */
+/**
+ * Initializes the Main Database with Core-only sheets (Users, Templates).
+ */
+/**
+ * Initializes the Main Database with Core-only sheets (Users, Templates).
+ */
 function setupCoreDatabase(rootFolder) {
   var dbName = "SparkHub Database";
   var files = rootFolder.getFilesByName(dbName);
-  var ss = files.hasNext() ? SpreadsheetApp.open(files.next()) : SpreadsheetApp.create(dbName);
+  var ss;
+  var isNew = false;
   
-  if (!files.hasNext()) {
+  if (files.hasNext()) {
+    ss = SpreadsheetApp.open(files.next());
+  } else {
+    ss = SpreadsheetApp.create(dbName);
+    isNew = true;
+  }
+  
+  // Only move the file if it was just created
+  if (isNew) {
     DriveApp.getFileById(ss.getId()).moveTo(rootFolder);
   }
 
-  // Core Schema: Users
+  // Core Schema: Users (Access Management Focus)
   var userHeaders = [
-    "Timestamp", "Username", "Role", "Work Email", "First Name", "Last Name", 
-    "Birthday", "Personal Email", "Phone", "Address", "Facebook URL", 
-    "Profile Photo URL", "Position", "Employment Type", "Date Hired", "Status"
+    "Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login"
   ];
   initializeSheet(ss, "Users", userHeaders);
 
@@ -90,7 +155,51 @@ function setupCoreDatabase(rootFolder) {
   ];
   initializeSheet(ss, "Templates", templateHeaders);
   
+  // Cleanup default Sheet1 if it exists
+  var defaultSheet = ss.getSheetByName("Sheet1");
+  if (defaultSheet) {
+    ss.deleteSheet(defaultSheet);
+  }
+  
   PropertiesService.getScriptProperties().setProperty('DATABASE_ID', ss.getId());
+}
+
+/**
+ * Initializes a strictly dedicated Database for System Logs.
+ */
+/**
+ * Initializes a strictly dedicated Database for System Logs.
+ */
+function setupLogsDatabase(rootFolder) {
+  var dbName = "SparkHub Logs Database";
+  var files = rootFolder.getFilesByName(dbName);
+  var ss;
+  var isNew = false;
+  
+  if (files.hasNext()) {
+    ss = SpreadsheetApp.open(files.next());
+  } else {
+    ss = SpreadsheetApp.create(dbName);
+    isNew = true;
+  }
+  
+  // Only move the file if it was just created
+  if (isNew) {
+    DriveApp.getFileById(ss.getId()).moveTo(rootFolder);
+  }
+
+  var logHeaders = [
+    "Timestamp", "Module", "Action Type", "Action Name", "Severity", "Actor", "Target Entity", "Log Details", "Environment"
+  ];
+  initializeSheet(ss, "System Logs", logHeaders);
+  
+  // Cleanup default Sheet1 if it exists
+  var defaultSheet = ss.getSheetByName("Sheet1");
+  if (defaultSheet) {
+    ss.deleteSheet(defaultSheet);
+  }
+  
+  PropertiesService.getScriptProperties().setProperty('LOGS_DATABASE_ID', ss.getId());
 }
 
 /* ========================================================================

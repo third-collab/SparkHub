@@ -53,16 +53,14 @@ function doGet() {
 
   // 4. SECURITY & PERMISSIONS
   if (isInstalled) {
-    var role = getUserRole(); 
+    var role = getUserRole();
     if (role === 'Inactive') {
       return serveAccessDeniedScreen(settings);
     }
-    template.userRole = role; 
-    template.accountManagers = JSON.stringify(getAccountManagers());
+    template.userRole = role;
     template.username = getLoggedInUsername();
   } else {
     template.userRole = "Administrator";
-    template.accountManagers = "[]";
     template.username = userEmail.split('@')[0];
   }
   

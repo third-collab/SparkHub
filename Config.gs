@@ -24,3 +24,21 @@ function getMainDb() {
     throw new Error("System Error: Unable to open Main Database. Verify that the ID in Settings is correct and that the system has access to the file.");
   }
 }
+
+/**
+ * Helper function to retrieve the dedicated Logs database object.
+ * @return {SpreadsheetApp.Spreadsheet} The logs database spreadsheet object.
+ */
+function getLogsDb() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('LOGS_DATABASE_ID');
+  if (!id) {
+    throw new Error("Configuration Error: Logs Database ID is missing.");
+  }
+  
+  try {
+    return SpreadsheetApp.openById(id);
+  } catch (e) {
+    throw new Error("System Error: Unable to open Logs Database.");
+  }
+}

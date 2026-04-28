@@ -1,91 +1,15 @@
-<!-- 
-  [SPARKHUB INTEGRITY HEADER: START]
-  FILE: UsersData.html
-  VERSION: 1.3 (Full Restoration + UserBar Plugin Integration)
-  SYNC STATUS: Fully Synchronized with Users.gs & Index.html
--->
-
-<!-- 
-  Users Management Module - Frontend
-  Standardized under SparkHub Architecture Blueprint.
-  
-  CORE RESPONSIBILITIES:
-  - Staff Directory & RBAC Management.
-  - Profile Photo Processing (Canvas Compression).
-  - Detailed Position & Employment Tracking.
-  - Plugin: UserBar (Header Greetings & Profile Quick-Access).
--->
-
 <style>
-  /* --- Modular Loading Overlay for User Forms and Profile --- */
-  .user-loading-overlay {
-    display: none;
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.7);
-    z-index: 10;
-    justify-content: center;
-    align-items: center;
-    border-radius: var(--border-radius-large);
-    flex-direction: column;
-    gap: 10px;
-  }
-  .spinner-user {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid var(--brand-primary);
-    border-radius: 50%;
-    animation: spin-user 1s linear infinite;
-  }
-  @keyframes spin-user {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  /* Ensure wrappers are positioned for overlays */
-  #addUserView .form-wrapper, 
-  #editUserView .form-wrapper,
-  #readOnlyUserView .form-wrapper { 
-    position: relative; 
-    min-height: 400px;
-  }
-
-  /* Profile Photo Styles */
-  .profile-photo-square {
-    width: 80px;
-    height: 80px;
-    min-width: 80px;
-    aspect-ratio: 1 / 1;
-    border-radius: 10px;
-    object-fit: cover;
-    border: 1px solid #ddd;
-    background-color: #f9f9f9;
-  }
-
-  .profile-photo-large {
-    width: 150px;
-    height: 150px;
-    min-width: 150px;
-    aspect-ratio: 1 / 1;
-    border-radius: 10px;
-    object-fit: cover;
-    border: 4px solid #fff;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    background-color: #f9f9f9;
-  }
+  .user-loading-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); z-index: 10; justify-content: center; align-items: center; border-radius: var(--border-radius-large); flex-direction: column; gap: 10px; }
+  #addUserView .form-wrapper, #editUserView .form-wrapper, #readOnlyUserView .form-wrapper { position: relative; min-height: 400px; }
+  .user-avatar-placeholder { width: 50px; height: 50px; border-radius: 50%; background: var(--brand-primary); color: white; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; margin-right: 15px; }
 </style>
 
-<!-- UI: User Popup (Plugin: UserBar Container) -->
 <div id="user-popup" class="header-popup" style="display:none;">
   <div style="text-align: center; padding: 10px;">
-    <div style="display: flex; justify-content: center; margin-bottom: 15px;">
-       <img id="user-popup-photo" src="" class="profile-photo-square" style="width: 60px; height: 60px; border-radius: 50%;">
-    </div>
     <h4 id="user-popup-name" style="margin:0;">User</h4>
     <p id="user-popup-role" style="font-size:11px; color:#888; margin:5px 0 15px 0;"></p>
     <div style="border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-direction: column; gap: 8px;">
-       <button class="btn-edit" onclick="switchView('readOnlyUserView'); document.getElementById('user-popup').style.display='none';" style="width:100%;">My Profile</button>
+       <button class="btn-edit" onclick="switchView('readOnlyUserView'); document.getElementById('user-popup').style.display='none';" style="width:100%;">My Access Profile</button>
        <button class="btn-edit" onclick="window.top.location.href='https://accounts.google.com/Logout'" style="width:100%; border-color: #ddd; color: #666;">Sign Out</button>
     </div>
   </div>
@@ -94,43 +18,29 @@
 <template class="module-card-template" data-category="core" data-admin-only="true">
   <div class="card" id="card-users" onclick="switchView('usersListView'); loadUsersTable();">
     <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-    <h3>Users</h3>
-    <p>Manage system access, roles, and staff profiles.</p>
+    <h3>Access & Users</h3><p>Manage system access, roles, and directory profiles.</p>
   </div>
 </template>
 
-<!-- List View: Master User Directory -->
 <div id="usersListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
-  
-  <div class="view-header-bar" style="margin-bottom: 20px;">
-    <h2>User Management</h2>
-    <button class="btn-primary" onclick="openAddUserForm()">+ Add User</button>
-  </div>
+  <div class="view-header-bar" style="margin-bottom: 20px;"><h2>Access Management</h2><button class="btn-primary" onclick="openAddUserForm()">+ Add User</button></div>
 
   <div class="filter-wrapper">
     <input type="text" id="user-filter-search" class="filter-input" placeholder="Search users..." onkeyup="applyUserFilters()">
-    <button class="btn-filter-toggle" onclick="toggleFilter('user-adv')">
-       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-       Filters
-    </button>
-  
+    <button class="btn-filter-toggle" onclick="toggleFilter('user-adv')">Filters</button>
     <div id="user-adv" class="filter-advanced">
-      <div class="custom-dropdown">
-        <button class="dropdown-btn" onclick="toggleDropdown('user-status-drop')">Status ▼</button>
+      <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-status-drop')">Status ▼</button>
         <div class="dropdown-content" id="user-status-drop">
           <label><input type="checkbox" class="user-filter-status-cb" value="Active" checked onchange="applyUserFilters()"> Active</label>
           <label><input type="checkbox" class="user-filter-status-cb" value="Inactive" onchange="applyUserFilters()"> Inactive</label>
         </div>
       </div>
-
-      <div class="custom-dropdown">
-        <button class="dropdown-btn" onclick="toggleDropdown('user-role-drop')">Role ▼</button>
+      <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-role-drop')">Role ▼</button>
         <div class="dropdown-content" id="user-role-drop">
           <label><input type="checkbox" class="user-filter-role-cb" value="Admin" checked onchange="applyUserFilters()"> Admin</label>
           <label><input type="checkbox" class="user-filter-role-cb" value="Account Manager" checked onchange="applyUserFilters()"> Account Manager</label>
           <label><input type="checkbox" class="user-filter-role-cb" value="Account Support" checked onchange="applyUserFilters()"> Account Support</label>
-          <label><input type="checkbox" class="user-filter-role-cb" value="Sales Manager" checked onchange="applyUserFilters()"> Sales Manager</label>
         </div>
       </div>
       <button type="button" class="btn-reset-filters" onclick="resetUserFilters()">Reset</button>
@@ -143,298 +53,142 @@
         <tr>
           <th class="sortable" onclick="handleUserSort('username')">Username <span id="usort-username" class="sort-icon"></span></th>
           <th class="sortable" onclick="handleUserSort('firstName')">Name <span id="usort-firstName" class="sort-icon"></span></th>
-          <th>Work Email</th>
-          <th>Role</th>
-          <th>Position</th>
-          <th>Status</th>
-          <th>Action</th>
+          <th>System Email</th><th>Role</th><th>Status</th><th>Action</th>
         </tr>
       </thead>
-      <tbody id="userTableBody">
-        <tr><td colspan="7" style="text-align:center; padding: 30px;">Loading users...</td></tr>
-      </tbody>
+      <tbody id="userTableBody"><tr><td colspan="6" style="text-align:center; padding: 30px;">Loading users...</td></tr></tbody>
     </table>
   </div>
 </div>
 
-<!-- Add User Form -->
 <div id="addUserView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to User List</button>
-  
+  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to Directory</button>
   <div class="form-wrapper">
-    <div id="add-user-overlay" class="user-loading-overlay"><div class="spinner-user"></div><span>Creating User Profile...</span></div>
-    <h2 style="margin-top: 0; color: var(--brand-dark);">Add New System User</h2>
-    
+    <div id="add-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Creating User Profile...</span></div>
+    <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Add System User</h2>
     <form id="addUserForm" onsubmit="handleAddUserSubmit(event)" novalidate>
-      
-      <button type="button" class="accordion active" onclick="toggleAccordion(this)">Basic Credentials</button>
-      <div class="panel" style="display: block;">
-        <div class="form-row" style="margin-top: 15px;">
-           <div class="form-group">
-             <label>Profile Photo</label>
-             <div style="display: flex; align-items: center; gap: 15px;">
-                <img id="add-user-photo-preview" src="https://via.placeholder.com/150?text=User" class="profile-photo-square">
-                <input type="file" id="add-user-photo-input" accept="image/*" onchange="previewUserPhoto(this, 'add-user-photo-preview')">
-             </div>
-           </div>
+      <div class="form-row">
+        <div class="form-group"><label>First Name *</label><input type="text" id="add-user-first" class="form-control" required></div>
+        <div class="form-group"><label>Last Name *</label><input type="text" id="add-user-last" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Username (Login ID) *</label><input type="text" id="add-user-username" class="form-control" required></div>
+        <div class="form-group"><label>Google Account Email *</label><input type="email" id="add-user-email" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>System Role *</label>
+          <select id="add-user-role" class="form-control" required>
+            <option value="Admin">Admin</option>
+            <option value="Account Manager">Account Manager</option>
+            <option value="Account Support">Account Support</option>
+          </select>
         </div>
-        <div class="form-row">
-          <div class="form-group"><label>Username *</label><input type="text" id="add-user-username" class="form-control" required placeholder="Unique Login Name"></div>
-          <div class="form-group">
-            <label>System Role *</label>
-            <select id="add-user-role" class="form-control" required>
-              <option value="Admin">Admin</option>
-              <option value="Account Manager">Account Manager</option>
-              <option value="Account Support">Account Support</option>
-              <option value="Sales Manager">Sales Manager</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Work Email *</label><input type="email" id="add-user-workemail" class="form-control" required placeholder="primary@rhinocentral.com"></div>
+        <div class="form-group"><label>Access Status</label>
+          <select id="add-user-status" class="form-control">
+            <option value="Active" selected>Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
       </div>
-
-      <button type="button" class="accordion" onclick="toggleAccordion(this)">Personal Information</button>
-      <div class="panel">
-        <div class="form-row" style="margin-top: 15px;">
-          <div class="form-group"><label>First Name *</label><input type="text" id="add-user-first" class="form-control" required></div>
-          <div class="form-group"><label>Last Name *</label><input type="text" id="add-user-last" class="form-control" required></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Birthday</label><input type="date" id="add-user-bday" class="form-control"></div>
-          <div class="form-group"><label>Personal Email</label><input type="email" id="add-user-personalemail" class="form-control"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Phone Number</label><input type="text" id="add-user-phone" class="form-control"></div>
-          <div class="form-group"><label>Facebook Profile URL</label><input type="url" id="add-user-fb" class="form-control"></div>
-        </div>
-        <div class="form-group"><label>Home Address</label><input type="text" id="add-user-address" class="form-control"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Local Password</label><input type="password" id="add-user-password" class="form-control" placeholder="Leave blank if using Google SSO"></div>
       </div>
-
-      <button type="button" class="accordion" onclick="toggleAccordion(this)">Position & Employment</button>
-      <div class="panel">
-        <div class="form-row" style="margin-top: 15px;">
-          <div class="form-group"><label>Position Title</label><input type="text" id="add-user-position" class="form-control" placeholder="e.g. Senior Account Manager"></div>
-          <div class="form-group">
-            <label>Employment Type</label>
-            <select id="add-user-employment" class="form-control">
-              <option value="Full-Time">Full-Time</option>
-              <option value="Part-Time">Part-Time</option>
-              <option value="Contract">Contract</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Date Hired</label><input type="date" id="add-user-hired" class="form-control"></div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="add-user-status" class="form-control">
-              <option value="Active" selected>Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 20px;">
-        <button type="submit" class="btn-primary" id="add-user-submit">Create User Profile</button>
+      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
+        <button type="submit" class="btn-primary" id="add-user-submit">Create User</button>
       </div>
     </form>
     <div id="add-user-status" class="status-msg"></div>
   </div>
 </div>
 
-<!-- Edit User Form -->
 <div id="editUserView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to User List</button>
-  
+  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to Directory</button>
   <div class="form-wrapper">
-    <div id="edit-user-overlay" class="user-loading-overlay"><div class="spinner-user"></div><span id="edit-user-overlay-txt">Loading User Data...</span></div>
-    <h2 style="margin-top: 0; color: var(--brand-dark);">Edit User Profile</h2>
-    
+    <div id="edit-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span id="edit-user-overlay-txt">Loading User Data...</span></div>
+    <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit User Access</h2>
     <form id="editUserForm" onsubmit="handleEditUserSubmit(event)" novalidate>
       <input type="hidden" id="edt-user-rowIndex">
-      
-      <button type="button" class="accordion active" onclick="toggleAccordion(this)">Basic Credentials</button>
-      <div class="panel" style="display: block;">
-        <div class="form-row" style="margin-top: 15px;">
-           <div class="form-group">
-             <label>Profile Photo</label>
-             <div style="display: flex; align-items: center; gap: 15px;">
-                <img id="edt-user-photo-preview" src="" class="profile-photo-square">
-                <input type="file" id="edt-user-photo-input" accept="image/*" onchange="previewUserPhoto(this, 'edt-user-photo-preview')">
-             </div>
-           </div>
+      <div class="form-row">
+        <div class="form-group"><label>First Name *</label><input type="text" id="edt-user-first" class="form-control" required></div>
+        <div class="form-group"><label>Last Name *</label><input type="text" id="edt-user-last" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Username (Login ID) *</label><input type="text" id="edt-user-username" class="form-control" required></div>
+        <div class="form-group"><label>Google Account Email *</label><input type="email" id="edt-user-email" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>System Role *</label>
+          <select id="edt-user-role" class="form-control" required>
+            <option value="Admin">Admin</option>
+            <option value="Account Manager">Account Manager</option>
+            <option value="Account Support">Account Support</option>
+          </select>
         </div>
-        <div class="form-row">
-          <div class="form-group"><label>Username *</label><input type="text" id="edt-user-username" class="form-control" required></div>
-          <div class="form-group">
-            <label>System Role *</label>
-            <select id="edt-user-role" class="form-control" required>
-              <option value="Admin">Admin</option>
-              <option value="Account Manager">Account Manager</option>
-              <option value="Account Support">Account Support</option>
-              <option value="Sales Manager">Sales Manager</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Work Email *</label><input type="email" id="edt-user-workemail" class="form-control" required></div>
+        <div class="form-group"><label>Access Status</label>
+          <select id="edt-user-status" class="form-control">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
       </div>
-
-      <button type="button" class="accordion" onclick="toggleAccordion(this)">Personal Information</button>
-      <div class="panel">
-        <div class="form-row" style="margin-top: 15px;">
-          <div class="form-group"><label>First Name *</label><input type="text" id="edt-user-first" class="form-control" required></div>
-          <div class="form-group"><label>Last Name *</label><input type="text" id="edt-user-last" class="form-control" required></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Birthday</label><input type="date" id="edt-user-bday" class="form-control"></div>
-          <div class="form-group"><label>Personal Email</label><input type="email" id="edt-user-personalemail" class="form-control"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Phone Number</label><input type="text" id="edt-user-phone" class="form-control"></div>
-          <div class="form-group"><label>Facebook Profile URL</label><input type="url" id="edt-user-fb" class="form-control"></div>
-        </div>
-        <div class="form-group"><label>Home Address</label><input type="text" id="edt-user-address" class="form-control"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Local Password</label><input type="password" id="edt-user-password" class="form-control" placeholder="Leave blank to keep current, or enter new"></div>
       </div>
-
-      <button type="button" class="accordion" onclick="toggleAccordion(this)">Position & Employment</button>
-      <div class="panel">
-        <div class="form-row" style="margin-top: 15px;">
-          <div class="form-group"><label>Position Title</label><input type="text" id="edt-user-position" class="form-control"></div>
-          <div class="form-group">
-            <label>Employment Type</label>
-            <select id="edt-user-employment" class="form-control">
-              <option value="Full-Time">Full-Time</option>
-              <option value="Part-Time">Part-Time</option>
-              <option value="Contract">Contract</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group"><label>Date Hired</label><input type="date" id="edt-user-hired" class="form-control"></div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="edt-user-status" class="form-control">
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 20px;">
-        <button type="submit" class="btn-primary" id="edt-user-submit">Update User Profile</button>
+      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
+        <button type="submit" class="btn-primary" id="edt-user-submit">Update Access</button>
       </div>
     </form>
     <div id="edt-user-status" class="status-msg"></div>
   </div>
 </div>
 
-<!-- Read Only User View -->
 <div id="readOnlyUserView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to User List</button>
-  
+  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to Directory</button>
   <div class="form-wrapper">
-    <div id="ro-user-overlay" class="user-loading-overlay"><div class="spinner-user"></div><span>Loading Profile...</span></div>
+    <div id="ro-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Profile...</span></div>
     
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
-       <div style="display: flex; gap: 25px; align-items: center;">
-          <img id="ro-user-photo" src="" class="profile-photo-large">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+       <div style="display: flex; align-items: center;">
+          <div class="user-avatar-placeholder" id="ro-user-initial">U</div>
           <div>
             <h2 id="ro-user-fullname" style="margin:0;"></h2>
             <p id="ro-user-subline" style="margin: 5px 0 0 0; color: #666; font-size: 15px;"></p>
-            <div id="ro-user-status-pill" style="margin-top: 10px;"></div>
+            <div id="ro-user-status-pill" style="margin-top: 5px;"></div>
           </div>
        </div>
-       <button id="ro-user-edit-btn" class="btn-edit" style="padding: 10px 20px;">Edit Profile</button>
+       <button id="ro-user-edit-btn" class="btn-edit" style="padding: 10px 20px;">Edit Access</button>
     </div>
 
-    <div class="tab-nav">
-      <button type="button" class="tab-btn active" id="btn-user-ro-overview" onclick="navigateClientTab('user-ro', 'overview')">Overview</button>
-      <button type="button" class="tab-btn" id="btn-user-ro-personal" onclick="navigateClientTab('user-ro', 'personal')">Personal Info</button>
-      <button type="button" class="tab-btn" id="btn-user-ro-employment" onclick="navigateClientTab('user-ro', 'employment')">Position & Employment</button>
-    </div>
-
-    <!-- RO TAB: Overview -->
-    <div id="user-ro-overview" class="tab-content" style="display: block;">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px;">
-         <div>
-            <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Contact Details</h4>
-            <p><strong>Work Email:</strong> <span id="ro-user-workemail"></span></p>
-            <p><strong>Personal Email:</strong> <span id="ro-user-personalemail"></span></p>
-            <p><strong>Phone:</strong> <span id="ro-user-phone"></span></p>
-            <p><strong>Facebook:</strong> <a id="ro-user-fb-link" href="" target="_blank">View Profile</a></p>
-         </div>
-         <div>
-            <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Professional</h4>
-            <p><strong>Username:</strong> <span id="ro-user-username"></span></p>
-            <p><strong>System Role:</strong> <span id="ro-user-role"></span></p>
-            <p><strong>Current Position:</strong> <span id="ro-user-position"></span></p>
-         </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
+      <div>
+        <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">System Profile</h4>
+        <p><strong>Username:</strong> <span id="ro-user-username"></span></p>
+        <p><strong>System Role:</strong> <span id="ro-user-role"></span></p>
       </div>
-    </div>
-
-    <!-- RO TAB: Personal Info -->
-    <div id="user-ro-personal" class="tab-content" style="display: none;">
-      <div style="margin-top: 20px;">
-        <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Additional Info</h4>
-        <p><strong>Birthday:</strong> <span id="ro-user-bday"></span></p>
-        <p><strong>Home Address:</strong><br><span id="ro-user-address"></span></p>
-      </div>
-    </div>
-
-    <!-- RO TAB: Employment -->
-    <div id="user-ro-employment" class="tab-content" style="display: none;">
-      <div style="margin-top: 20px;">
-        <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Employment Tracking</h4>
-        <p><strong>Employment Type:</strong> <span id="ro-user-employment"></span></p>
-        <p><strong>Date Hired:</strong> <span id="ro-user-hired"></span></p>
+      <div>
+        <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Authentication</h4>
+        <p><strong>Google Login Email:</strong> <span id="ro-user-email"></span></p>
+        <p><strong>Last Login:</strong> <span id="ro-user-lastlogin" style="color: #64748b;"></span></p>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  /* ========================================================================
-     1. GLOBAL STATE & UI PLUGINS
-     ======================================================================== */
   var GLOBAL_USER_DATA = [];
   var CURRENT_USER_SORT_COLUMN = 'username';
   var CURRENT_USER_SORT_DESC = false;
-  var DEFAULT_AVATAR = "https://via.placeholder.com/150?text=User";
 
-  /**
-   * PLUGIN INIT: Injects username and role into header User Pill.
-   */
   function initUserBarPlugin() {
     if (INSTALLED_PLUGINS.includes('UserBar')) {
       var nameEl = document.getElementById('display-username');
       if (nameEl) nameEl.innerText = CURRENT_USERNAME;
-      
       var popName = document.getElementById('user-popup-name');
       if (popName) popName.innerText = CURRENT_USERNAME;
-      
       var popRole = document.getElementById('user-popup-role');
       if (popRole) popRole.innerText = CURRENT_USER_ROLE;
-
-      // Automatically fetch the photo for the logged-in user's popup
-      google.script.run.withSuccessHandler(function(users) {
-        var me = users.find(u => u.username === CURRENT_USERNAME);
-        if (me && me.profilePhotoUrl) {
-          var popPhoto = document.getElementById('user-popup-photo');
-          if (popPhoto) popPhoto.src = me.profilePhotoUrl;
-        }
-      }).getUsersList();
     }
   }
-
-  /* ========================================================================
-     2. DIRECTORY: FETCHING, FILTERING & SORTING
-     ======================================================================== */
 
   function loadUsersTable() {
     google.script.run.withSuccessHandler(function(users) {
@@ -444,12 +198,8 @@
   }
 
   function handleUserSort(column) {
-    if (CURRENT_USER_SORT_COLUMN === column) {
-      CURRENT_USER_SORT_DESC = !CURRENT_USER_SORT_DESC;
-    } else {
-      CURRENT_USER_SORT_COLUMN = column;
-      CURRENT_USER_SORT_DESC = false;
-    }
+    if (CURRENT_USER_SORT_COLUMN === column) { CURRENT_USER_SORT_DESC = !CURRENT_USER_SORT_DESC; } 
+    else { CURRENT_USER_SORT_COLUMN = column; CURRENT_USER_SORT_DESC = false; }
     applyUserFilters();
   }
 
@@ -467,7 +217,7 @@
 
     var filtered = GLOBAL_USER_DATA.filter(function(u) {
       var name = (u.firstName + " " + u.lastName).toLowerCase();
-      var matchesSearch = u.username.toLowerCase().includes(search) || name.includes(search) || u.workEmail.toLowerCase().includes(search);
+      var matchesSearch = u.username.toLowerCase().includes(search) || name.includes(search) || u.email.toLowerCase().includes(search);
       var matchesStatus = checkedStatuses.length === 0 || checkedStatuses.includes(u.status);
       var matchesRole = checkedRoles.length === 0 || checkedRoles.includes(u.role);
       return matchesSearch && matchesStatus && matchesRole;
@@ -493,7 +243,7 @@
     if (!tbody) return;
     tbody.innerHTML = '';
     if (users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px;">No users match your criteria.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">No users match your criteria.</td></tr>';
       return;
     }
     users.forEach(function(u) {
@@ -505,45 +255,14 @@
       tr.innerHTML = `
         <td><strong>${u.username}</strong></td>
         <td>${u.firstName} ${u.lastName}</td>
-        <td>${u.workEmail}</td>
+        <td>${u.email}</td>
         <td>${u.role}</td>
-        <td>${u.position || "-"}</td>
         <td><span class="${badgeClass}">${u.status || "-"}</span></td>
         <td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}); event.stopPropagation();">Edit</button></td>
       `;
       tbody.appendChild(tr);
     });
   }
-
-  /* ========================================================================
-     3. IMAGE PROCESSING (Canvas API)
-     ======================================================================== */
-
-  function previewUserPhoto(input, imgId) {
-    if (input.files && input.files[0]) {
-      var reader = new FileReader();
-      reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; };
-      reader.readAsDataURL(input.files[0]);
-    }
-  }
-
-  function compressUserPhoto(base64Str, callback) {
-    var img = new Image();
-    img.src = base64Str;
-    img.onload = function() {
-      var canvas = document.createElement('canvas');
-      var max = 600; var width = img.width; var height = img.height;
-      if (width > height) { if (width > max) { height *= max / width; width = max; } } 
-      else { if (height > max) { width *= max / height; height = max; } }
-      canvas.width = width; canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      callback(canvas.toDataURL('image/png', 0.8));
-    };
-  }
-
-  /* ========================================================================
-     4. FORM HANDLERS (ADD/EDIT/SUBMIT)
-     ======================================================================== */
 
   function toggleUserOverlay(id, show, text) {
     var overlay = document.getElementById(id);
@@ -553,9 +272,7 @@
   }
 
   function openAddUserForm() {
-    resetAccordions('addUserView');
     document.getElementById('addUserForm').reset();
-    document.getElementById('add-user-photo-preview').src = DEFAULT_AVATAR;
     document.getElementById('add-user-status').innerHTML = '';
     toggleUserOverlay('add-user-overlay', false);
     switchView('addUserView');
@@ -573,38 +290,22 @@
 
     var userData = {
       username: username, role: document.getElementById('add-user-role').value,
-      workEmail: document.getElementById('add-user-workemail').value, firstName: document.getElementById('add-user-first').value,
-      lastName: document.getElementById('add-user-last').value, birthday: document.getElementById('add-user-bday').value,
-      personalEmail: document.getElementById('add-user-personalemail').value, phone: document.getElementById('add-user-phone').value,
-      facebookUrl: document.getElementById('add-user-fb').value, address: document.getElementById('add-user-address').value,
-      position: document.getElementById('add-user-position').value, employmentType: document.getElementById('add-user-employment').value,
-      dateHired: document.getElementById('add-user-hired').value, status: document.getElementById('add-user-status').value
+      email: document.getElementById('add-user-email').value, password: document.getElementById('add-user-password').value,
+      firstName: document.getElementById('add-user-first').value,
+      lastName: document.getElementById('add-user-last').value, status: document.getElementById('add-user-status').value
     };
 
-    var photoSrc = document.getElementById('add-user-photo-preview').src;
-    if (photoSrc && photoSrc.startsWith('data:image')) {
-      compressUserPhoto(photoSrc, function(compressed) {
-        google.script.run.withSuccessHandler(function(url) {
-          userData.profilePhotoUrl = url;
-          finalizeUserAdd(userData);
-        }).uploadProfilePhoto(compressed, "photo_" + username + ".png");
-      });
-    } else { finalizeUserAdd(userData); }
-
-    function finalizeUserAdd(p) {
-      google.script.run.withSuccessHandler(function(res) {
-        toggleUserOverlay('add-user-overlay', false);
-        statusEl.innerHTML = res;
-        if (res.includes("Success")) {
-          statusEl.style.color = "green";
-          setTimeout(() => { loadUsersTable(); switchView('usersListView'); }, 1500);
-        } else { btn.disabled = false; }
-      }).processNewUser(p);
-    }
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('add-user-overlay', false);
+      statusEl.innerHTML = res;
+      if (res.includes("Success")) {
+        statusEl.style.color = "green";
+        setTimeout(() => { loadUsersTable(); switchView('usersListView'); }, 1500);
+      } else { btn.disabled = false; }
+    }).processNewUser(userData);
   }
 
   function openEditUserForm(rowIndex) {
-    resetAccordions('editUserView');
     switchView('editUserView');
     document.getElementById('editUserForm').reset();
     document.getElementById('edt-user-status').innerHTML = '';
@@ -615,19 +316,11 @@
       document.getElementById('edt-user-rowIndex').value = data.rowIndex;
       document.getElementById('edt-user-username').value = data.username || "";
       document.getElementById('edt-user-role').value = data.role || "Account Manager";
-      document.getElementById('edt-user-workemail').value = data.workEmail || "";
+      document.getElementById('edt-user-email').value = data.email || "";
+      document.getElementById('edt-user-password').value = data.password || "";
       document.getElementById('edt-user-first').value = data.firstName || "";
       document.getElementById('edt-user-last').value = data.lastName || "";
-      document.getElementById('edt-user-bday').value = safelyFormatDate(data.birthday);
-      document.getElementById('edt-user-personalemail').value = data.personalEmail || "";
-      document.getElementById('edt-user-phone').value = data.phone || "";
-      document.getElementById('edt-user-fb').value = data.facebookUrl || "";
-      document.getElementById('edt-user-address').value = data.address || "";
-      document.getElementById('edt-user-position').value = data.position || "";
-      document.getElementById('edt-user-employment').value = data.employmentType || "Full-Time";
-      document.getElementById('edt-user-hired').value = safelyFormatDate(data.dateHired);
       document.getElementById('edt-user-status').value = data.status || "Active";
-      document.getElementById('edt-user-photo-preview').src = data.profilePhotoUrl || DEFAULT_AVATAR;
     }).getUserById(rowIndex);
   }
 
@@ -641,60 +334,34 @@
       rowIndex: document.getElementById('edt-user-rowIndex').value,
       username: document.getElementById('edt-user-username').value,
       role: document.getElementById('edt-user-role').value,
-      workEmail: document.getElementById('edt-user-workemail').value,
+      email: document.getElementById('edt-user-email').value,
+      password: document.getElementById('edt-user-password').value,
       firstName: document.getElementById('edt-user-first').value,
       lastName: document.getElementById('edt-user-last').value,
-      birthday: document.getElementById('edt-user-bday').value,
-      personalEmail: document.getElementById('edt-user-personalemail').value,
-      phone: document.getElementById('edt-user-phone').value,
-      facebookUrl: document.getElementById('edt-user-fb').value,
-      address: document.getElementById('edt-user-address').value,
-      position: document.getElementById('edt-user-position').value,
-      employmentType: document.getElementById('edt-user-employment').value,
-      dateHired: document.getElementById('edt-user-hired').value,
-      status: document.getElementById('edt-user-status').value,
-      profilePhotoUrl: document.getElementById('edt-user-photo-preview').src
+      status: document.getElementById('edt-user-status').value
     };
 
-    var photoSrc = document.getElementById('edt-user-photo-preview').src;
-    if (photoSrc.startsWith('data:image')) {
-      compressUserPhoto(photoSrc, function(compressed) {
-        google.script.run.withSuccessHandler(function(url) {
-          userData.profilePhotoUrl = url;
-          finalizeUserEdit(userData);
-        }).uploadProfilePhoto(compressed, "photo_" + userData.username + ".png");
-      });
-    } else { finalizeUserEdit(userData); }
-
-    function finalizeUserEdit(p) {
-      google.script.run.withSuccessHandler(function(res) {
-        toggleUserOverlay('edit-user-overlay', false);
-        if (res.includes("Success")) {
-          loadUsersTable(); openReadOnlyUser(p.rowIndex);
-        } else { btn.disabled = false; }
-      }).updateUserRecord(p);
-    }
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('edit-user-overlay', false);
+      if (res.includes("Success")) {
+        loadUsersTable(); openReadOnlyUser(userData.rowIndex);
+      } else { btn.disabled = false; }
+    }).updateUserRecord(userData);
   }
-
-  /* ========================================================================
-     5. VIEW PROFILE (READ-ONLY)
-     ======================================================================== */
 
   function openReadOnlyUser(rowIndex) {
     switchView('readOnlyUserView');
-    // Clear instantly to prevent ghosting
     document.getElementById('ro-user-fullname').innerText = "";
-    document.getElementById('ro-user-photo').src = DEFAULT_AVATAR;
-    document.getElementById('ro-user-workemail').innerText = "";
+    document.getElementById('ro-user-email').innerText = "";
+    document.getElementById('ro-user-initial').innerText = "";
     
     toggleUserOverlay('ro-user-overlay', true, 'Loading Profile...');
-    navigateClientTab('user-ro', 'overview');
 
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('ro-user-overlay', false);
       document.getElementById('ro-user-fullname').innerText = data.firstName + " " + data.lastName;
-      document.getElementById('ro-user-subline').innerText = (data.position || "Staff") + " • " + (data.role || "Member");
-      document.getElementById('ro-user-photo').src = data.profilePhotoUrl || DEFAULT_AVATAR;
+      document.getElementById('ro-user-subline').innerText = data.role;
+      document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
       
       var statusBox = document.getElementById('ro-user-status-pill');
       var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
@@ -702,21 +369,10 @@
 
       document.getElementById('ro-user-username').innerText = data.username;
       document.getElementById('ro-user-role').innerText = data.role;
-      document.getElementById('ro-user-workemail').innerText = data.workEmail;
-      document.getElementById('ro-user-personalemail').innerText = data.personalEmail || "N/A";
-      document.getElementById('ro-user-phone').innerText = data.phone || "N/A";
-      document.getElementById('ro-user-position').innerText = data.position || "N/A";
-      document.getElementById('ro-user-bday').innerText = safelyFormatDate(data.birthday) || "N/A";
-      document.getElementById('ro-user-address').innerText = data.address || "No address on file.";
-      document.getElementById('ro-user-employment').innerText = data.employmentType || "N/A";
-      document.getElementById('ro-user-hired').innerText = safelyFormatDate(data.dateHired) || "N/A";
-      
-      var fb = document.getElementById('ro-user-fb-link');
-      if (data.facebookUrl) { fb.href = data.facebookUrl; fb.style.display = 'inline'; } 
-      else { fb.style.display = 'none'; }
+      document.getElementById('ro-user-email').innerText = data.email;
+      document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
 
       document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex); };
     }).getUserById(rowIndex);
   }
 </script>
-<!-- [SPARKHUB INTEGRITY ANCHOR: END] -->

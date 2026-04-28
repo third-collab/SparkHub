@@ -52,11 +52,11 @@
         <p>Please provide the root folder ID to initialize your core system files.</p>
         <form id="installForm" onsubmit="handleInstallSubmit(event)">
           <div class="form-group" style="text-align: left;"><label>Root Folder ID *</label><input type="text" id="ins-root-id" class="form-control" required placeholder="Enter Folder ID"></div>
-          <div class="form-group" style="text-align: left; margin-top: 15px;"><label>System Name</label><input type="text" id="ins-sys-name" class="form-control" value="SparkHub"></div>
+          <div class="form-group" style="text-align: left; margin-top: 15px;"><label>System Name</label><input type="text" id="ins-sys-name" class="form-control" required placeholder="e.g., Acme Corp Hub"></div>
           <button type="submit" class="btn-primary" style="width: 100%; margin-top: 30px;">Run Installation</button>
         </form>
       </div>
-      <div id="wizardLoading" class="wizard-loading"><div class="spinner-client"></div><h2>Installing System...</h2></div>
+      <div id="wizardLoading" class="wizard-loading"><div class="spinner-core"></div><h2>Installing System...</h2></div>
       <div id="wizardSuccess" style="display: none;"><div style="color: green; font-size: 50px; margin-bottom: 20px;">✓</div><h2>Success!</h2></div>
     </div>
   </div>
@@ -133,25 +133,53 @@
         }
       });
       // ----------------------------------------------------------------
-
+      // NON-BLOCKING LOGIN TIMESTAMP
+      // ----------------------------------------------------------------
+      if (CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== '') {
+        google.script.run.updateLastLogin();
+      }
     });
 
     function handleInstallSubmit(e) {
       if (e) e.preventDefault();
-      var data = { rootId: document.getElementById('ins-root-id').value, sysName: document.getElementById('ins-sys-name').value };
+      
+      var sysNameInput = document.getElementById('ins-sys-name').value.trim();
+      
+      // Frontend Validation: Prevent "SparkHub"
+      if (sysNameInput.toLowerCase() === 'sparkhub') {
+        alert("Please choose a unique system name for your organization. 'SparkHub' is reserved.");
+        return;
+      }
+      
+      var data = { 
+        rootId: document.getElementById('ins-root-id').value, 
+        sysName: sysNameInput 
+      };
+      
       document.getElementById('wizardContent').style.display = 'none';
       document.getElementById('wizardLoading').style.display = 'flex';
+      
       google.script.run.withSuccessHandler(function(res) {
         if (res.includes("Success")) {
           document.getElementById('wizardLoading').style.display = 'none';
           document.getElementById('wizardSuccess').style.display = 'block';
           
+          // Extract the App URL returned from the backend
+          var appUrl = res.split("|")[1];
+          
           setTimeout(() => { 
-            document.getElementById('installWizard').style.display = 'none';
-            switchView('dashboardView');
-            // Hard refresh is no longer needed; we unlock UI dynamically!
+            // Force a hard refresh to re-evaluate the server-side templates and DOM
+            if (appUrl) {
+              window.top.location.href = appUrl;
+            } else {
+              window.top.location.reload(); 
+            }
           }, 2000); 
-        } else { alert("Installation Error: " + res); }
+        } else { 
+          alert("Installation Error: " + res); 
+          document.getElementById('wizardContent').style.display = 'block';
+          document.getElementById('wizardLoading').style.display = 'none';
+        }
       }).performUiInstallation(data);
     }
 

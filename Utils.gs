@@ -78,5 +78,47 @@ function uploadBase64File(base64, filename, folderObj) {
 }
 
 /**
+ * Standardized System Logging Engine
+ * Records auditable events across the SparkHub architecture.
+ * * @param {string} module - Originating module (e.g., 'Users', 'Templates', 'Settings').
+ * @param {string} actionType - CRUD category (CREATE, UPDATE, DELETE, SYSTEM, ALERT).
+ * @param {string} actionName - Short name of the action (e.g., 'Create User').
+ * @param {string} severity - INFO, WARN, ERROR, CRITICAL.
+ * @param {string} targetEntity - The specific entity affected (e.g., 'johndoe', 'Welcome Email').
+ * @param {string} logText - Detailed description of the event.
+ */
+function logSystemAction(module, actionType, actionName, severity, targetEntity, logText) {
+  // ... inside logSystemAction()
+  try {
+    var ss = getLogsDb(); // <-- CHANGED THIS LINE
+    var sheet = ss.getSheetByName("System Logs");
+    if (!sheet) return; // Failsafe if not yet initialized
+    
+    // Try to get the active user, default to "System" if automated
+    var actor = "System";
+    try { actor = getLoggedInUsername(); } catch(e) {}
+
+    // Grab the current environment
+    var env = "Unknown";
+    try { env = PropertiesService.getScriptProperties().getProperty('ENVIRONMENT') || "Sandbox"; } catch(e) {}
+
+    // Append to database
+    sheet.appendRow([
+      new Date(),
+      module,
+      actionType,
+      actionName,
+      severity,
+      actor,
+      targetEntity,
+      logText,
+      env
+    ]);
+  } catch (e) {
+    console.error("Logging Engine Failure: " + e.message);
+  }
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

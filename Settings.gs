@@ -41,12 +41,14 @@ function getSystemSettings() {
       emailFallbackLogo: props.getProperty('EMAIL_FALLBACK_LOGO') || 'https://i.imgur.com/Nlcwog7.png',
       rootFolderId: props.getProperty('ROOT_FOLDER_ID') || '',
       mainDbId: props.getProperty('DATABASE_ID') || '',
+      logsDbId: props.getProperty('LOGS_DATABASE_ID') || '',
+      hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'), // <-- NEW: Boolean check
       installedModules: props.getProperty('INSTALLED_MODULES') || '',
       installedPlugins: props.getProperty('INSTALLED_PLUGINS') || '',
       themePrimary: getSafeProp('THEME_PRIMARY', '#666DF2'), 
       themeAccent: getSafeProp('THEME_ACCENT', '#0BC4D9'),   
       themeDark: getSafeProp('THEME_DARK', '#0D0D0D'),
-      themeBg: getSafeProp('THEME_BG', '#FDDD64'),
+      themeBg: getSafeProp('THEME_BG', '#F1F5F9'),
       themeHover: getSafeProp('THEME_HOVER', '#7E84F2')
     };
   } catch(e) {
@@ -63,6 +65,14 @@ function validateDatabase(id) {
     if (!ss.getSheetByName("Users") || !ss.getSheetByName("Templates")) throw new Error("Missing Core Sheets.");
     return true;
   } catch (e) { throw new Error("Database Validation Failed: " + e.message); }
+}
+
+function validateLogsDatabase(id) {
+  try {
+    var ss = SpreadsheetApp.openById(id);
+    if (!ss.getSheetByName("System Logs")) throw new Error("Missing System Logs Sheet.");
+    return true;
+  } catch (e) { throw new Error("Logs Database Validation Failed: " + e.message); }
 }
 
 /**
@@ -89,15 +99,20 @@ function saveSystemSettings(settings) {
   try {
     var props = PropertiesService.getScriptProperties();
     if (settings.mainDbId) validateDatabase(settings.mainDbId);
+    if (settings.logsDbId) validateLogsDatabase(settings.logsDbId);
     
     if (settings.environment) props.setProperty('ENVIRONMENT', settings.environment);
     if (settings.adminEmail) props.setProperty('ADMIN_EMAIL', settings.adminEmail);
     if (settings.systemName) props.setProperty('SYSTEM_NAME', settings.systemName);
     if (settings.rootFolderId) props.setProperty('ROOT_FOLDER_ID', settings.rootFolderId);
     if (settings.mainDbId) props.setProperty('DATABASE_ID', settings.mainDbId);
+    if (settings.logsDbId) props.setProperty('LOGS_DATABASE_ID', settings.logsDbId);
     
     if (settings.themePrimary) props.setProperty('THEME_PRIMARY', settings.themePrimary);
     if (settings.systemLogoId) props.setProperty('SYSTEM_LOGO_ID', settings.systemLogoId);
+
+    // NEW LOG:
+    logSystemAction("Settings", "UPDATE", "System Configuration", "WARN", "Global Settings", "Core system architecture, identity, or registry settings were modified.");
 
     return "Success! Settings updated.";
   } catch (e) { return "Error: " + e.message; }
