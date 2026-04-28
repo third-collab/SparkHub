@@ -91,6 +91,14 @@
   </div>
 </div>
 
+<template class="module-card-template" data-category="core" data-admin-only="true">
+  <div class="card" id="card-users" onclick="switchView('usersListView'); loadUsersTable();">
+    <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    <h3>Users</h3>
+    <p>Manage system access, roles, and staff profiles.</p>
+  </div>
+</template>
+
 <!-- List View: Master User Directory -->
 <div id="usersListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>

@@ -51,7 +51,7 @@ function getSystemSettings() {
       themeHover: getSafeProp('THEME_HOVER', '#7E84F2')
     };
   } catch(e) {
-    return { environment: 'Production', systemName: 'SparkHub', themePrimary: '#C40004' };
+    return { environment: 'Production', systemName: 'SparkHub', themePrimary: '#666DF2' };
   }
 }
 
