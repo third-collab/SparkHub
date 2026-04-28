@@ -12,7 +12,7 @@
   <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
   <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
   <?!= include('Styles'); ?>
-  
+
   <style>
     :root {
       --brand-primary: <?= themePrimary ?> !important;
@@ -21,9 +21,7 @@
       --brand-bg: <?= themeBg ?> !important;
       --brand-hover: <?= themeHover ?> !important;
     }
-  </style>
-
-  <style>
+    
     .install-wizard-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: var(--brand-accent); z-index: 10000;
@@ -42,7 +40,6 @@
 </head>
 <body>
 
-  <!-- INSTALLATION WIZARD VIEW -->
   <? if (typeof isInstalled !== 'undefined' && !isInstalled) { ?>
   <div class="install-wizard-overlay" id="installWizard">
     <div class="wizard-card">
@@ -62,26 +59,36 @@
   </div>
   <? } ?>
 
-  <!-- MAIN APP HEADER -->
   <div class="header">
     <div class="header-logo">
       <img id="hub-system-logo" src="<?= typeof systemLogoUrl !== 'undefined' && systemLogoUrl ? systemLogoUrl : appFallbackLogo ?>" alt="System Logo" style="height: 40px; margin-right: 15px; object-fit: contain;">
       <h1 id="hub-system-name"><?= typeof systemName !== 'undefined' && systemName ? systemName : 'SparkHub' ?></h1>
     </div>
     <div class="header-right">
-      <div class="header-tools">
-      </div>
-
+      <div class="header-tools"></div>
       <? if (installedPlugins.indexOf('UserBar') !== -1) { ?>
         <div class="header-user-pill" onclick="event.stopPropagation(); togglePopup('user-popup')">Hello, <span id="display-username"></span>!</div>
       <? } ?>
     </div>
   </div>
 
-  <!-- DASHBOARD VIEW -->
+  <div class="install-wizard-overlay" id="loginScreen" style="display: none; z-index: 9999; background: var(--brand-bg);">
+    <div class="wizard-card" style="max-width: 400px; border-bottom: none; box-shadow: var(--shadow-md);">
+      <img src="<?= typeof systemLogoUrl !== 'undefined' ? systemLogoUrl : appFallbackLogo ?>" style="height: 50px; margin: 0 auto 20px; display: block; object-fit: contain;">
+      <h2 style="margin-top: 0; color: var(--brand-dark);">Sign In</h2>
+      <p style="margin-bottom: 25px;">Access your workspace.</p>
+      <form id="loginForm" onsubmit="handleLocalLogin(event)">
+        <div class="form-group" style="text-align: left;"><label>Username or Email</label><input type="text" id="login-id" class="form-control" required></div>
+        <div class="form-group" style="text-align: left; margin-top: 15px;"><label>Password</label><input type="password" id="login-pass" class="form-control" required></div>
+        <button type="submit" class="btn-primary" id="login-submit-btn" style="width: 100%; margin-top: 30px;">Sign In</button>
+      </form>
+      <div id="login-msg" style="color: #991b1b; margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
+    </div>
+  </div>
+
   <div id="dashboardView" class="container">
     <h2 style="margin-bottom: 20px; color: var(--brand-dark);">Welcome, select a module:</h2>
-    
+
     <h3 class="module-group-title" id="title-core" style="display: none;">System Administration</h3>
     <div class="card-grid" id="grid-core"></div>
 
@@ -92,12 +99,9 @@
     <div class="card-grid" id="grid-internal"></div>
   </div>
 
-  <!-- FRAGMENTS -->
   <?!= include('SettingsData'); ?>
   <? if (installedPlugins.indexOf('UserBar') !== -1 || true) { ?> <?!= include('UsersData'); ?> <? } ?>
   <?!= include('TemplatesData'); ?>
-  
-  <!-- Truly Modular Injections: HTML and LOGIC only exist if installed -->
 
   <script>
     /* --- CORE SYSTEM SCRIPTS --- */
