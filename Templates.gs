@@ -124,6 +124,46 @@ function getPlaceholderSuggestions() {
   ];
 }
 
+
+/**
+ * Helper to fetch the raw HTML content of a specific wrapper file.
+ * @param {string} type - The wrapper filename prefix (e.g., 'Internal', 'External').
+ * @return {string} The raw HTML content of the file.
+ */
+function getWrapperContent(type) {
+  var fileName = type + "Wrapper"; 
+  return HtmlService.createHtmlOutputFromFile(fileName).getContent();
+}
+
+/**
+ * Merges the designated wrapper and body content for the UI template preview.
+ * Swaps CID references for live URLs (SVG or Drive Thumbnail) so images render in the browser.
+ * @param {number} rowIndex - The row index of the template in the spreadsheet.
+ * @return {string} The fully rendered HTML string.
+ */
+function getRenderedTemplatePreview(rowIndex) {
+  var sheet = getMainDb().getSheetByName("Templates");
+  var data = sheet.getDataRange().getValues();
+  var rowData = data[rowIndex];
+  
+  var rawHtml = rowData[7] || "";
+  var wrapperType = rowData[9] || "Internal";
+  
+  var wrapperHtml = getWrapperContent(wrapperType);
+  var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
+  
+  // Use centralized settings to find the correct logo for browser display
+  var settings = getSystemSettings();
+  var defaultSvgLogo = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23C40004'/%3E%3Ctext x='50' y='65' font-family='Arial' font-size='40' font-weight='bold' fill='white' text-anchor='middle'%3EMR%3C/text%3E%3C/svg%3E";
+  
+  // Browser preview can render SVG; if no Drive logo exists, use the SVG
+  var displayLogoUrl = settings.systemLogoId ? settings.systemLogoUrl : defaultSvgLogo;
+  
+  // Replace CID with the dynamic URL for browser rendering
+  fullHtml = fullHtml.replace(/src="cid:logo"/g, 'src="' + displayLogoUrl + '"');
+  return fullHtml;
+}
+
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

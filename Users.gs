@@ -192,3 +192,39 @@ function getUserPermissions(roleName) {
   } catch(e) {}
   return "{}";
 }
+
+/**
+ * Verifies local credentials for public/hybrid deployments.
+ * Returns a session payload to be stored in the browser.
+ */
+function verifyUserCredentials(loginId, password) {
+  try {
+    var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getValues();
+    var loginLower = loginId.toLowerCase();
+
+    for (var i = 1; i < data.length; i++) {
+      var rowUsername = String(data[i][1]).toLowerCase();
+      var rowEmail = String(data[i][3]).toLowerCase();
+      var rowPassword = String(data[i][4]);
+      var rowStatus = String(data[i][7]);
+
+      if ((rowUsername === loginLower || rowEmail === loginLower) && rowPassword === password) {
+        if (rowStatus === 'Inactive') {
+          return { success: false, message: "Account is inactive." };
+        }
+
+        var role = String(data[i][2]);
+        return {
+          success: true,
+          username: String(data[i][1]),
+          role: role,
+          permissions: getUserPermissions(role) // Fetches the JSON matrix
+        };
+      }
+    }
+    return { success: false, message: "Invalid credentials." };
+  } catch(e) {
+    return { success: false, message: "System error during authentication." };
+  }
+}
