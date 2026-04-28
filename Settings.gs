@@ -41,7 +41,6 @@ function getSystemSettings() {
       emailFallbackLogo: props.getProperty('EMAIL_FALLBACK_LOGO') || 'https://i.imgur.com/Nlcwog7.png',
       rootFolderId: props.getProperty('ROOT_FOLDER_ID') || '',
       mainDbId: props.getProperty('DATABASE_ID') || '',
-      notifDbId: props.getProperty('NOTIF_DATABASE_ID') || '',
       installedModules: props.getProperty('INSTALLED_MODULES') || '',
       installedPlugins: props.getProperty('INSTALLED_PLUGINS') || '',
       themePrimary: getSafeProp('THEME_PRIMARY', '#666DF2'), 

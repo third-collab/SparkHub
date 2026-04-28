@@ -22,7 +22,7 @@ function setupDailyTriggers() {
 
 /**
  * The main engine that scans for dates.
- * Orchestrates the scanning of both User and Client databases for relevant events.
+ * Orchestrates the scanning of both databases for relevant events.
  */
 function checkDailyEvents() {
   var today = new Date();
@@ -30,7 +30,6 @@ function checkDailyEvents() {
   var currentDate = today.getDate();
 
   checkUserEvents(currentMonth, currentDate);
-  checkClientEvents(currentMonth, currentDate);
 }
 
 /**
@@ -65,50 +64,6 @@ function checkUserEvents(currentMonth, currentDate) {
       if (years > 0) {
         logNotification("Users", "User Anniversary", username + " is celebrating " + years + " year(s) with MegaRhino! 🎈", "All", "");
       }
-    }
-  }
-}
-
-/**
- * Scans the Clients sheet for Anniversaries and Contact Birthdays.
- * Uses indices based on the Clients sheet layout to log system notifications.
- * @param {number} currentMonth - The current month (0-11).
- * @param {number} currentDate - The current day of the month (1-31).
- */
-function checkClientEvents(currentMonth, currentDate) {
-  // Uses the Global Helper from Config.gs
-  var sheet = getMainDb().getSheetByName("Clients");
-  var data = sheet.getDataRange().getValues();
-  
-  var today = new Date();
-  
-  for (var i = 1; i < data.length; i++) {
-    var companyName = data[i][2];
-    var priContact = data[i][3];
-    var priBday = new Date(data[i][5]);
-    var secContact = data[i][6];
-    var secBday = new Date(data[i][8]);
-    var terContact = data[i][9];
-    var terBday = new Date(data[i][11]);
-    var anniversary = new Date(data[i][12]);
-
-    // Check Client Anniversary
-    if (isValidDate(anniversary) && anniversary.getMonth() === currentMonth && anniversary.getDate() === currentDate) {
-      var years = today.getFullYear() - anniversary.getFullYear();
-      if (years > 0) {
-        logNotification("Clients", "Client Anniversary", "Happy " + years + " year anniversary to " + companyName + "!", "All", "");
-      }
-    }
-
-    // Check Contact Birthdays
-    if (isValidDate(priBday) && priBday.getMonth() === currentMonth && priBday.getDate() === currentDate) {
-      logNotification("Clients", "Client Birthday", "It's " + priContact + "'s (Primary Contact at " + companyName + ") birthday today! 🎁", "All", "");
-    }
-    if (isValidDate(secBday) && secBday.getMonth() === currentMonth && secBday.getDate() === currentDate) {
-      logNotification("Clients", "Client Birthday", "It's " + secContact + "'s (Secondary Contact at " + companyName + ") birthday today! 🎁", "All", "");
-    }
-    if (isValidDate(terBday) && terBday.getMonth() === currentMonth && terBday.getDate() === currentDate) {
-      logNotification("Clients", "Client Birthday", "It's " + terContact + "'s (Tertiary Contact at " + companyName + ") birthday today! 🎁", "All", "");
     }
   }
 }

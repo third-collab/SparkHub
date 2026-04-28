@@ -20,7 +20,7 @@ function include(filename) {
 
 /**
  * Standardized helper to find or create a folder.
- * Centralized here to support Installation.gs, Settings.gs, and Clients.gs.
+ * Centralized here to support Installation.gs, Settings.gs
  */
 function getOrCreateFolder(parentFolder, folderName) {
   var folders = parentFolder.getFoldersByName(folderName);

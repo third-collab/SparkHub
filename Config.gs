@@ -24,23 +24,3 @@ function getMainDb() {
     throw new Error("System Error: Unable to open Main Database. Verify that the ID in Settings is correct and that the system has access to the file.");
   }
 }
-
-/**
- * Helper function to retrieve the notification spreadsheet database object.
- * Fetches the ID from ScriptProperties.
- * @return {SpreadsheetApp.Spreadsheet} The notification database spreadsheet object.
- */
-function getNotifDb() {
-  var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty('NOTIF_DATABASE_ID');
-  
-  if (!id) {
-    throw new Error("Configuration Error: Notification Database ID is missing. Please run the System Installation.");
-  }
-  
-  try {
-    return SpreadsheetApp.openById(id);
-  } catch (e) {
-    throw new Error("System Error: Unable to open Notification Database. Verify that the file exists and is accessible.");
-  }
-}
