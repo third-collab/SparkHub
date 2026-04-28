@@ -28,6 +28,27 @@
   </div>
 </template>
 
+<template id="tpl-settings-users-ro">
+  <div style="margin-top: 25px; font-size: 14px;">
+    <h4 class="settings-section-header" style="margin-top:0;">User Access & Security</h4>
+    <p><strong>Master Administrator Email:</strong><br><span id="ro-settings-email" style="color:var(--brand-primary); font-weight:700;"></span></p>
+    <p><strong>System Authentication Mode:</strong><br><span id="ro-settings-authmode" style="color:var(--brand-primary); font-weight:700;"></span></p>
+  </div>
+</template>
+
+<template id="tpl-settings-users-edt">
+  <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px; margin-top:25px;">User Access & Security</h3>
+  <div class="form-row">
+    <div class="form-group"><label>Admin Contact Email *</label><input type="email" id="edt-settings-email" class="form-control" required></div>
+    <div class="form-group"><label>Authentication Mode *</label>
+      <select id="edt-settings-authmode" class="form-control" required>
+        <option value="SSO">SSO (Google Log-in)</option>
+        <option value="Local">Local (Username & Password)</option>
+      </select>
+    </div>
+  </div>
+</template>
+
 <div id="usersListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
   
@@ -275,21 +296,20 @@
     });
   }
 
-  // The Magic Plugin Matrix: Automatically reveals new permissions if you install a module!
+  // The Magic Plugin Matrix: Automatically reveals new permissions!
   function getSystemPermissionMatrix() {
     var matrix = {
        "Core System": ["Manage Settings", "Manage Roles"],
        "Access & Users": ["View Users", "Manage Users"],
-       "Templates": ["View Templates", "Manage Templates"]
+       "Templates": ["View Templates", "Manage Templates"],
+       "System Logs": ["View Logs"] // <-- NEW LOGS PERMISSION
     };
     
     // Dynamically inject if other modules are installed
-    if (typeof INSTALLED_MODULES !== 'undefined') {
-      if (INSTALLED_MODULES.includes('Clients')) {
+    if (typeof INSTALLED_MODULES !== 'undefined' && INSTALLED_MODULES) {
+      var mods = INSTALLED_MODULES.split(',');
+      if (mods.includes('Clients')) {
         matrix["Clients Module"] = ["View Clients", "Manage Clients", "Delete Clients", "Export Clients"];
-      }
-      if (INSTALLED_MODULES.includes('Calendar')) {
-        matrix["Calendar Module"] = ["View Events", "Manage Events"];
       }
     }
     return matrix;

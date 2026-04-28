@@ -1,0 +1,136 @@
+<template class="module-card-template" data-category="core" data-perm-category="Core System" data-perm-action="View Logs">
+  <div class="card" id="card-logs" onclick="initLogsModule();">
+    <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+    <h3>System Logs</h3>
+    <p>Audit system actions and monitor events.</p>
+  </div>
+</template>
+
+<template id="tpl-settings-logs-ro">
+  <div style="margin-top: 25px; font-size: 14px;">
+    <h4 class="settings-section-header" style="margin-top:0;">System Logs Configuration</h4>
+    <div style="margin-top: 20px;">
+      <p><strong>Log Retention:</strong> <span style="color:var(--brand-primary); font-weight:700;">Indefinite</span></p>
+      <p><strong>Audit Level:</strong> <span style="color:var(--brand-primary); font-weight:700;">Full System Broadcast</span></p>
+      <p style="color: #64748b; font-size: 13px; font-style: italic; margin-top: 15px;">Note: Logs are currently saved to the dedicated Logs Registry Spreadsheet. Retention policies can be configured here in future updates.</p>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-settings-logs-edt">
+  <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px; margin-top:25px;">Logging Configuration</h3>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Retention Policy</label>
+      <select class="form-control" disabled>
+        <option>All Logs (No Purge)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Minimum Severity to Record</label>
+      <select class="form-control" disabled>
+        <option>INFO</option>
+      </select>
+    </div>
+  </div>
+  <p style="font-size: 12px; color: #94a3b8; margin-top: 10px;">Cloud-side log rotation settings are managed via Google Cloud Console.</p>
+</template>
+
+<div id="logsListView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+  
+  <div class="view-header-bar">
+    <h2 style="margin: 0; color: var(--brand-dark);">System Audit Trail</h2>
+  </div>
+
+  <div class="filter-wrapper">
+    <input type="text" id="log-filter-search" class="filter-input" placeholder="Search by details, user, or entity..." onkeyup="applyLogFilters()">
+    <button class="btn-filter-toggle" onclick="toggleFilter('log-adv')">Filters</button>
+    <div id="log-adv" class="filter-advanced">
+      <div class="custom-dropdown">
+        <button class="dropdown-btn" onclick="toggleDropdown('log-module-drop')">Module ▼</button>
+        <div class="dropdown-content" id="log-module-drop">
+          <label><input type="checkbox" class="log-filter-mod-cb" value="Users" checked onchange="applyLogFilters()"> Users</label>
+          <label><input type="checkbox" class="log-filter-mod-cb" value="Templates" checked onchange="applyLogFilters()"> Templates</label>
+          <label><input type="checkbox" class="log-filter-mod-cb" value="Settings" checked onchange="applyLogFilters()"> Settings</label>
+          <label><input type="checkbox" class="log-filter-mod-cb" value="System" checked onchange="applyLogFilters()"> System</label>
+        </div>
+      </div>
+      <button type="button" class="btn-reset-filters" onclick="resetLogFilters()">Reset</button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Module</th>
+          <th>Action</th>
+          <th>User</th>
+          <th>Entity</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="logTableBody">
+        <tr><td colspan="6" style="text-align:center; padding: 30px;">Loading logs...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  var GLOBAL_LOGS_DATA = [];
+
+  function initLogsModule() {
+    switchView('logsListView');
+    loadLogsTable();
+  }
+
+  function loadLogsTable() {
+    google.script.run.withSuccessHandler(function(logs) {
+      GLOBAL_LOGS_DATA = logs || [];
+      applyLogFilters();
+    }).getLogsList();
+  }
+
+  function applyLogFilters() {
+    var search = document.getElementById('log-filter-search').value.toLowerCase();
+    var checkedMods = Array.from(document.querySelectorAll('.log-filter-mod-cb:checked')).map(cb => cb.value);
+
+    var filtered = GLOBAL_LOGS_DATA.filter(function(l) {
+      var matchesSearch = l.details.toLowerCase().includes(search) || l.actor.toLowerCase().includes(search) || l.entity.toLowerCase().includes(search);
+      var matchesMod = checkedMods.length === 0 || checkedMods.includes(l.module);
+      return matchesSearch && matchesMod;
+    });
+
+    renderLogTableRows(filtered);
+  }
+
+  function renderLogTableRows(logs) {
+    var tbody = document.getElementById('logTableBody');
+    tbody.innerHTML = '';
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No logs found.</td></tr>';
+      return;
+    }
+    logs.forEach(function(l) {
+      tbody.innerHTML += `
+        <tr>
+          <td><small style="color:#64748b;">${l.timestamp}</small></td>
+          <td><span class="badge" style="background:#f1f5f9; color:#475569;">${l.module}</span></td>
+          <td><strong>${l.name}</strong></td>
+          <td>${l.actor}</td>
+          <td><code style="font-size:11px;">${l.entity}</code></td>
+          <td><span style="font-size:13px; color:#475569;">${l.details}</span></td>
+        </tr>
+      `;
+    });
+  }
+
+  function resetLogFilters() {
+    document.getElementById('log-filter-search').value = '';
+    document.querySelectorAll('.log-filter-mod-cb').forEach(cb => cb.checked = true);
+    applyLogFilters();
+  }
+</script>

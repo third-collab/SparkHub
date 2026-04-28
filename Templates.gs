@@ -1,11 +1,4 @@
 /**
- * [SPARKHUB INTEGRITY HEADER: START]
- * FILE: Templates.gs
- * VERSION: 1.2 (100% Logic Parity + EmailEngine Synchronization)
- * SYNC STATUS: Fully Synchronized with EmailEngine.gs & TemplatesData.html
- */
-
-/**
  * Templates Module - Backend
  * Standardized under SparkHub Architecture Blueprint.
  * * CORE RESPONSIBILITIES:
@@ -13,6 +6,18 @@
  * - Logic synchronization with EmailEngine.gs (10-column schema).
  * - Placeholder harvesting for UI suggestions.
  */
+
+// Inside a module file like Templates.gs
+var Templates = {
+  handleEventEmail: function(payload) {
+    // Use the payload to determine if an email should be sent
+    // and call your existing sendTriggerEmail logic.
+    sendTriggerEmail(payload.name, payload.adminEmail, {
+      "username": payload.user,
+      "details": payload.details
+    });
+  }
+}
 
 /**
  * Fetches a summarized list of all templates for the management table.
@@ -100,11 +105,11 @@ function updateTemplateRecord(data) {
       var idx = parseInt(data.rowIndex, 10);
       sheet.getRange(idx, 1, 1, 10).setValues([values]);
       // NEW LOG:
-      logSystemAction("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template logic or design was modified.");
+      SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template logic or design was modified.");
     } else {
       sheet.appendRow(values);
       // NEW LOG:
-      logSystemAction("Templates", "CREATE", "Add Template", "INFO", data.name, "New system communication template registered.");
+      SystemEvent.emit("Templates", "CREATE", "Add Template", "INFO", data.name, "New system communication template registered.");
     }
 
     return "Success! Template synced to master registry.";

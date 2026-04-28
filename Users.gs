@@ -15,7 +15,9 @@ function processNewUser(obj) {
     // FORCE GOOGLE TO COMMIT THE WRITE IMMEDIATELY
     SpreadsheetApp.flush(); 
     
-    logSystemAction("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile created.");
+    // NEW BROADCAST PATTERN
+    SystemEvent.emit("Users", "CREATE", "Add User", obj.username, "New user access profile established via UI.");
+    
     return "Success! User created.";
   } catch (e) { return "Error: " + e.message; }
 }
@@ -32,7 +34,7 @@ function updateUserRecord(obj) {
     // FORCE GOOGLE TO COMMIT THE WRITE IMMEDIATELY
     SpreadsheetApp.flush();
     
-    logSystemAction("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
+    SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
     return "Success! User updated.";
   } catch (e) { return "Error: " + e.message; }
 }
@@ -163,12 +165,12 @@ function saveRoleRecord(obj) {
     if (obj.rowIndex) {
       // Update existing role
       sheet.getRange(obj.rowIndex, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
-      logSystemAction("Users", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.");
+      SystemEvent.emit("Users", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.");
     } else {
       // Create new role
       var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
       sheet.appendRow([ roleId, obj.name, obj.description, obj.permissions, obj.status ]);
-      logSystemAction("Users", "CREATE", "Add Role", "INFO", obj.name, "New system role established.");
+      SystemEvent.emit("Users", "CREATE", "Add Role", "INFO", obj.name, "New system role established.");
     }
     return "Success! Role saved.";
   } catch (e) { return "Error: " + e.message; }

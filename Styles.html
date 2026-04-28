@@ -456,9 +456,26 @@
     border-radius: 0 0 6px 6px;
   }
 
-  /* --- Tab Navigation --- */
-  .tab-nav { display: flex; gap: 5px; border-bottom: 1px solid #e2e8f0; margin-bottom: 25px; }
+  /* --- Tab Navigation (Scrollable) --- */
+  .tab-nav { 
+    display: flex; 
+    gap: 5px; 
+    border-bottom: 1px solid #e2e8f0; 
+    margin-bottom: 25px;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin; /* For Firefox */
+    padding-bottom: 5px;
+  }
+
+  /* Custom scrollbar for Webkit browsers (Chrome/Safari) */
+  .tab-nav::-webkit-scrollbar { height: 4px; }
+  .tab-nav::-webkit-scrollbar-track { background: #f1f5f9; }
+  .tab-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
   .tab-btn {
+    flex: 0 0 auto; /* Prevents buttons from shrinking */
     padding: 10px 20px;
     background: none;
     border: none;

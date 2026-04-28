@@ -1,11 +1,4 @@
 /**
- * [SPARKHUB INTEGRITY HEADER: START]
- * FILE: Main.gs
- * VERSION: 1.3 (Registry Integration)
- * SYNC STATUS: Fully Synchronized with Settings.gs and Index.html
- */
-
-/**
  * Main Initialization Module (Router)
  * Standardized under SparkHub Architecture Blueprint.
  * * CORE RESPONSIBILITIES:
