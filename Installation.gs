@@ -124,10 +124,8 @@ function runInstallation() {
 }
 
 /**
- * Initializes the Main Database with Core-only sheets (Users, Templates).
- */
-/**
- * Initializes the Main Database with Core-only sheets (Users, Templates).
+ * Initializes the Main Database with Core-only sheets (Users, Templates, Wrappers, Roles).
+ * Patterned after: https://docs.google.com/spreadsheets/d/1UwEG4lY7Gs8BK_5NkdEqAicyZ_pyBpfwg2CEyLAd2qI/
  */
 function setupCoreDatabase(rootFolder) {
   var dbName = "SparkHub Database";
@@ -142,70 +140,66 @@ function setupCoreDatabase(rootFolder) {
     isNew = true;
   }
   
-  // ROBUST FIX: Use the retry loop to move the file
   if (isNew) {
     moveFileWithRetry(ss.getId(), rootFolder);
   }
 
-  // Core Schema: Users (Access Management Focus)
-  var userHeaders = [
-    "Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login"
-  ];
-  initializeSheet(ss, "Users", userHeaders);
+  // 1. Schema: Users
+  initializeSheet(ss, "Users", ["Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login"]);
 
-  // ==========================================
-  // AUTO-CREATE INITIAL ADMINISTRATOR
-  // ==========================================
+  // Auto-create Initial Admin
   var usersSheet = ss.getSheetByName("Users");
-  // Only append if the sheet is empty (meaning only the Header row exists)
-  if (usersSheet && usersSheet.getLastRow() === 1) {
-    var adminEmail = Session.getActiveUser().getEmail() || "admin@example.com";
-    var adminUsername = adminEmail.split('@')[0]; // Auto-generate username from email
-    
-    usersSheet.appendRow([
-      new Date(),           // Timestamp
-      adminUsername,        // Username
-      "Administrator",      // Role
-      adminEmail,           // Email
-      "",                   // Password (Leave blank to enforce Google SSO)
-      "System",             // First Name placeholder
-      "Admin",              // Last Name placeholder
-      "Active",             // Status
-      new Date()            // Last Login (Timestamp of installation)
-    ]);
+  if (usersSheet.getLastRow() === 1) {
+    var adminEmail = Session.getActiveUser().getEmail();
+    usersSheet.appendRow([new Date(), adminEmail.split('@')[0], "Administrator", adminEmail, "", "System", "Admin", "Active", new Date()]);
   }
-  // ==========================================
 
-  // Core Schema: Roles & Permissions Matrix
-  var roleHeaders = [
-    "Role ID", "Role Name", "Description", "Permissions JSON", "Status"
-  ];
-  initializeSheet(ss, "Roles", roleHeaders);
-  
+  // 2. Schema: Roles
+  initializeSheet(ss, "Roles", ["Role ID", "Role Name", "Description", "Permissions JSON", "Status"]);
   var rolesSheet = ss.getSheetByName("Roles");
-  if (rolesSheet && rolesSheet.getLastRow() === 1) {
-    // Inject the Master Administrator role with a wildcard permission payload
-    var adminPerms = JSON.stringify({ 
-      "Core System": ["Manage Settings", "Manage Roles"], 
-      "Access & Users": ["View Users", "Manage Users"], 
-      "Templates": ["View Templates", "Manage Templates"] 
-    });
+  if (rolesSheet.getLastRow() === 1) {
+    var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"], "System Logs": ["View Logs"] });
     rolesSheet.appendRow(["R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active"]);
   }
 
-  // Core Schema: Templates
-  var templateHeaders = [
-    "ID", "Name", "Category", "Trigger", "Subject", "Body", "Status", "Wrapper"
-  ];
+  // 3. Schema: Templates (11-Column Schema with Timestamp)
+  var templateHeaders = ["Timestamp", "ID", "Name", "Category", "Description", "Last Editor", "Trigger", "Subject", "Body", "Status", "Wrapper"];
   initializeSheet(ss, "Templates", templateHeaders);
 
-  // Cleanup default Sheet1 if it exists
-  var defaultSheet = ss.getSheetByName("Sheet1");
-  if (defaultSheet) {
-    ss.deleteSheet(defaultSheet);
-  }
-  
+  // 4. Schema: Wrappers (5-Column Schema with Timestamp)
+  var wrapperHeaders = ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"];
+  initializeSheet(ss, "Wrappers", wrapperHeaders);
+
+  // Seed provided assets [cite: 421, 424]
+  seedCoreAssets(ss);
+
+  if (ss.getSheetByName("Sheet1")) ss.deleteSheet(ss.getSheetByName("Sheet1"));
   PropertiesService.getScriptProperties().setProperty('DATABASE_ID', ss.getId());
+}
+
+/**
+ * Seeds the provided Wrapper HTML and initial Templates into the Registry.
+ */
+function seedCoreAssets(ss) {
+  var wrapSheet = ss.getSheetByName("Wrappers");
+  if (wrapSheet.getLastRow() === 1) {
+    var internalHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #F1C40F;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">MegaRhino</h1></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.<br>Please do not reply to this email.</div></div></div>`; // [cite: 421, 422, 423]
+    
+    var externalHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #eee;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #ddd; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h2 style="color: #333; margin: 0;">MegaRhino</h2></div><div style="color: #555; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px;">Sent from the MegaRhino Team.<br><span style="font-size: 11px;">Please do not reply to this email.</span></div></div></div>`; // [cite: 424, 425]
+
+    wrapSheet.appendRow([new Date(), "W-INTERNAL", "Internal Hub", internalHtml, "Active"]);
+    wrapSheet.appendRow([new Date(), "W-EXTERNAL", "External Client", externalHtml, "Active"]);
+  }
+
+  var tplSheet = ss.getSheetByName("Templates");
+  if (tplSheet.getLastRow() === 1) {
+    // Initial System Template
+    tplSheet.appendRow([
+      new Date(), "TPL-WELCOME", "System Welcome", "Security", "Initial access email", 
+      "Installer", "User:CREATE", "Welcome to {{systemName}}", 
+      "<p>Hello {{username}},</p><p>Your account has been established.</p>", "Active", "Internal Hub"
+    ]);
+  }
 }
 
 /**

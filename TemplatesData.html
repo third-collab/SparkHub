@@ -410,6 +410,31 @@
     }
   }
 
+  function loadWrappersTable() {
+    // FIX: Using tpl-list-overlay because wrapper-sub-view is visible when this runs
+    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
+    google.script.run.withSuccessHandler(function(wrappers) {
+      toggleTemplateOverlay('tpl-list-overlay', false);
+      var tbody = document.getElementById('wrapperTableBody');
+      tbody.innerHTML = '';
+      if (!wrappers || wrappers.length === 0) { 
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px;">No layouts found. Click Create Wrapper to begin.</td></tr>'; 
+        return; 
+      }
+      
+      wrappers.forEach(w => {
+        var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${w.name}</strong></td>
+            <td><span class="badge ${pill}">${w.status}</span></td>
+            <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex})">Edit Code</button></td>
+          </tr>
+        `;
+      });
+    }).getWrappersList();
+  }
+
   /**
    * Fetches wrappers and updates the dropdown in the Template Editor.
    */

@@ -12,10 +12,6 @@
  * Handles environment detection, dynamic branding, and registry-based rendering.
  * @return {HtmlService.HtmlOutput} The evaluated HTML template.
  */
-/**
- * Entry point for the SparkHub Web Application.
- * Handles environment detection, dynamic branding, and registry-based rendering.
- */
 function doGet() {
   var props = PropertiesService.getScriptProperties();
   var env = props.getProperty('ENVIRONMENT');
@@ -28,7 +24,7 @@ function doGet() {
   template.userEmail = userEmail;
   template.systemName = settings.systemName;
   
-  // DYNAMIC UI REGISTRY: List core files + any discovered modules
+  // DYNAMIC UI REGISTRY
   var includes = ['SettingsData', 'UsersData', 'TemplatesData', 'LogsData'];
   if (settings.installedModules) {
     settings.installedModules.split(',').forEach(function(m) {
@@ -38,7 +34,6 @@ function doGet() {
   }
   template.includeList = includes; 
 
-  // Passing Theme & Settings
   template.installedModules = settings.installedModules;
   template.installedPlugins = settings.installedPlugins;
   template.systemLogoUrl = settings.systemLogoId ? settings.systemLogoUrl : settings.appFallbackLogo;
@@ -49,7 +44,6 @@ function doGet() {
   template.themeBg = settings.themeBg;
   template.themeHover = settings.themeHover;
 
-  // Security & Routing
   var role = isInstalled ? (userEmail === '' ? 'Guest' : getUserRole()) : "Administrator";
   if (role === 'Inactive') return serveAccessDeniedScreen(settings);
   
@@ -57,9 +51,11 @@ function doGet() {
   template.username = (role === 'Guest') ? '' : getLoggedInUsername();
   template.userPermissions = (role === 'Guest' || !isInstalled) ? '{"ALL":["ALL"]}' : getUserPermissions(role);
 
+  // EVALUATE AND SET FAVICON
   return template.evaluate()
       .setTitle(settings.systemName)
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .setFaviconUrl(settings.systemLogoId ? settings.systemLogoUrl + "&ext=.png" : settings.appFallbackLogo);
 }
 
 /**
