@@ -80,7 +80,7 @@ function uploadBase64File(base64, filename, folderObj) {
 /**
  * Standardized System Logging Engine
  * Records auditable events across the SparkHub architecture.
- * * @param {string} module - Originating module (e.g., 'Users', 'Templates', 'Settings').
+ * @param {string} module - Originating module (e.g., 'Users', 'Templates', 'Settings').
  * @param {string} actionType - CRUD category (CREATE, UPDATE, DELETE, SYSTEM, ALERT).
  * @param {string} actionName - Short name of the action (e.g., 'Create User').
  * @param {string} severity - INFO, WARN, ERROR, CRITICAL.
@@ -88,9 +88,8 @@ function uploadBase64File(base64, filename, folderObj) {
  * @param {string} logText - Detailed description of the event.
  */
 function logSystemAction(module, actionType, actionName, severity, targetEntity, logText) {
-  // ... inside logSystemAction()
   try {
-    var ss = getLogsDb(); // <-- CHANGED THIS LINE
+    var ss = getLogsDb(); 
     var sheet = ss.getSheetByName("System Logs");
     if (!sheet) return; // Failsafe if not yet initialized
     
@@ -102,8 +101,8 @@ function logSystemAction(module, actionType, actionName, severity, targetEntity,
     var env = "Unknown";
     try { env = PropertiesService.getScriptProperties().getProperty('ENVIRONMENT') || "Sandbox"; } catch(e) {}
 
-    // Append to database
-    sheet.appendRow([
+    // Build the payload
+    var logData = [[
       new Date(),
       module,
       actionType,
@@ -113,7 +112,12 @@ function logSystemAction(module, actionType, actionName, severity, targetEntity,
       targetEntity,
       logText,
       env
-    ]);
+    ]];
+
+    // INSERT AT THE TOP: Create a new row right under the header (Row 1) and insert data
+    sheet.insertRowAfter(1);
+    sheet.getRange(2, 1, 1, 9).setValues(logData);
+    
   } catch (e) {
     console.error("Logging Engine Failure: " + e.message);
   }

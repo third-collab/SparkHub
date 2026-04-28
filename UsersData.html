@@ -1,7 +1,13 @@
 <style>
   .user-loading-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); z-index: 10; justify-content: center; align-items: center; border-radius: var(--border-radius-large); flex-direction: column; gap: 10px; }
-  #addUserView .form-wrapper, #editUserView .form-wrapper, #readOnlyUserView .form-wrapper { position: relative; min-height: 400px; }
+  #addUserView .form-wrapper, #editUserView .form-wrapper, #readOnlyUserView .form-wrapper, #rolesListView .table-container, #editRoleView .form-wrapper { position: relative; min-height: 400px; }
   .user-avatar-placeholder { width: 50px; height: 50px; border-radius: 50%; background: var(--brand-primary); color: white; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; margin-right: 15px; }
+  
+  /* Permission Matrix Styling */
+  .perm-group { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+  .perm-group-title { background: #f8fafc; padding: 10px 15px; font-size: 13px; font-weight: 700; color: var(--brand-dark); border-bottom: 1px solid #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px; }
+  .perm-group-items { padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .perm-cb-label { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 8px; cursor: pointer; }
 </style>
 
 <div id="user-popup" class="header-popup" style="display:none;">
@@ -16,7 +22,7 @@
 </div>
 
 <template class="module-card-template" data-category="core" data-admin-only="true">
-  <div class="card" id="card-users" onclick="switchView('usersListView'); loadUsersTable();">
+  <div class="card" id="card-users" onclick="initUsersModule();">
     <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
     <h3>Access & Users</h3><p>Manage system access, roles, and directory profiles.</p>
   </div>
@@ -24,7 +30,14 @@
 
 <div id="usersListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
-  <div class="view-header-bar" style="margin-bottom: 20px;"><h2>Access Management</h2><button class="btn-primary" onclick="openAddUserForm()">+ Add User</button></div>
+  
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div class="tab-nav" style="margin: 0; border: none;">
+      <button class="tab-btn active">User Directory</button>
+      <button class="tab-btn" onclick="openRolesList()">Roles & Permissions</button>
+    </div>
+    <button class="btn-primary" onclick="openAddUserForm()">+ Add User</button>
+  </div>
 
   <div class="filter-wrapper">
     <input type="text" id="user-filter-search" class="filter-input" placeholder="Search users..." onkeyup="applyUserFilters()">
@@ -38,10 +51,7 @@
       </div>
       <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-role-drop')">Role ▼</button>
         <div class="dropdown-content" id="user-role-drop">
-          <label><input type="checkbox" class="user-filter-role-cb" value="Admin" checked onchange="applyUserFilters()"> Admin</label>
-          <label><input type="checkbox" class="user-filter-role-cb" value="Account Manager" checked onchange="applyUserFilters()"> Account Manager</label>
-          <label><input type="checkbox" class="user-filter-role-cb" value="Account Support" checked onchange="applyUserFilters()"> Account Support</label>
-        </div>
+          </div>
       </div>
       <button type="button" class="btn-reset-filters" onclick="resetUserFilters()">Reset</button>
     </div>
@@ -77,11 +87,7 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label>System Role *</label>
-          <select id="add-user-role" class="form-control" required>
-            <option value="Admin">Admin</option>
-            <option value="Account Manager">Account Manager</option>
-            <option value="Account Support">Account Support</option>
-          </select>
+          <select id="add-user-role" class="form-control" required></select>
         </div>
         <div class="form-group"><label>Access Status</label>
           <select id="add-user-status" class="form-control">
@@ -118,11 +124,7 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label>System Role *</label>
-          <select id="edt-user-role" class="form-control" required>
-            <option value="Admin">Admin</option>
-            <option value="Account Manager">Account Manager</option>
-            <option value="Account Support">Account Support</option>
-          </select>
+          <select id="edt-user-role" class="form-control" required></select>
         </div>
         <div class="form-group"><label>Access Status</label>
           <select id="edt-user-status" class="form-control">
@@ -138,7 +140,6 @@
         <button type="submit" class="btn-primary" id="edt-user-submit">Update Access</button>
       </div>
     </form>
-    <div id="edt-user-status" class="status-msg"></div>
   </div>
 </div>
 
@@ -174,13 +175,118 @@
   </div>
 </div>
 
+<div id="rolesListView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
+    <div class="tab-nav" style="margin: 0; border: none;">
+      <button class="tab-btn" onclick="switchView('usersListView')">User Directory</button>
+      <button class="tab-btn active">Roles & Permissions</button>
+    </div>
+    <button class="btn-primary" onclick="openAddRoleForm()">+ Create Role</button>
+  </div>
+
+  <div class="table-container">
+    <div id="role-list-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
+    <table>
+      <thead><tr><th>Role Name</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="roleTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="editRoleView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="openRolesList()">&#8592; Back to Roles</button>
+  <div class="form-wrapper">
+    <div id="role-edit-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Saving Role...</span></div>
+    <h2 id="role-form-title" style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Create Role</h2>
+    
+    <form id="roleForm" onsubmit="handleRoleSubmit(event)">
+      <input type="hidden" id="edt-role-rowIndex">
+      <div class="form-row">
+        <div class="form-group"><label>Role Name *</label><input type="text" id="edt-role-name" class="form-control" required></div>
+        <div class="form-group"><label>Status</label>
+          <select id="edt-role-status" class="form-control">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom: 30px;"><label>Role Description</label><input type="text" id="edt-role-desc" class="form-control" placeholder="Brief description of this role's purpose"></div>
+      
+      <h3 style="font-size: 16px; margin-bottom: 15px; color: var(--brand-dark);">Permission Matrix</h3>
+      <p style="font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 20px;">Seamlessly grants access across core and dynamically installed add-ons.</p>
+      
+      <div id="permission-matrix-container">
+        </div>
+
+      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
+        <button type="submit" class="btn-primary" id="edt-role-submit">Save Role</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   var GLOBAL_USER_DATA = [];
+  var GLOBAL_ROLES_DATA = [];
   var CURRENT_USER_SORT_COLUMN = 'username';
   var CURRENT_USER_SORT_DESC = false;
 
+  /* ========================================================================
+     1. INITIALIZATION & DYNAMIC RBAC SEEDING
+     ======================================================================== */
+  
+  function initUsersModule() {
+    switchView('usersListView');
+    // Fetch Roles first to build the dynamic checkboxes and dropdowns!
+    google.script.run.withSuccessHandler(function(roles) {
+      GLOBAL_ROLES_DATA = roles || [];
+      populateDynamicRoleUI();
+      loadUsersTable(); // Load users after roles are ready
+    }).getRolesList();
+  }
+
+  function populateDynamicRoleUI() {
+    // 1. Populate the filter dropdown
+    var filterDrop = document.getElementById('user-role-drop');
+    var addRoleDrop = document.getElementById('add-user-role');
+    var edtRoleDrop = document.getElementById('edt-user-role');
+    
+    filterDrop.innerHTML = '';
+    addRoleDrop.innerHTML = '';
+    edtRoleDrop.innerHTML = '';
+
+    GLOBAL_ROLES_DATA.forEach(function(r) {
+      if(r.status === 'Active') {
+        filterDrop.innerHTML += `<label><input type="checkbox" class="user-filter-role-cb" value="${r.name}" checked onchange="applyUserFilters()"> ${r.name}</label>`;
+        addRoleDrop.innerHTML += `<option value="${r.name}">${r.name}</option>`;
+        edtRoleDrop.innerHTML += `<option value="${r.name}">${r.name}</option>`;
+      }
+    });
+  }
+
+  // The Magic Plugin Matrix: Automatically reveals new permissions if you install a module!
+  function getSystemPermissionMatrix() {
+    var matrix = {
+       "Core System": ["Manage Settings", "Manage Roles"],
+       "Access & Users": ["View Users", "Manage Users"],
+       "Templates": ["View Templates", "Manage Templates"]
+    };
+    
+    // Dynamically inject if other modules are installed
+    if (typeof INSTALLED_MODULES !== 'undefined') {
+      if (INSTALLED_MODULES.includes('Clients')) {
+        matrix["Clients Module"] = ["View Clients", "Manage Clients", "Delete Clients", "Export Clients"];
+      }
+      if (INSTALLED_MODULES.includes('Calendar')) {
+        matrix["Calendar Module"] = ["View Events", "Manage Events"];
+      }
+    }
+    return matrix;
+  }
+
   function initUserBarPlugin() {
-    if (INSTALLED_PLUGINS.includes('UserBar')) {
+    if (typeof INSTALLED_PLUGINS !== 'undefined' && INSTALLED_PLUGINS.includes('UserBar')) {
       var nameEl = document.getElementById('display-username');
       if (nameEl) nameEl.innerText = CURRENT_USERNAME;
       var popName = document.getElementById('user-popup-name');
@@ -189,6 +295,10 @@
       if (popRole) popRole.innerText = CURRENT_USER_ROLE;
     }
   }
+
+  /* ========================================================================
+     2. USERS DIRECTORY
+     ======================================================================== */
 
   function loadUsersTable() {
     google.script.run.withSuccessHandler(function(users) {
@@ -205,8 +315,7 @@
 
   function resetUserFilters() {
     document.getElementById('user-filter-search').value = '';
-    document.querySelectorAll('.user-filter-status-cb').forEach(cb => cb.checked = (cb.value === 'Active'));
-    document.querySelectorAll('.user-filter-role-cb').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.user-filter-status-cb, .user-filter-role-cb').forEach(cb => cb.checked = true);
     applyUserFilters();
   }
 
@@ -284,38 +393,34 @@
     if (!username) return;
 
     toggleUserOverlay('add-user-overlay', true, 'Creating Profile...');
-    var statusEl = document.getElementById('add-user-status');
     var btn = document.getElementById('add-user-submit');
     btn.disabled = true;
 
     var userData = {
       username: username, role: document.getElementById('add-user-role').value,
       email: document.getElementById('add-user-email').value, password: document.getElementById('add-user-password').value,
-      firstName: document.getElementById('add-user-first').value,
-      lastName: document.getElementById('add-user-last').value, status: document.getElementById('add-user-status').value
+      firstName: document.getElementById('add-user-first').value, lastName: document.getElementById('add-user-last').value, 
+      status: document.getElementById('add-user-status').value
     };
 
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('add-user-overlay', false);
-      statusEl.innerHTML = res;
       if (res.includes("Success")) {
-        statusEl.style.color = "green";
-        setTimeout(() => { loadUsersTable(); switchView('usersListView'); }, 1500);
-      } else { btn.disabled = false; }
+        setTimeout(() => { initUsersModule(); }, 500);
+      } else { btn.disabled = false; alert(res); }
     }).processNewUser(userData);
   }
 
   function openEditUserForm(rowIndex) {
     switchView('editUserView');
     document.getElementById('editUserForm').reset();
-    document.getElementById('edt-user-status').innerHTML = '';
     toggleUserOverlay('edit-user-overlay', true, 'Fetching Data...');
 
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('edit-user-overlay', false);
       document.getElementById('edt-user-rowIndex').value = data.rowIndex;
       document.getElementById('edt-user-username').value = data.username || "";
-      document.getElementById('edt-user-role').value = data.role || "Account Manager";
+      document.getElementById('edt-user-role').value = data.role || "";
       document.getElementById('edt-user-email').value = data.email || "";
       document.getElementById('edt-user-password').value = data.password || "";
       document.getElementById('edt-user-first').value = data.firstName || "";
@@ -345,16 +450,12 @@
       toggleUserOverlay('edit-user-overlay', false);
       if (res.includes("Success")) {
         loadUsersTable(); openReadOnlyUser(userData.rowIndex);
-      } else { btn.disabled = false; }
+      } else { btn.disabled = false; alert(res); }
     }).updateUserRecord(userData);
   }
 
   function openReadOnlyUser(rowIndex) {
     switchView('readOnlyUserView');
-    document.getElementById('ro-user-fullname').innerText = "";
-    document.getElementById('ro-user-email').innerText = "";
-    document.getElementById('ro-user-initial').innerText = "";
-    
     toggleUserOverlay('ro-user-overlay', true, 'Loading Profile...');
 
     google.script.run.withSuccessHandler(function(data) {
@@ -362,17 +463,112 @@
       document.getElementById('ro-user-fullname').innerText = data.firstName + " " + data.lastName;
       document.getElementById('ro-user-subline').innerText = data.role;
       document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
-      
-      var statusBox = document.getElementById('ro-user-status-pill');
       var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      statusBox.innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
-
+      document.getElementById('ro-user-status-pill').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
       document.getElementById('ro-user-username').innerText = data.username;
       document.getElementById('ro-user-role').innerText = data.role;
       document.getElementById('ro-user-email').innerText = data.email;
       document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
-
       document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex); };
     }).getUserById(rowIndex);
+  }
+
+  /* ========================================================================
+     3. ROLES MANAGER
+     ======================================================================== */
+
+  function openRolesList() {
+    switchView('rolesListView');
+    toggleUserOverlay('role-list-overlay', true);
+    google.script.run.withSuccessHandler(function(roles) {
+      toggleUserOverlay('role-list-overlay', false);
+      GLOBAL_ROLES_DATA = roles || [];
+      renderRolesTable();
+      populateDynamicRoleUI(); // Keep filters in sync
+    }).getRolesList();
+  }
+
+  function renderRolesTable() {
+    var tbody = document.getElementById('roleTableBody');
+    tbody.innerHTML = '';
+    GLOBAL_ROLES_DATA.forEach(function(r) {
+      var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      tbody.innerHTML += `
+        <tr>
+          <td><strong>${r.name}</strong></td>
+          <td>${r.description || "-"}</td>
+          <td><span class="badge ${sClass}">${r.status}</span></td>
+          <td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Permissions</button></td>
+        </tr>
+      `;
+    });
+  }
+
+  function renderPermissionMatrix(savedPerms) {
+    var container = document.getElementById('permission-matrix-container');
+    var matrix = getSystemPermissionMatrix();
+    container.innerHTML = '';
+
+    for (var category in matrix) {
+      var html = `<div class="perm-group"><div class="perm-group-title">${category}</div><div class="perm-group-items">`;
+      matrix[category].forEach(function(perm) {
+        var isChecked = savedPerms[category] && savedPerms[category].includes(perm) ? "checked" : "";
+        html += `<label class="perm-cb-label"><input type="checkbox" class="role-perm-cb" data-category="${category}" value="${perm}" ${isChecked}> ${perm}</label>`;
+      });
+      html += `</div></div>`;
+      container.innerHTML += html;
+    }
+  }
+
+  function openAddRoleForm() {
+    switchView('editRoleView');
+    document.getElementById('roleForm').reset();
+    document.getElementById('edt-role-rowIndex').value = '';
+    document.getElementById('role-form-title').innerText = "Create New Role";
+    renderPermissionMatrix({}); // Blank permissions
+  }
+
+  function openEditRoleForm(rowIndex) {
+    switchView('editRoleView');
+    document.getElementById('roleForm').reset();
+    document.getElementById('role-form-title').innerText = "Edit Role Configuration";
+    
+    var role = GLOBAL_ROLES_DATA.find(r => r.rowIndex === rowIndex);
+    if (!role) return;
+
+    document.getElementById('edt-role-rowIndex').value = role.rowIndex;
+    document.getElementById('edt-role-name').value = role.name;
+    document.getElementById('edt-role-desc').value = role.description;
+    document.getElementById('edt-role-status').value = role.status;
+
+    var savedPerms = {};
+    try { savedPerms = JSON.parse(role.permissions || "{}"); } catch(e){}
+    renderPermissionMatrix(savedPerms);
+  }
+
+  function handleRoleSubmit(e) {
+    e.preventDefault();
+    toggleUserOverlay('role-edit-overlay', true);
+    
+    // Gather permissions from matrix
+    var finalPerms = {};
+    document.querySelectorAll('.role-perm-cb:checked').forEach(function(cb) {
+      var cat = cb.getAttribute('data-category');
+      if (!finalPerms[cat]) finalPerms[cat] = [];
+      finalPerms[cat].push(cb.value);
+    });
+
+    var payload = {
+      rowIndex: document.getElementById('edt-role-rowIndex').value,
+      name: document.getElementById('edt-role-name').value,
+      description: document.getElementById('edt-role-desc').value,
+      status: document.getElementById('edt-role-status').value,
+      permissions: JSON.stringify(finalPerms)
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('role-edit-overlay', false);
+      if(res.includes("Success")) { openRolesList(); } else { alert(res); }
+    }).saveRoleRecord(payload);
   }
 </script>

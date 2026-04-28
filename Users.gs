@@ -106,3 +106,53 @@ function updateLastLogin() {
     }
   } catch (e) { console.error("Failed to update last login: " + e.message); }
 }
+
+/* ========================================================================
+   ROLE & PERMISSION MANAGEMENT (RBAC)
+   ======================================================================== */
+
+/**
+ * Failsafe: Builds the Roles sheet for existing installations.
+ */
+function ensureRolesSheet() {
+  var ss = getMainDb();
+  var sheet = ss.getSheetByName("Roles");
+  if (!sheet) {
+    initializeSheet(ss, "Roles", ["Role ID", "Role Name", "Description", "Permissions JSON", "Status"]);
+    sheet = ss.getSheetByName("Roles");
+    var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"] });
+    sheet.appendRow(["R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active"]);
+  }
+  return sheet;
+}
+
+function getRolesList() {
+  try {
+    var sheet = ensureRolesSheet();
+    var data = sheet.getDataRange().getValues();
+    data.shift();
+    return data.map(function(row, i) {
+      return { 
+        rowIndex: i + 2, id: row[0], name: row[1], 
+        description: row[2], permissions: row[3], status: row[4] 
+      };
+    });
+  } catch(e) { return []; }
+}
+
+function saveRoleRecord(obj) {
+  try {
+    var sheet = ensureRolesSheet();
+    if (obj.rowIndex) {
+      // Update existing role
+      sheet.getRange(obj.rowIndex, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
+      logSystemAction("Users", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.");
+    } else {
+      // Create new role
+      var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
+      sheet.appendRow([ roleId, obj.name, obj.description, obj.permissions, obj.status ]);
+      logSystemAction("Users", "CREATE", "Add Role", "INFO", obj.name, "New system role established.");
+    }
+    return "Success! Role saved.";
+  } catch (e) { return "Error: " + e.message; }
+}

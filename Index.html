@@ -106,19 +106,17 @@
     var INSTALLED_MODULES = "<?= typeof installedModules !== 'undefined' ? installedModules : '' ?>";
     var INSTALLED_PLUGINS = "<?= typeof installedPlugins !== 'undefined' ? installedPlugins : '' ?>";
 
-    document.addEventListener("DOMContentLoaded", function() {
-      if (document.getElementById('installWizard')) return;
-
-      // ----------------------------------------------------------------
-      // DYNAMIC CARD INJECTION ENGINE
-      // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
+    // DYNAMIC CARD INJECTION ENGINE (Extracted to a reusable function)
+    // ----------------------------------------------------------------
+    function injectDashboardCards() {
       var templates = Array.from(document.querySelectorAll('.module-card-template'));
       var isUserAdmin = (CURRENT_USER_ROLE === 'Administrator' || CURRENT_USER_ROLE === 'Admin');
 
       templates.forEach(tpl => {
         // Check if the card is marked as admin-only
         var isAdminOnly = tpl.getAttribute('data-admin-only') === 'true';
-        if (isAdminOnly && !isUserAdmin) return; // Skip injecting this card if not an admin
+        if (isAdminOnly && !isUserAdmin) return; 
 
         // Find the target category grid
         var category = tpl.getAttribute('data-category'); 
@@ -126,15 +124,24 @@
         var title = document.getElementById('title-' + category);
 
         if (grid) {
-          // Clone the card HTML and inject it into the grid
-          grid.appendChild(tpl.content.cloneNode(true));
-          // Reveal the category header now that it has content
-          if (title) title.style.display = 'block';
+          // Prevent duplicate injection if called multiple times
+          var cardId = tpl.content.firstElementChild.id;
+          if (!document.getElementById(cardId)) {
+            grid.appendChild(tpl.content.cloneNode(true));
+            if (title) title.style.display = 'block';
+          }
         }
       });
-      // ----------------------------------------------------------------
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      // If the wizard is present, abort the normal startup sequence
+      if (document.getElementById('installWizard')) return;
+
+      // Normal Startup (System is already installed)
+      injectDashboardCards();
+
       // NON-BLOCKING LOGIN TIMESTAMP
-      // ----------------------------------------------------------------
       if (CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== '') {
         google.script.run.updateLastLogin();
       }
@@ -164,16 +171,20 @@
           document.getElementById('wizardLoading').style.display = 'none';
           document.getElementById('wizardSuccess').style.display = 'block';
           
-          // Extract the App URL returned from the backend
-          var appUrl = res.split("|")[1];
-          
           setTimeout(() => { 
-            // Force a hard refresh to re-evaluate the server-side templates and DOM
-            if (appUrl) {
-              window.top.location.href = appUrl;
-            } else {
-              window.top.location.reload(); 
-            }
+            // 1. Hide the Wizard Overlay entirely
+            var wizard = document.getElementById('installWizard');
+            if (wizard) wizard.style.display = 'none';
+            
+            // 2. Dynamically update Header and Title branding
+            document.getElementById('hub-system-name').innerText = sysNameInput;
+            document.getElementById('hub-window-title').innerText = sysNameInput;
+            
+            // 3. Fire the injection engine to populate the dashboard cards
+            injectDashboardCards();
+            
+            // 4. Reveal the newly rendered Dashboard
+            switchView('dashboardView');
           }, 2000); 
         } else { 
           alert("Installation Error: " + res); 
