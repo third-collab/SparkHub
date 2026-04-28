@@ -11,6 +11,10 @@ function processNewUser(obj) {
       new Date(), obj.username, obj.role, obj.email, obj.password, 
       obj.firstName, obj.lastName, obj.status, "" 
     ]);
+    
+    // FORCE GOOGLE TO COMMIT THE WRITE IMMEDIATELY
+    SpreadsheetApp.flush(); 
+    
     logSystemAction("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile created.");
     return "Success! User created.";
   } catch (e) { return "Error: " + e.message; }
@@ -20,11 +24,14 @@ function updateUserRecord(obj) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var row = parseInt(obj.rowIndex);
-    // Write 7 columns starting at Column 2 (Username)
     sheet.getRange(row, 2, 1, 7).setValues([[
       obj.username, obj.role, obj.email, obj.password, obj.firstName, 
       obj.lastName, obj.status
     ]]);
+    
+    // FORCE GOOGLE TO COMMIT THE WRITE IMMEDIATELY
+    SpreadsheetApp.flush();
+    
     logSystemAction("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
     return "Success! User updated.";
   } catch (e) { return "Error: " + e.message; }
@@ -46,14 +53,24 @@ function getUsersList() {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
-    data.shift();
-    return data.map(function(row, i) {
-      return { 
-        rowIndex: i + 2, 
-        username: row[1], role: row[2], email: row[3], 
-        firstName: row[5], lastName: row[6], status: row[7] 
-      };
+    data.shift(); // Remove headers
+    
+    var validUsers = [];
+    data.forEach(function(row, i) {
+      if (row[1]) { // Only map rows that actually contain a Username
+        validUsers.push({ 
+          rowIndex: i + 2, 
+          // Strictly cast to String to prevent UI crashes on numbers
+          username: String(row[1]), 
+          role: String(row[2]), 
+          email: String(row[3]), 
+          firstName: String(row[5]), 
+          lastName: String(row[6]), 
+          status: String(row[7]) 
+        });
+      }
     });
+    return validUsers;
   } catch (e) { return []; }
 }
 
@@ -155,4 +172,23 @@ function saveRoleRecord(obj) {
     }
     return "Success! Role saved.";
   } catch (e) { return "Error: " + e.message; }
+}
+
+/**
+ * Retrieves the JSON permission matrix for a specific role.
+ */
+function getUserPermissions(roleName) {
+  if (roleName === 'Administrator' || roleName === 'Admin') {
+    return '{"ALL":["ALL"]}'; // Master wildcard for top-level admins
+  }
+  try {
+    var sheet = ensureRolesSheet();
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][1] === roleName && data[i][4] === 'Active') {
+        return data[i][3] ? data[i][3] : "{}"; // Return the JSON string
+      }
+    }
+  } catch(e) {}
+  return "{}";
 }

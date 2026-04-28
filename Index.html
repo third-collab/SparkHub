@@ -105,26 +105,100 @@
     var CURRENT_USERNAME = "<?= typeof username !== 'undefined' ? username : 'System' ?>";
     var INSTALLED_MODULES = "<?= typeof installedModules !== 'undefined' ? installedModules : '' ?>";
     var INSTALLED_PLUGINS = "<?= typeof installedPlugins !== 'undefined' ? installedPlugins : '' ?>";
+    var CURRENT_USER_PERMISSIONS = <?!= typeof userPermissions !== 'undefined' && userPermissions ? userPermissions : '{}' ?>;
 
     // ----------------------------------------------------------------
-    // DYNAMIC CARD INJECTION ENGINE (Extracted to a reusable function)
+    // STATELESS SESSION ENGINE (Local Storage)
+    // ----------------------------------------------------------------
+    function checkLocalSession() {
+      // 1. If Google SSO identified them directly, purge local cache and proceed
+      if (CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== '') {
+        localStorage.removeItem('sparkhub_session');
+        return true; 
+      }
+
+      // 2. If anonymous, check Local Storage for an active token
+      var savedSession = localStorage.getItem('sparkhub_session');
+      if (savedSession) {
+        try {
+          var sessionData = JSON.parse(savedSession);
+          CURRENT_USER_ROLE = sessionData.role;
+          CURRENT_USERNAME = sessionData.username;
+          CURRENT_USER_PERMISSIONS = JSON.parse(sessionData.permissions);
+          return true; // Session is valid!
+        } catch(e) {}
+      }
+      return false; // User needs to log in
+    }
+
+    function handleLocalLogin(e) {
+      e.preventDefault();
+      var btn = document.getElementById('login-submit-btn');
+      var msg = document.getElementById('login-msg');
+      btn.innerText = "Verifying..."; btn.disabled = true; msg.innerText = "";
+
+      var loginId = document.getElementById('login-id').value;
+      var pass = document.getElementById('login-pass').value;
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res.success) {
+          // Cache session in browser
+          var sessionPayload = { username: res.username, role: res.role, permissions: res.permissions };
+          localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
+
+          // Hydrate JS Globals
+          CURRENT_USERNAME = res.username;
+          CURRENT_USER_ROLE = res.role;
+          CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
+
+          // Boot the App
+          document.getElementById('loginScreen').style.display = 'none';
+          bootApplication();
+        } else {
+          btn.innerText = "Sign In"; btn.disabled = false;
+          msg.innerText = res.message;
+        }
+      }).verifyUserCredentials(loginId, pass);
+    }
+
+    // ----------------------------------------------------------------
+    // ROLE-BASED ACCESS CONTROL (RBAC) ENGINE
+    // ----------------------------------------------------------------
+    function hasPermission(category, action) {
+      if (CURRENT_USER_PERMISSIONS["ALL"]) return true; // Master Admin wildcard
+      if (!CURRENT_USER_PERMISSIONS[category]) return false; // Missing category
+      return CURRENT_USER_PERMISSIONS[category].includes(action); // Check specific action
+    }
+
+    function enforceUIPermissions() {
+      document.querySelectorAll('.perm-protected').forEach(el => {
+        var reqCat = el.getAttribute('data-perm-category');
+        var reqAct = el.getAttribute('data-perm-action');
+        if (reqCat && reqAct && !hasPermission(reqCat, reqAct)) {
+          el.style.display = 'none';
+        }
+      });
+    }
+
+    // ----------------------------------------------------------------
+    // DYNAMIC CARD INJECTION ENGINE
     // ----------------------------------------------------------------
     function injectDashboardCards() {
       var templates = Array.from(document.querySelectorAll('.module-card-template'));
-      var isUserAdmin = (CURRENT_USER_ROLE === 'Administrator' || CURRENT_USER_ROLE === 'Admin');
 
       templates.forEach(tpl => {
-        // Check if the card is marked as admin-only
-        var isAdminOnly = tpl.getAttribute('data-admin-only') === 'true';
-        if (isAdminOnly && !isUserAdmin) return; 
+        // Read specific granular requirements
+        var reqCat = tpl.getAttribute('data-perm-category');
+        var reqAct = tpl.getAttribute('data-perm-action');
+        
+        // If requirements exist and user fails the check, abort injecting this card
+        if (reqCat && reqAct && !hasPermission(reqCat, reqAct)) return;
 
-        // Find the target category grid
         var category = tpl.getAttribute('data-category'); 
         var grid = document.getElementById('grid-' + category);
         var title = document.getElementById('title-' + category);
 
         if (grid) {
-          // Prevent duplicate injection if called multiple times
           var cardId = tpl.content.firstElementChild.id;
           if (!document.getElementById(cardId)) {
             grid.appendChild(tpl.content.cloneNode(true));
@@ -134,25 +208,38 @@
       });
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-      // If the wizard is present, abort the normal startup sequence
-      if (document.getElementById('installWizard')) return;
-
-      // Normal Startup (System is already installed)
+    // ----------------------------------------------------------------
+    // APP INITIALIZER
+    // ----------------------------------------------------------------
+    function bootApplication() {
+      if (typeof initUserBarPlugin === 'function') initUserBarPlugin();
       injectDashboardCards();
+      enforceUIPermissions();
 
-      // NON-BLOCKING LOGIN TIMESTAMP
       if (CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== '') {
         google.script.run.updateLastLogin();
       }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      if (document.getElementById('installWizard')) return;
+
+      if (checkLocalSession()) {
+         bootApplication(); // User is verified (SSO or Local)
+      } else {
+         var loginScreen = document.getElementById('loginScreen');
+         if (loginScreen) loginScreen.style.display = 'flex'; // Trap them at Login
+      }
     });
 
+    // ----------------------------------------------------------------
+    // INSTALLATION WIZARD & UI NAVIGATION
+    // ----------------------------------------------------------------
     function handleInstallSubmit(e) {
       if (e) e.preventDefault();
       
       var sysNameInput = document.getElementById('ins-sys-name').value.trim();
       
-      // Frontend Validation: Prevent "SparkHub"
       if (sysNameInput.toLowerCase() === 'sparkhub') {
         alert("Please choose a unique system name for your organization. 'SparkHub' is reserved.");
         return;
@@ -172,18 +259,16 @@
           document.getElementById('wizardSuccess').style.display = 'block';
           
           setTimeout(() => { 
-            // 1. Hide the Wizard Overlay entirely
             var wizard = document.getElementById('installWizard');
             if (wizard) wizard.style.display = 'none';
             
-            // 2. Dynamically update Header and Title branding
             document.getElementById('hub-system-name').innerText = sysNameInput;
             document.getElementById('hub-window-title').innerText = sysNameInput;
             
-            // 3. Fire the injection engine to populate the dashboard cards
-            injectDashboardCards();
+            // Re-hydrate permissions as Admin for the post-install view
+            CURRENT_USER_PERMISSIONS = {"ALL":["ALL"]};
+            bootApplication();
             
-            // 4. Reveal the newly rendered Dashboard
             switchView('dashboardView');
           }, 2000); 
         } else { 

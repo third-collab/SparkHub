@@ -21,7 +21,7 @@
   </div>
 </div>
 
-<template class="module-card-template" data-category="core" data-admin-only="true">
+<template class="module-card-template" data-category="core" data-perm-category="Access & Users" data-perm-action="View Users">
   <div class="card" id="card-users" onclick="initUsersModule();">
     <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
     <h3>Access & Users</h3><p>Manage system access, roles, and directory profiles.</p>
@@ -31,12 +31,16 @@
 <div id="usersListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
   
+  <div class="view-header-bar" style="margin-bottom: 20px;">
+    <h2 style="margin: 0; color: var(--brand-dark);">Access Management</h2>
+  </div>
+
   <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
     <div class="tab-nav" style="margin: 0; border: none;">
       <button class="tab-btn active">User Directory</button>
       <button class="tab-btn" onclick="openRolesList()">Roles & Permissions</button>
     </div>
-    <button class="btn-primary" onclick="openAddUserForm()">+ Add User</button>
+    <button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>
   </div>
 
   <div class="filter-wrapper">
@@ -103,7 +107,7 @@
         <button type="submit" class="btn-primary" id="add-user-submit">Create User</button>
       </div>
     </form>
-    <div id="add-user-status" class="status-msg"></div>
+    <div id="add-user-msg" class="status-msg" style="margin-top: 20px; font-weight: 600; text-align: right;"></div>
   </div>
 </div>
 
@@ -140,6 +144,7 @@
         <button type="submit" class="btn-primary" id="edt-user-submit">Update Access</button>
       </div>
     </form>
+    <div id="edt-user-msg" class="status-msg" style="margin-top: 20px; font-weight: 600; text-align: right;"></div>
   </div>
 </div>
 
@@ -157,7 +162,7 @@
             <div id="ro-user-status-pill" style="margin-top: 5px;"></div>
           </div>
        </div>
-       <button id="ro-user-edit-btn" class="btn-edit" style="padding: 10px 20px;">Edit Access</button>
+       <button id="ro-user-edit-btn" class="btn-edit perm-protected" style="padding: 10px 20px;" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Access</button>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
@@ -177,12 +182,17 @@
 
 <div id="rolesListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+  
+  <div class="view-header-bar" style="margin-bottom: 20px;">
+    <h2 style="margin: 0; color: var(--brand-dark);">Access Management</h2>
+  </div>
+
   <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
     <div class="tab-nav" style="margin: 0; border: none;">
       <button class="tab-btn" onclick="switchView('usersListView')">User Directory</button>
       <button class="tab-btn active">Roles & Permissions</button>
     </div>
-    <button class="btn-primary" onclick="openAddRoleForm()">+ Create Role</button>
+    <button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Core System" data-perm-action="Manage Roles">+ Create Role</button>
   </div>
 
   <div class="table-container">
@@ -325,10 +335,14 @@
     var checkedRoles = Array.from(document.querySelectorAll('.user-filter-role-cb:checked')).map(cb => cb.value);
 
     var filtered = GLOBAL_USER_DATA.filter(function(u) {
-      var name = (u.firstName + " " + u.lastName).toLowerCase();
-      var matchesSearch = u.username.toLowerCase().includes(search) || name.includes(search) || u.email.toLowerCase().includes(search);
+      var name = String((u.firstName || "") + " " + (u.lastName || "")).toLowerCase();
+      var searchUser = String(u.username || "").toLowerCase();
+      var searchEmail = String(u.email || "").toLowerCase();
+      
+      var matchesSearch = searchUser.includes(search) || name.includes(search) || searchEmail.includes(search);
       var matchesStatus = checkedStatuses.length === 0 || checkedStatuses.includes(u.status);
       var matchesRole = checkedRoles.length === 0 || checkedRoles.includes(u.role);
+      
       return matchesSearch && matchesStatus && matchesRole;
     });
 
@@ -361,13 +375,17 @@
       tr.onclick = function(e) { if (!e.target.closest('.btn-edit')) openReadOnlyUser(u.rowIndex); };
       
       var badgeClass = "badge badge-" + (u.status || "").toLowerCase();
+      var editBtnHtml = hasPermission('Access & Users', 'Manage Users') 
+        ? `<td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}); event.stopPropagation();">Edit</button></td>` 
+        : `<td></td>`;
+
       tr.innerHTML = `
         <td><strong>${u.username}</strong></td>
         <td>${u.firstName} ${u.lastName}</td>
         <td>${u.email}</td>
         <td>${u.role}</td>
         <td><span class="${badgeClass}">${u.status || "-"}</span></td>
-        <td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}); event.stopPropagation();">Edit</button></td>
+        ${editBtnHtml}
       `;
       tbody.appendChild(tr);
     });
@@ -382,7 +400,8 @@
 
   function openAddUserForm() {
     document.getElementById('addUserForm').reset();
-    document.getElementById('add-user-status').innerHTML = '';
+    var msg = document.getElementById('add-user-msg');
+    if (msg) msg.innerHTML = ''; // Fixed ID clear
     toggleUserOverlay('add-user-overlay', false);
     switchView('addUserView');
   }
@@ -397,23 +416,33 @@
     btn.disabled = true;
 
     var userData = {
-      username: username, role: document.getElementById('add-user-role').value,
-      email: document.getElementById('add-user-email').value, password: document.getElementById('add-user-password').value,
-      firstName: document.getElementById('add-user-first').value, lastName: document.getElementById('add-user-last').value, 
-      status: document.getElementById('add-user-status').value
+      username: username, 
+      role: document.getElementById('add-user-role').value,
+      email: document.getElementById('add-user-email').value, 
+      password: document.getElementById('add-user-password').value,
+      firstName: document.getElementById('add-user-first').value, 
+      lastName: document.getElementById('add-user-last').value, 
+      status: document.getElementById('add-user-status').value || "Active" // Safe fallback
     };
 
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('add-user-overlay', false);
+      var msg = document.getElementById('add-user-msg');
       if (res.includes("Success")) {
-        setTimeout(() => { initUsersModule(); }, 500);
-      } else { btn.disabled = false; alert(res); }
+        if(msg) { msg.style.color = "green"; msg.innerHTML = res; }
+        setTimeout(() => { initUsersModule(); }, 1000);
+      } else { 
+        btn.disabled = false; 
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+      }
     }).processNewUser(userData);
   }
 
   function openEditUserForm(rowIndex) {
     switchView('editUserView');
     document.getElementById('editUserForm').reset();
+    var msg = document.getElementById('edt-user-msg');
+    if (msg) msg.innerHTML = '';
     toggleUserOverlay('edit-user-overlay', true, 'Fetching Data...');
 
     google.script.run.withSuccessHandler(function(data) {
@@ -443,14 +472,19 @@
       password: document.getElementById('edt-user-password').value,
       firstName: document.getElementById('edt-user-first').value,
       lastName: document.getElementById('edt-user-last').value,
-      status: document.getElementById('edt-user-status').value
+      status: document.getElementById('edt-user-status').value || "Active"
     };
 
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('edit-user-overlay', false);
+      var msg = document.getElementById('edt-user-msg');
       if (res.includes("Success")) {
-        loadUsersTable(); openReadOnlyUser(userData.rowIndex);
-      } else { btn.disabled = false; alert(res); }
+        loadUsersTable(); 
+        openReadOnlyUser(userData.rowIndex);
+      } else { 
+        btn.disabled = false; 
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+      }
     }).updateUserRecord(userData);
   }
 
@@ -493,12 +527,16 @@
     tbody.innerHTML = '';
     GLOBAL_ROLES_DATA.forEach(function(r) {
       var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      var editRoleHtml = hasPermission('Core System', 'Manage Roles')
+        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Permissions</button></td>`
+        : `<td></td>`;
+
       tbody.innerHTML += `
         <tr>
           <td><strong>${r.name}</strong></td>
           <td>${r.description || "-"}</td>
           <td><span class="badge ${sClass}">${r.status}</span></td>
-          <td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Permissions</button></td>
+          ${editRoleHtml}
         </tr>
       `;
     });

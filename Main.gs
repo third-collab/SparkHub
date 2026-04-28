@@ -53,15 +53,29 @@ function doGet() {
 
   // 4. SECURITY & PERMISSIONS
   if (isInstalled) {
-    var role = getUserRole();
+    var role = 'Guest';
+    
+    // EXPLICIT AUTHENTICATION OVERRIDE
+    if (settings.authMode === 'Local') {
+      role = 'Guest'; // Defer entirely to frontend localStorage
+    } else {
+      // SSO Mode
+      if (userEmail !== '') {
+        role = getUserRole();
+      }
+    }
+
     if (role === 'Inactive') {
       return serveAccessDeniedScreen(settings);
     }
+    
     template.userRole = role;
-    template.username = getLoggedInUsername();
+    template.username = (role === 'Guest') ? '' : getLoggedInUsername();
+    template.userPermissions = (role === 'Guest') ? '{}' : getUserPermissions(role);
   } else {
     template.userRole = "Administrator";
     template.username = userEmail.split('@')[0];
+    template.userPermissions = '{"ALL":["ALL"]}';
   }
   
   var htmlOutput = template.evaluate()

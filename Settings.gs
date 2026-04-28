@@ -33,6 +33,7 @@ function getSystemSettings() {
 
     return {
       environment: props.getProperty('ENVIRONMENT') || 'Sandbox',
+      authMode: props.getProperty('AUTH_MODE') || 'SSO', // <-- NEW LINE
       adminEmail: props.getProperty('ADMIN_EMAIL') || '',
       systemName: props.getProperty('SYSTEM_NAME') || 'SparkHub',
       systemLogoUrl: logoUrl,
@@ -102,6 +103,7 @@ function saveSystemSettings(settings) {
     if (settings.logsDbId) validateLogsDatabase(settings.logsDbId);
     
     if (settings.environment) props.setProperty('ENVIRONMENT', settings.environment);
+    if (settings.authMode) props.setProperty('AUTH_MODE', settings.authMode); // <-- NEW LINE
     if (settings.adminEmail) props.setProperty('ADMIN_EMAIL', settings.adminEmail);
     if (settings.systemName) props.setProperty('SYSTEM_NAME', settings.systemName);
     if (settings.rootFolderId) props.setProperty('ROOT_FOLDER_ID', settings.rootFolderId);
