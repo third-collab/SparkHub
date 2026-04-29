@@ -432,7 +432,9 @@
     var wrapSelect = document.getElementById('edt-tpl-wrapper');
     if(wrapSelect) { wrapSelect.style.border = ''; wrapSelect.title = ''; }
     
-    if (tplQuill) tplQuill.setContents([]);
+    // CRITICAL FIX: Safely clear Quill without crashing the thread
+    if (tplQuill) tplQuill.setText(''); 
+    
     initTplEditor();
     loadPlaceholderSuggestions();
   }
@@ -469,7 +471,9 @@
     loadPlaceholderSuggestions();
     
     document.getElementById('editTemplateForm').reset();
-    if(tplQuill) tplQuill.setContents([]);
+    
+    // CRITICAL FIX: Safely clear Quill without crashing the thread
+    if(tplQuill) tplQuill.setText('');
     
     // UI Label Update
     document.getElementById('tpl-form-title').innerText = "Edit Template";
@@ -491,9 +495,9 @@
       document.getElementById('edt-tpl-subject').value = data.subject || "";
       
       var wrapperSelect = document.getElementById('edt-tpl-wrapper');
-      wrapperSelect.value = data.wrapper || "Internal";
+      wrapperSelect.value = data.wrapper || "Internal Communication";
       
-      // NEW: Highlight Field if Wrapper is Inactive
+      // Highlight Field if Wrapper is Inactive
       var wrapData = GLOBAL_WRAPPER_DATA.find(w => w.name === wrapperSelect.value);
       if (wrapData && wrapData.status !== 'Active') {
         wrapperSelect.style.border = '2px solid #eab308';
