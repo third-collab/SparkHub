@@ -33,7 +33,10 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getValues()[0];
+    // CRITICAL FIX: Changed .getValues() to .getDisplayValues()
+    // This safely serializes the Timestamp so the network request doesn't crash!
+    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getDisplayValues()[0];
+    
     return {
       rowIndex: rowIndex, timestamp: row[0], id: row[1], name: row[2], description: row[3], category: row[4],
       module: row[5], trigger: row[6], subject: row[7], body: row[8], wrapper: row[9], status: row[10]
