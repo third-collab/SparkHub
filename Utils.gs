@@ -1,14 +1,8 @@
 /**
  * [SPARKHUB INTEGRITY HEADER: START]
  * FILE: Utils.gs
- * VERSION: 1.2 (Generalized Base64 Upload Engine)
- * SYNC STATUS: Fully Synchronized with SystemsGovernance.md
- */
-
-/**
- * Utility Module - Backend
- * Standardized under SparkHub Architecture Blueprint.
- * Handles: File uploads, subfolder management, and global template helpers.
+ * VERSION: 1.4 (Consolidated Drive + Email Engine + 11-Col Indices)
+ * SYNC STATUS: Fully Synchronized with Installation.gs & Templates.gs
  */
 
 /**
@@ -18,97 +12,102 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-/**
- * Standardized helper to find or create a folder.
- * Centralized here to support Installation.gs, Settings.gs
- */
-function getOrCreateFolder(parentFolder, folderName) {
-  var folders = parentFolder.getFoldersByName(folderName);
-  if (folders.hasNext()) {
-    return folders.next();
-  } else {
-    var newFolder = parentFolder.createFolder(folderName);
-    // Ensure the folder is viewable by the system for UI rendering (e.g. logo/photos)
-    newFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    return newFolder;
-  }
-}
+/* ========================================================================
+   1. CORE INFRASTRUCTURE UTILITIES (Drive & Sheets)
+   ======================================================================== */
 
 /**
- * Dynamically retrieves a subfolder within the configured Root Folder.
- * Utilizes getOrCreateFolder to ensure structural integrity.
+ * Standardized helper to find or create a folder.
+ * Ignores trashed folders to prevent "Service error: Drive".
  */
+function getOrCreateFolder(parent, name) {
+  var folders = parent.getFoldersByName(name);
+  while (folders.hasNext()) {
+    var f = folders.next();
+    if (!f.isTrashed()) return f; 
+  }
+  var newFolder = parent.createFolder(name);
+  try {
+    newFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch(e) { console.warn("Sharing restricted by domain policy: " + e.message); }
+  return newFolder;
+}
+
 function getSystemSubfolder(subfolderName) {
   var settings = getSystemSettings();
   var rootId = settings.rootFolderId;
-  
-  if (!rootId) {
-    throw new Error("System Configuration Error: Root Folder is not set in Settings.");
-  }
+  if (!rootId) throw new Error("System Configuration Error: Root Folder is not set.");
   
   var rootFolder = DriveApp.getFolderById(rootId);
   return getOrCreateFolder(rootFolder, subfolderName);
 }
 
 /**
- * GENERIC UPLOAD ENGINE: Decodes a base64 string and saves it to a specified folder.
- * This is the standardized function for all system file uploads (Logos, Photos, Docs).
- * * @param {string} base64 - The data URI or raw base64 string.
- * @param {string} filename - The name to save the file as.
- * @param {GoogleAppsScript.Drive.Folder} folderObj - The target Drive Folder object.
- * @return {Object} Contains the permanent Drive URL and File ID.
+ * Safely moves a file to a target folder using a retry loop.
+ * Bypasses Google Drive API indexing latency.
  */
+function moveFileWithRetry(fileId, targetFolder) {
+  var maxRetries = 5;
+  for (var i = 0; i < maxRetries; i++) {
+    try {
+      var file = DriveApp.getFileById(fileId);
+      file.moveTo(targetFolder);
+      return; 
+    } catch (e) {
+      if (i === maxRetries - 1) throw new Error("Drive Indexing Error: " + e.message);
+      Utilities.sleep(3000); 
+    }
+  }
+}
+
+/**
+ * Helper to initialize a sheet with bold headers and frozen top row.
+ */
+function initializeSheet(ss, name, headers) {
+  var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length)
+         .setValues([headers])
+         .setFontWeight("bold")
+         .setBackground("#F3F3F3");
+    sheet.setFrozenRows(1);
+  }
+}
+
+/* ========================================================================
+   2. ASSET & UPLOAD UTILITIES
+   ======================================================================== */
+
 function uploadBase64File(base64, filename, folderObj) {
   try {
     var base64Data = base64.split(',')[1] || base64;
     var decoded = Utilities.base64Decode(base64Data);
     var blob = Utilities.newBlob(decoded, 'image/png', filename);
-    
     var file = folderObj.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    
-    return {
-      url: file.getUrl(),
-      id: file.getId()
-    };
-  } catch (e) {
-    console.error("Generic upload error: " + e.message);
-    throw new Error("File Upload Failed: " + e.message);
-  }
+    return { url: file.getUrl(), id: file.getId() };
+  } catch (e) { throw new Error("File Upload Failed: " + e.message); }
 }
-
 
 /**
  * Helper to retrieve the system logo as a blob for email attachments.
- * Priority: 1. Drive Logo, 2. Fallback URL (Centralized logic).
- * @return {Blob} The logo image blob.
  */
 function getLogoBlob() {
   var settings = getSystemSettings();
-  
-  // 1. Try Custom Uploaded Logo from Drive
   if (settings.systemLogoId) {
-    try {
-      return DriveApp.getFileById(settings.systemLogoId).getBlob().setName("logo");
-    } catch(e) {
-      console.warn("Drive logo fetch failed, proceeding to fallback: " + e.message);
-    }
+    try { return DriveApp.getFileById(settings.systemLogoId).getBlob().setName("logo"); } 
+    catch(e) { console.warn("Drive logo fetch failed: " + e.message); }
   }
-  
-  // 2. Use Centralized Fallback URL 
-  // (The Imgur URL failsafe is managed once in Settings.gs:getSystemSettings)
-  try {
-    return UrlFetchApp.fetch(settings.fallbackLogoUrl).getBlob().setName("logo");
-  } catch(e) {
-    console.error("Critical: All logo blob fetches failed: " + e.message);
-    // Return an empty transparent pixel or empty blob to prevent MailApp crash
-    return Utilities.newBlob("", "image/png", "logo");
-  }
+  try { return UrlFetchApp.fetch(settings.appFallbackLogo).getBlob().setName("logo"); } 
+  catch(e) { return Utilities.newBlob("", "image/png", "logo"); }
 }
+
+/* ========================================================================
+   3. EMAIL ENGINE (11-Column Indices + Sandbox Interceptor)
+   ======================================================================== */
 
 /**
  * Sends an automated email based on a Trigger Event Handle.
- * Updated: Restored Sandbox Interceptor and 11-column index logic.
  */
 function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
   var sheet = getMainDb().getSheetByName("Templates");
@@ -127,117 +126,64 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
   if (templateIdx === -1) return;
 
   var finalToEmail = toEmail;
-  var finalSubject = data[templateIdx][7]; // Column H (Subject)
-  var finalHtmlBody = data[templateIdx][8]; // Column I (Body)
-  var wrapperName = data[templateIdx][10]; // Column K (Wrapper)
+  var finalSubject = data[templateIdx][7];  // Column H
+  var finalHtmlBody = data[templateIdx][8]; // Column I
+  var wrapperName = data[templateIdx][10]; // Column K
   
-  // 1. Prepare Layout from dynamic Database Wrappers
   var wrapperHtml = getWrapperContent(wrapperName);
   var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
 
-  // 2. Perform Placeholder Swap
   for (var key in dataMap) {
     var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
-    var replacement = dataMap[key] || "";
-    finalSubject = finalSubject.replace(regex, replacement);
-    fullHtml = fullHtml.replace(regex, replacement);
+    finalSubject = finalSubject.replace(regex, dataMap[key] || "");
+    fullHtml = fullHtml.replace(regex, dataMap[key] || "");
   }
 
-  // 3. RESTORED: Sandbox Environment Interceptor
+  // RESTORED: Sandbox Environment Interceptor
   if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
     finalToEmail = settings.adminEmail;
     finalSubject = "[Sandbox Mail] " + finalSubject;
-    
-    var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: \"Courier New\", Courier, monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
-    sandboxWarning += "=========================================<br>";
-    sandboxWarning += " SYSTEM OVERRIDE: SANDBOX ENVIRONMENT    <br>";
-    sandboxWarning += "=========================================<br>";
-    sandboxWarning += "&gt; STATUS: INTERCEPTED<br>";
-    sandboxWarning += "&gt; INTENDED RECIPIENT(S): " + toEmail + "<br>";
-    sandboxWarning += "&gt; REROUTED TO ADMIN: " + settings.adminEmail + "<br>";
-    sandboxWarning += "=========================================";
-    sandboxWarning += "</div>";
-    
+    var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
+    sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
+    sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
     fullHtml += sandboxWarning;
   }
 
-  // 4. Dispatch Branded Email
   MailApp.sendEmail({
-    to: finalToEmail,
-    subject: finalSubject,
-    htmlBody: fullHtml,
-    noReply: true,
-    name: settings.systemName,
-    inlineImages: {
-      logo: getLogoBlob() 
-    }
+    to: finalToEmail, subject: finalSubject, htmlBody: fullHtml,
+    noReply: true, name: settings.systemName,
+    inlineImages: { logo: getLogoBlob() }
   });
 }
 
 /**
  * Sends a test email with dummy data for template verification.
- * @param {number} rowIndex - Template row index.
- * @param {string} testEmail - Recipient for the test.
- * @return {string} Success or failure message.
+ * Updated for 11-column indices.
  */
 function sendTestEmailAction(rowIndex, testEmail) {
-  var sheet = getMainDb().getSheetByName("Templates");
-  var data = sheet.getDataRange().getValues();
-  
-  if (rowIndex < 1 || rowIndex >= data.length) return "Error: Template not found.";
-  
-  var settings = getSystemSettings();
-  var rowData = data[rowIndex];
-  var subject = rowData[6] || "No Subject";
-  var rawHtml = rowData[7] || "";
-  var wrapperType = rowData[9] || "Internal";
-  
-  var wrapperHtml = getWrapperContent(wrapperType);
-  var fullLayoutHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
-
-  // Comprehensive Dummy Data
-  var dummyData = {
-    "companyName": "Acme Corp (Test)",
-    "brandName": "Acme Brand",
-    "address": "123 Test Ave, Suite 100",
-    "website": "www.megarhino.com",
-    "priFirstName": "John",
-    "priLastName": "Doe",
-    "priEmail": "john@example.com",
-    "monthlyContractValue": "$2,500",
-    "contractStartDate": "2026-05-01",
-    "services": "SEO & Content Marketing",
-    "notes": "Sample test note.",
-    "username": "jdoe",
-    "firstName": "John",
-    "lastName": "Doe",
-    "role": "Account Manager"
-  };
-
-  var finalSubject = "[TEST] " + subject;
-  var finalHtml = fullLayoutHtml;
-
-  for (var key in dummyData) {
-    var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
-    finalSubject = finalSubject.replace(regex, dummyData[key]);
-    finalHtml = finalHtml.replace(regex, dummyData[key]);
-  }
-
   try {
-    MailApp.sendEmail({
-      to: testEmail,
-      subject: finalSubject,
-      htmlBody: finalHtml,
-      noReply: true,
-      name: settings.systemName,
-      inlineImages: {
-        logo: getLogoBlob()
-      }
-    });
+    var sheet = getMainDb().getSheetByName("Templates");
+    var data = sheet.getDataRange().getValues();
+    var rowData = data[rowIndex];
+    
+    var subject = rowData[7] || "No Subject"; // Col H
+    var rawHtml = rowData[8] || "";           // Col I
+    var wrapperType = rowData[10] || "Internal Hub"; // Col K
+    
+    var fullLayoutHtml = getWrapperContent(wrapperType).replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
+    var dummyData = { "companyName": "Acme Corp (Test)", "username": "jdoe", "systemName": getSystemSettings().systemName };
+    
+    var finalSubject = "[TEST] " + subject;
+    var finalHtml = fullLayoutHtml;
+    for (var key in dummyData) {
+      var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
+      finalSubject = finalSubject.replace(regex, dummyData[key]);
+      finalHtml = finalHtml.replace(regex, dummyData[key]);
+    }
+
+    MailApp.sendEmail({ to: testEmail, subject: finalSubject, htmlBody: finalHtml, noReply: true, inlineImages: { logo: getLogoBlob() } });
     return "Test email successfully sent to " + testEmail;
-  } catch (e) {
-    return "Failed to send test email: " + e.message;
-  }
+  } catch (e) { return "Failed to send test: " + e.message; }
 }
 
 /**

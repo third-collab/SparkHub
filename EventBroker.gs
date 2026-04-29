@@ -8,7 +8,7 @@ var SystemEvent = (function() {
     var payload = {
       module: module, 
       type: type, 
-      handle: module + ":" + type, 
+      handle: module + ":" + type, // The link to the Template "Trigger" handle
       name: name,
       entity: entity, 
       details: details,
@@ -22,16 +22,15 @@ var SystemEvent = (function() {
       Logs.handleSystemEvent(payload);
     }
 
-    // 2. Dynamic Discovery
+    // 2. Dynamic Extensions Notification
     var props = PropertiesService.getScriptProperties();
     var installed = props.getProperty('INSTALLED_MODULES');
     if (installed) {
       installed.split(',').forEach(function(modName) {
         var mod = modName.trim();
         var handlerName = mod + "_on" + type;
-        // Use globalThis to safely access global functions in V8
         if (typeof globalThis[handlerName] === 'function') {
-          try { globalThis[handlerName](payload); } catch(e) { console.error("Handler error: " + e.message); }
+          try { globalThis[handlerName](payload); } catch(e) { console.error(e.message); }
         }
       });
     }
