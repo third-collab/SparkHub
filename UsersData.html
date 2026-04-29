@@ -49,8 +49,23 @@
   </div>
 </template>
 
-<div style="text-align: right; margin-top: 5px;">
-   <a href="#" onclick="document.getElementById('loginScreen').style.display='none'; document.getElementById('forgotScreen').style.display='flex';" style="font-size: 12px; color: var(--brand-primary); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+<div class="system-overlay" id="loginScreen" style="display: none; z-index: 9999; background: var(--brand-bg);">
+  <div class="overlay-card" style="max-width: 400px; border-bottom: none; box-shadow: var(--shadow-md);">
+    <img id="login-logo-img" src="" style="height: 50px; margin: 0 auto 20px; display: block; object-fit: contain;">
+    <h2>Sign In</h2>
+    <p style="margin-bottom: 25px;">Access your workspace.</p>
+    <form id="loginForm" onsubmit="handleLocalLogin(event)">
+      <div class="form-group" style="text-align: left;"><label>Username or Email</label><input type="text" id="login-id" class="form-control" required></div>
+      <div class="form-group" style="text-align: left; margin-top: 15px;"><label>Password</label><input type="password" id="login-pass" class="form-control" required></div>
+      
+      <div style="text-align: right; margin-top: 5px;">
+         <a href="javascript:void(0);" onclick="document.getElementById('loginScreen').style.display='none'; document.getElementById('forgotScreen').style.display='flex';" style="font-size: 12px; color: var(--brand-primary); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+      </div>
+
+      <button type="submit" class="btn-primary" id="login-submit-btn" style="width: 100%; margin-top: 30px;">Sign In</button>
+    </form>
+    <div id="login-msg" style="color: #991b1b; margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
+  </div>
 </div>
 
 <div class="system-overlay" id="forgotScreen" style="display: none; z-index: 9999; background: var(--brand-bg);">
@@ -1047,10 +1062,28 @@
 
     google.script.run.withSuccessHandler(function(res) {
       if (res.success) {
-        msg.style.color = "green";
-        msg.innerText = res.message;
-        btn.style.display = 'none';
-        document.getElementById('reset-login-btn').style.display = 'block';
+        // 1. Strip the token from the parent URL using Google's native History API
+        // This explicitly tells the parent window to clear its query parameters
+        google.script.history.replace(null, {}, null);
+        
+        // Also clear the global token variable to prevent soft-reload loops
+        RESET_TOKEN = "";
+        
+        // 2. Hide the reset screen and show the login screen right away
+        document.getElementById('resetScreen').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        
+        // 3. Show the success message on the login screen
+        var loginMsg = document.getElementById('login-msg');
+        if (loginMsg) {
+          loginMsg.style.color = "green";
+          loginMsg.innerText = "Password updated successfully! Please sign in.";
+        }
+        
+        // 4. Reset the background form
+        document.getElementById('resetForm').reset();
+        btn.innerText = "Update Password"; 
+        btn.disabled = false;
       } else {
         btn.innerText = "Update Password"; btn.disabled = false;
         msg.style.color = "red";

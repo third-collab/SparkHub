@@ -173,25 +173,29 @@
         google.script.run.updateLastLogin();
       }
     }
-
+    
     document.addEventListener("DOMContentLoaded", function() {
       if (document.getElementById('installWizard')) return;
 
-      // NEW: Intercept the boot sequence if a reset token is present in the URL
+      // 1. Inject logos into ALL overlay screens immediately
+      var loginLogo = document.getElementById('login-logo-img');
+      if (loginLogo) loginLogo.src = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
+      
+      var resetLogo = document.getElementById('reset-logo-img');
+      if (resetLogo) resetLogo.src = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
+
+      // 2. Intercept the boot sequence if a reset token is present in the URL
       if (typeof RESET_TOKEN !== 'undefined' && RESET_TOKEN !== "") {
         var resetScreen = document.getElementById('resetScreen');
-        var resetLogo = document.getElementById('reset-logo-img');
-        if (resetLogo) resetLogo.src = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
         if (resetScreen) resetScreen.style.display = 'flex';
         return; // Halt the normal login process to force the password reset flow
       }
 
+      // 3. Normal Boot Sequence
       if (checkLocalSession()) {
          bootApplication(); // User is verified (SSO or Local)
       } else {
          var loginScreen = document.getElementById('loginScreen');
-         var loginLogo = document.getElementById('login-logo-img');
-         if (loginLogo) loginLogo.src = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
          if (loginScreen) loginScreen.style.display = 'flex'; // Trap them at Login
       }
     });

@@ -112,30 +112,44 @@ function getLogoBlob() {
  * [IMMUTABLE ANCHOR: Sandbox Environment Interceptor preserved]
  */
 function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
-  var data = getMainDb().getSheetByName("Templates").getDataRange().getValues();
+  var mainDb = getMainDb();
+  var tData = mainDb.getSheetByName("Templates").getDataRange().getValues();
+  var wData = mainDb.getSheetByName("Wrappers").getDataRange().getValues();
   var settings = getSystemSettings();
-  
-  // 1. Gather ALL matching active templates instead of stopping at the first one
   var matchedTemplates = [];
-  for (var i = 1; i < data.length; i++) {
-    // 10-COLUMN INDICES: Trigger is 5 (Col F), Status is 8 (Col I)
-    if (data[i][5] === triggerHandle && data[i][8] === "Active") {
-      matchedTemplates.push(data[i]); 
+  
+  // Helper to check wrapper status directly from memory
+  function isWrapperActive(wName) {
+    for (var w=1; w<wData.length; w++) {
+      if (wData[w][2] === wName && wData[w][5] === "Active") return true;
+    }
+    return false;
+  }
+
+  for (var i = 1; i < tData.length; i++) {
+    // Trigger is Col G (Index 6), Status is Col K (Index 10), Wrapper is Col J (Index 9)
+    // CRITICAL: Block email dispatch if the assigned wrapper is inactive
+    if (tData[i][6] === triggerHandle && tData[i][10] === "Active" && isWrapperActive(tData[i][9])) {
+      matchedTemplates.push(tData[i]); 
     }
   }
 
   if (matchedTemplates.length === 0) return;
 
-  // 2. Loop through every matched template and dispatch its email
   for (var t = 0; t < matchedTemplates.length; t++) {
     var templateRow = matchedTemplates[t];
     
     var finalToEmail = toEmail;
-    var finalSubject = templateRow[6];  // Col G (Subject)
-    var finalHtmlBody = templateRow[7]; // Col H (Body)
-    var wrapperName = templateRow[9];   // Col J (Wrapper)
+    var finalSubject = templateRow[7];
+    var finalHtmlBody = templateRow[8];
+    var wrapperName = templateRow[9];
     
-    var wrapperHtml = getWrapperContent(wrapperName);
+    // Fetch wrapper HTML
+    var wrapperHtml = "{{USER_MESSAGE_CONTENT}}";
+    for (var w=1; w<wData.length; w++) {
+      if (wData[w][2] === wrapperName && wData[w][5] === "Active") wrapperHtml = wData[w][4];
+    }
+    
     var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
 
     for (var key in dataMap) {
@@ -144,10 +158,6 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       fullHtml = fullHtml.replace(regex, dataMap[key] || "");
     }
 
-    // ========================================================================
-    // [IMMUTABLE ANCHOR: SANDBOX ENVIRONMENT INTERCEPTOR]
-    // Applied individually to each template in the batch
-    // ========================================================================
     if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
       finalToEmail = settings.adminEmail;
       finalSubject = "[Sandbox Mail] " + finalSubject;
@@ -156,33 +166,23 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
       fullHtml += sandboxWarning;
     }
-    // ========================================================================
 
     MailApp.sendEmail({
-      to: finalToEmail, 
-      subject: finalSubject, 
-      htmlBody: fullHtml, 
-      noReply: true,
-      name: settings.systemName, 
-      inlineImages: { logo: getLogoBlob() }
+      to: finalToEmail, subject: finalSubject, htmlBody: fullHtml, 
+      noReply: true, name: settings.systemName, inlineImages: { logo: getLogoBlob() }
     });
   }
 }
 
-/**
- * Sends a test email with dummy data for template verification.
- * Updated for 11-column indices.
- */
 function sendTestEmailAction(rowIndex, testEmail) {
   try {
-    // Fetch 10 columns
-    var rowData = getMainDb().getSheetByName("Templates").getRange(rowIndex, 1, 1, 10).getValues()[0];
-    
-    // NEW INDICES: Wrapper is 9, Body is 7, Subject is 6
-    var fullHtml = getWrapperContent(rowData[9]).replace("{{USER_MESSAGE_CONTENT}}", rowData[7]);
+    // Fetch 11 columns
+    var rowData = getMainDb().getSheetByName("Templates").getRange(rowIndex, 1, 1, 11).getValues()[0];
+    // NEW INDICES: Wrapper is 9, Body is 8, Subject is 7
+    var fullHtml = getWrapperContent(rowData[9]).replace("{{USER_MESSAGE_CONTENT}}", rowData[8]);
     var finalHtml = fullHtml.replace("{{username}}", "jdoe").replace("{{systemName}}", getSystemSettings().systemName);
     
-    MailApp.sendEmail({ to: testEmail, subject: "[TEST] " + rowData[6], htmlBody: finalHtml, inlineImages: { logo: getLogoBlob() } });
+    MailApp.sendEmail({ to: testEmail, subject: "[TEST] " + rowData[7], htmlBody: finalHtml, inlineImages: { logo: getLogoBlob() } });
     return "Test email sent to " + testEmail;
   } catch (e) { return "Error: " + e.message; }
 }

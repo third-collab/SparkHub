@@ -2,19 +2,24 @@
  * Event Broker - Core Orchestrator
  * Automatically routes system events to interested modules.
  */
+/**
+ * Event Broker - Core Orchestrator
+ * Automatically routes system events to interested modules.
+ */
 var SystemEvent = (function() {
   
-  // FIX: Added 'severity' as the 4th parameter to prevent column shifting
-  function emit(module, type, name, severity, entity, details, recipientEmail) {
+  // UPGRADED: Added 'extraData' to pass dynamic template placeholders
+  function emit(module, type, name, severity, entity, details, recipientEmail, extraData) {
     var payload = {
       module: module, 
       type: type, 
       handle: module + ":" + type, 
       name: name,
-      severity: severity || "INFO", // Dynamic Severity
+      severity: severity || "INFO",
       entity: entity, 
       details: details,
       recipientEmail: recipientEmail || "",
+      extraData: extraData || {}, // Carries variables like {{resetLink}}
       timestamp: new Date(), 
       user: getLoggedInUsername()
     };

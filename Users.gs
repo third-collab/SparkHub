@@ -71,9 +71,7 @@ function updateMyProfileRecord(obj) {
     var rowToUpdate = -1;
     
     var loggedInUser = getLoggedInUsername();
-    if (obj.username !== loggedInUser) {
-      return "Error: Unauthorized profile modification.";
-    }
+    if (obj.username !== loggedInUser) return "Error: Unauthorized profile modification.";
 
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][1]) === obj.username) {
@@ -94,11 +92,21 @@ function updateMyProfileRecord(obj) {
     SpreadsheetApp.flush();
     SystemEvent.emit("Users", "UPDATE", "Update Profile", "INFO", obj.username, "User updated their personal profile details.");
     
-    return {
-      success: true,
-      firstName: obj.firstName,
-      message: "Success! Profile updated."
-    };
+    // If the password field was filled out, emit the Password Updated trigger
+    if (obj.password) {
+      SystemEvent.emit(
+        "Users", 
+        "PASSWORD_UPDATED", 
+        "Password Updated", 
+        "WARN", 
+        obj.username, 
+        "User updated their password via their profile.", 
+        obj.email,
+        { userFirst: obj.firstName }
+      );
+    }
+
+    return { success: true, firstName: obj.firstName, message: "Success! Profile updated." };
   } catch (e) { return "Error: " + e.message; }
 }
 
@@ -125,38 +133,36 @@ function sendPasswordResetEmail(email) {
     var data = sheet.getDataRange().getValues();
     var userExists = false;
     var userFirst = "User";
+    var username = "User";
 
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][3]).toLowerCase() === String(email).toLowerCase()) {
         userExists = true;
+        username = data[i][1];
         userFirst = data[i][5];
         break;
       }
     }
 
-    // Security practice: Give identical success messages whether the email exists or not
-    // to prevent malicious actors from guessing active user emails.
     if (!userExists) return "If that email is in our system, a reset link has been sent.";
 
     var token = Utilities.getUuid();
-    var expiry = new Date(new Date().getTime() + 15 * 60000); // Expires in 15 minutes
-    
+    var expiry = new Date(new Date().getTime() + 15 * 60000); // 15 mins
     var tokenSheet = ensureTokensSheet();
     tokenSheet.appendRow([token, email, expiry]);
-
-    // getUrl() automatically detects if you are testing on /dev or live on /exec!
     var resetLink = ScriptApp.getService().getUrl() + "?token=" + token;
 
-    var htmlBody = "<div style='font-family: sans-serif; padding: 20px;'>" +
-                   "<h2>Password Reset Request</h2>" +
-                   "<p>Hi " + userFirst + ",</p>" +
-                   "<p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p>" +
-                   "<a href='" + resetLink + "' style='display:inline-block; padding: 10px 20px; background: #c40004; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a>" +
-                   "</div>";
-
-    MailApp.sendEmail({
-      to: email, subject: "Password Reset Link", htmlBody: htmlBody, name: getSystemSettings().systemName
-    });
+    // Trigger the template engine to dispatch the email
+    SystemEvent.emit(
+      "Users", 
+      "RESET_REQUEST", 
+      "Password Reset Request", 
+      "INFO", 
+      username, 
+      "User requested a password reset link.", 
+      email, 
+      { userFirst: userFirst, resetLink: resetLink }
+    );
 
     return "If that email is in our system, a reset link has been sent.";
   } catch(e) { return "Error: " + e.message; }
@@ -201,7 +207,20 @@ function processPasswordReset(token, newPassword) {
     userSheet.getRange(userRow, 5).setValue(hashedPw);
     tokenSheet.deleteRow(tokenRow);
 
-    SystemEvent.emit("Users", "UPDATE", "Password Reset", "INFO", userData[userRow-1][1], "User reset their password via email link.");
+    var username = userData[userRow-1][1];
+    var userFirst = userData[userRow-1][5];
+
+    // Emit the Password Updated trigger
+    SystemEvent.emit(
+      "Users", 
+      "PASSWORD_UPDATED", 
+      "Password Updated", 
+      "WARN", 
+      username, 
+      "User reset their password via email link.", 
+      emailToReset,
+      { userFirst: userFirst }
+    );
 
     return { success: true, message: "Password updated successfully!" };
   } catch(e) { return { success: false, message: "Error: " + e.message }; }

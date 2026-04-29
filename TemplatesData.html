@@ -133,8 +133,9 @@
       <table>
         <thead>
           <tr>
-            <th>Wrapper Name</th>
-            <th>Status</th>
+            <th class="sortable" onclick="handleWrapperSort('name')">Wrapper Name <span id="wsort-name" class="sort-icon"></span></th>
+            <th>Description</th>
+            <th class="sortable" onclick="handleWrapperSort('status')">Status <span id="wsort-status" class="sort-icon"></span></th>
             <th style="text-align:right;">Action</th>
           </tr>
         </thead>
@@ -149,7 +150,10 @@
        <input type="text" id="tpl-filter-search" class="filter-input" placeholder="Search by Template Name, Subject, or Trigger Handle..." onkeyup="applyTemplateFilters()">
        <button class="btn-filter-toggle" onclick="toggleFilter('tpl-adv')">Filters</button>
        <div id="tpl-adv" class="filter-advanced">
-         <button type="button" class="btn-reset-filters" onclick="resetTemplateFilters()">Reset Library Filters</button>
+         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-mod-drop')">Module ▼</button><div class="dropdown-content" id="tpl-mod-drop"></div></div>
+         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-cat-drop')">Category ▼</button><div class="dropdown-content" id="tpl-cat-drop"></div></div>
+         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-stat-drop')">Status ▼</button><div class="dropdown-content" id="tpl-stat-drop"></div></div>
+         <button type="button" class="btn-reset-filters" onclick="resetTemplateFilters()">Reset</button>
        </div>
     </div>
 
@@ -158,16 +162,15 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" onclick="handleTemplateSort('name')">Template Name</th>
-            <th class="sortable" onclick="handleTemplateSort('category')">Category</th>
-            <th>Trigger Event</th>
-            <th>Subject Line</th>
-            <th class="sortable" onclick="handleTemplateSort('status')">Status</th>
+            <th class="sortable" onclick="handleTemplateSort('name')">Template Name <span id="tsort-name" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleTemplateSort('module')">Module <span id="tsort-module" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleTemplateSort('category')">Category <span id="tsort-category" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleTemplateSort('trigger')">Trigger Event <span id="tsort-trigger" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleTemplateSort('status')">Status <span id="tsort-status" class="sort-icon"></span></th>
             <th style="text-align:right;">Action</th>
           </tr>
         </thead>
-        <tbody id="templateTableBody">
-          </tbody>
+        <tbody id="templateTableBody"></tbody>
       </table>
     </div>
   </div>
@@ -178,12 +181,9 @@
   <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
   <div class="form-wrapper">
     <div id="edit-template-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span id="edit-tpl-overlay-text">Merging Data...</span></div>
-    <h2 style="margin-top: 0; color: var(--brand-dark);">Edit Master Template</h2>
+    <h2 id="tpl-form-title" style="margin-top: 0; color: var(--brand-dark);">Add Template</h2>
     
     <form id="editTemplateForm" onsubmit="handleTemplateSubmit(event)">
-      <input type="hidden" id="edt-tpl-rowIndex">
-      <input type="hidden" id="edt-tpl-id">
-      
       <button type="button" class="accordion active" onclick="toggleAccordion(this)">1. Identity & System Binding</button>
       <div class="panel" style="display: block;">
         <div class="form-row" style="margin-top:15px;">
@@ -191,13 +191,16 @@
           <div class="form-group"><label>Communication Category</label><input type="text" id="edt-tpl-cat" class="form-control" placeholder="e.g., Onboarding, Sales, Admin"></div>
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Trigger Handle (EmailEngine Match) *</label><input type="text" id="edt-tpl-trigger" class="form-control" placeholder="e.g., New Client Welcome" required></div>
-          <div class="form-group"><label>HTML Wrapper</label>
-            <select id="edt-tpl-wrapper" class="form-control">
-              <option value="Internal">Internal (Branded Hub)</option>
-              <option value="External">External (Standard Client-Facing)</option>
-              <option value="Minimal">Minimal (No Sidebar)</option>
+          <div class="form-group"><label>Trigger Event *</label>
+            <select id="edt-tpl-trigger" class="form-control" required>
+              <option value="Users:CREATE">Users:CREATE</option>
+              <option value="Users:RESET_REQUEST">Users:RESET_REQUEST</option>
+              <option value="Users:PASSWORD_UPDATED">Users:PASSWORD_UPDATED</option>
+              <option value="Roles:CREATE">Roles:CREATE</option>
             </select>
+          </div>
+          <div class="form-group"><label>HTML Wrapper</label>
+            <select id="edt-tpl-wrapper" class="form-control"></select>
           </div>
           <div class="form-group"><label>Template Status</label>
             <select id="edt-tpl-status" class="form-control">
@@ -232,7 +235,7 @@
 
       <div class="action-buttons" style="display: flex; justify-content: space-between; margin-top: 45px; align-items: center;">
         <button type="button" class="btn-reset-filters" onclick="sendTestEmail()" style="padding: 12px 24px;">Send Test Preview Email</button>
-        <button type="submit" class="btn-primary" id="edt-tpl-submit-btn" style="padding: 12px 40px;">Sync to Master Registry</button>
+        <button type="submit" class="btn-primary" id="edt-tpl-submit-btn" style="padding: 12px 40px;">Add Template</button>
       </div>
     </form>
   </div>
@@ -276,6 +279,12 @@
           </select>
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Internal Description</label>
+          <input type="text" id="edt-wrap-desc" class="form-control" placeholder="Brief explanation of this layout's purpose...">
+        </div>
+      </div>
       <div class="form-group" style="margin-top:20px;">
         <label>HTML Blueprint (Use <code>{{USER_MESSAGE_CONTENT}}</code> where the message should appear)</label>
         <textarea id="edt-wrap-html" class="form-control" style="height: 400px; font-family: monospace; font-size: 13px;" required></textarea>
@@ -301,23 +310,47 @@
    */
   function loadTemplatesTable() {
     toggleTemplateOverlay('tpl-list-overlay', true);
-    google.script.run.withSuccessHandler(function(templates) {
-      toggleTemplateOverlay('tpl-list-overlay', false);
-      GLOBAL_TEMPLATE_DATA = templates || [];
-      applyTemplateFilters();
-    }).getTemplatesList();
+    // Fetch Wrappers FIRST to prevent UI race conditions, then Templates
+    google.script.run.withSuccessHandler(function(wrappers) {
+      GLOBAL_WRAPPER_DATA = wrappers || [];
+      google.script.run.withSuccessHandler(function(templates) {
+        toggleTemplateOverlay('tpl-list-overlay', false);
+        GLOBAL_TEMPLATE_DATA = templates || [];
+        populateTemplateFilters();
+        applyTemplateFilters();
+      }).getTemplatesList();
+    }).getWrappersList();
+  }
+
+  function populateTemplateFilters() {
+    var mods = new Set(), cats = new Set(), stats = new Set();
+    GLOBAL_TEMPLATE_DATA.forEach(t => { 
+      if(t.module) mods.add(t.module); 
+      if(t.category) cats.add(t.category); 
+      if(t.status) stats.add(t.status); 
+    });
+    
+    function build(id, set, valClass) {
+       var el = document.getElementById(id); if(!el) return;
+       el.innerHTML = Array.from(set).map(v => `<label><input type="checkbox" class="${valClass}" value="${v}" checked onchange="applyTemplateFilters()"> ${v}</label>`).join('');
+    }
+    build('tpl-mod-drop', mods, 'tpl-filter-mod-cb');
+    build('tpl-cat-drop', cats, 'tpl-filter-cat-cb');
+    build('tpl-stat-drop', stats, 'tpl-filter-stat-cb');
   }
 
   function applyTemplateFilters() {
     var search = document.getElementById('tpl-filter-search').value.toLowerCase();
-    var checkedStats = Array.from(document.querySelectorAll('.tpl-filter-status-cb:checked')).map(cb => cb.value);
-    var checkedWraps = Array.from(document.querySelectorAll('.tpl-filter-wrap-cb:checked')).map(cb => cb.value);
+    var checkedMods = Array.from(document.querySelectorAll('.tpl-filter-mod-cb:checked')).map(cb => cb.value);
+    var checkedCats = Array.from(document.querySelectorAll('.tpl-filter-cat-cb:checked')).map(cb => cb.value);
+    var checkedStats = Array.from(document.querySelectorAll('.tpl-filter-stat-cb:checked')).map(cb => cb.value);
 
     var filtered = GLOBAL_TEMPLATE_DATA.filter(function(t) {
       var matchS = (t.name + t.subject + (t.trigger || "")).toLowerCase().includes(search);
+      var matchM = checkedMods.length === 0 || checkedMods.includes(t.module);
+      var matchC = checkedCats.length === 0 || checkedCats.includes(t.category);
       var matchSt = checkedStats.length === 0 || checkedStats.includes(t.status);
-      var matchW = checkedWraps.length === 0 || checkedWraps.includes(t.wrapper);
-      return matchS && matchSt && matchW;
+      return matchS && matchM && matchC && matchSt;
     });
 
     filtered.sort(function(a, b) {
@@ -335,7 +368,7 @@
     var tbody = document.getElementById('templateTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px;">No communication templates match these filters.</td></tr>'; return; }
+    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px;">No templates match filters.</td></tr>'; return; }
 
     data.forEach(function(t) {
       var tr = document.createElement('tr');
@@ -343,11 +376,17 @@
       tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyTemplate(t.rowIndex); };
       
       var pillClass = t.status === 'Active' ? 'badge-active' : 'badge-onboarding';
+      
+      // NEW: Inactive Wrapper Warning Symbol
+      var warnHtml = "";
+      var wrapData = GLOBAL_WRAPPER_DATA.find(w => w.name === t.wrapper);
+      if (wrapData && wrapData.status !== 'Active') warnHtml = `<span title="Assigned layout is inactive!" style="color:#eab308; margin-right:5px; font-size:14px;">⚠️</span>`;
+
       tr.innerHTML = `
-        <td><strong>${t.name}</strong></td>
+        <td><strong>${warnHtml}${t.name}</strong></td>
+        <td><span class="badge" style="background:#f1f5f9; color:#475569;">${t.module}</span></td>
         <td>${t.category || "-"}</td>
         <td><span class="tpl-trigger-code">${t.trigger || "N/A"}</span></td>
-        <td><small style="color:#64748b;">${t.subject}</small></td>
         <td><span class="badge ${pillClass}">${t.status}</span></td>
         <td style="text-align:right;"><button class="btn-edit" onclick="openEditTemplateForm(${t.rowIndex}); event.stopPropagation();">Edit</button></td>
       `;
@@ -356,8 +395,9 @@
   }
 
   function resetTemplateFilters() {
-    document.getElementById('tpl-filter-search').value = '';
-    document.querySelectorAll('.tpl-filter-status-cb, .tpl-filter-wrap-cb').forEach(cb => cb.checked = true);
+    var searchBox = document.getElementById('tpl-filter-search');
+    if (searchBox) searchBox.value = '';
+    document.querySelectorAll('.tpl-filter-mod-cb, .tpl-filter-cat-cb, .tpl-filter-stat-cb').forEach(cb => cb.checked = true);
     applyTemplateFilters();
   }
 
@@ -377,11 +417,19 @@
      ======================================================================== */
 
   function openAddTemplateForm() {
+    syncWrapperDropdown();
     resetAccordions('editTemplateView');
     switchView('editTemplateView');
     document.getElementById('editTemplateForm').reset();
     document.getElementById('edt-tpl-rowIndex').value = "";
     document.getElementById('edt-tpl-id').value = "";
+    
+    // UI Label Reset
+    document.getElementById('tpl-form-title').innerText = "Add Template";
+    document.getElementById('edt-tpl-submit-btn').innerText = "Add Template";
+    var wrapSelect = document.getElementById('edt-tpl-wrapper');
+    if(wrapSelect) { wrapSelect.style.border = ''; wrapSelect.title = ''; }
+    
     if (tplQuill) tplQuill.setContents([]);
     initTplEditor();
     loadPlaceholderSuggestions();
@@ -410,53 +458,20 @@
     }
   }
 
-  function loadWrappersTable() {
-    // FIX: Using tpl-list-overlay because wrapper-sub-view is visible when this runs
-    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
-    google.script.run.withSuccessHandler(function(wrappers) {
-      toggleTemplateOverlay('tpl-list-overlay', false);
-      var tbody = document.getElementById('wrapperTableBody');
-      tbody.innerHTML = '';
-      if (!wrappers || wrappers.length === 0) { 
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px;">No layouts found. Click Create Wrapper to begin.</td></tr>'; 
-        return; 
-      }
-      
-      wrappers.forEach(w => {
-        var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
-        tbody.innerHTML += `
-          <tr>
-            <td><strong>${w.name}</strong></td>
-            <td><span class="badge ${pill}">${w.status}</span></td>
-            <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex})">Edit Code</button></td>
-          </tr>
-        `;
-      });
-    }).getWrappersList();
-  }
-
-  /**
-   * Fetches wrappers and updates the dropdown in the Template Editor.
-   */
-  function syncWrapperDropdown() {
-    google.script.run.withSuccessHandler(function(wrappers) {
-      var select = document.getElementById('edt-tpl-wrapper');
-      if (!select) return;
-      select.innerHTML = wrappers.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
-    }).getWrappersList();
-  }
-
   // Add this to your existing openEditTemplateForm
   function openEditTemplateForm(rowIndex) {
-    syncWrapperDropdown(); // Refresh the list from the DB
+    syncWrapperDropdown();
     resetAccordions('editTemplateView');
     switchView('editTemplateView');
     initTplEditor();
     loadPlaceholderSuggestions();
     
-    // MR HUB MANDATE: The Purge
     document.getElementById('editTemplateForm').reset();
     if(tplQuill) tplQuill.setContents([]);
+    
+    // UI Label Update
+    document.getElementById('tpl-form-title').innerText = "Edit Template";
+    document.getElementById('edt-tpl-submit-btn').innerText = "Save Template";
     
     toggleTemplateOverlay('edit-template-overlay', true, 'Pulling Master Template...');
 
@@ -464,17 +479,28 @@
       toggleTemplateOverlay('edit-template-overlay', false);
       if (data.error) { alert(data.error); return; }
       
-      /* TECHNICAL ANCHOR: Mapping of all 10 schema columns */
       document.getElementById('edt-tpl-rowIndex').value = data.rowIndex;
       document.getElementById('edt-tpl-id').value = data.id || "";
       document.getElementById('edt-tpl-name').value = data.name;
       document.getElementById('edt-tpl-cat').value = data.category || "";
-      document.getElementById('edt-tpl-description').value = data.description || ""; // Restored
-      document.getElementById('edt-tpl-trigger').value = data.trigger || "";
-      document.getElementById('edt-tpl-wrapper').value = data.wrapper || "Internal";
+      document.getElementById('edt-tpl-description').value = data.description || "";
+      document.getElementById('edt-tpl-trigger').value = data.trigger || "Users:CREATE";
       document.getElementById('edt-tpl-status').value = data.status || "Draft";
       document.getElementById('edt-tpl-subject').value = data.subject || "";
       
+      var wrapperSelect = document.getElementById('edt-tpl-wrapper');
+      wrapperSelect.value = data.wrapper || "Internal";
+      
+      // NEW: Highlight Field if Wrapper is Inactive
+      var wrapData = GLOBAL_WRAPPER_DATA.find(w => w.name === wrapperSelect.value);
+      if (wrapData && wrapData.status !== 'Active') {
+        wrapperSelect.style.border = '2px solid #eab308';
+        wrapperSelect.title = "Warning: Selected layout is inactive.";
+      } else {
+        wrapperSelect.style.border = '';
+        wrapperSelect.title = "";
+      }
+
       if (tplQuill) tplQuill.clipboard.dangerouslyPasteHTML(data.body || "");
     }).getTemplateById(rowIndex);
   }
@@ -488,7 +514,7 @@
       id: document.getElementById('edt-tpl-id').value,
       name: document.getElementById('edt-tpl-name').value,
       category: document.getElementById('edt-tpl-cat').value,
-      description: document.getElementById('edt-tpl-description').value, // Restored
+      description: document.getElementById('edt-tpl-description').value,
       trigger: document.getElementById('edt-tpl-trigger').value,
       wrapper: document.getElementById('edt-tpl-wrapper').value,
       status: document.getElementById('edt-tpl-status').value,
@@ -501,6 +527,121 @@
       if (res.includes("Success")) { loadTemplatesTable(); switchView('templatesListView'); }
       else alert(res);
     }).updateTemplateRecord(payload);
+  }
+
+
+  var GLOBAL_WRAPPER_DATA = [];
+  var CURRENT_WRAP_SORT_COLUMN = 'name';
+  var CURRENT_WRAP_SORT_DESC = false;
+
+  function loadWrappersTable() {
+    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
+    google.script.run.withSuccessHandler(function(wrappers) {
+      toggleTemplateOverlay('tpl-list-overlay', false);
+      GLOBAL_WRAPPER_DATA = wrappers || [];
+      applyWrapperSort();
+    }).getWrappersList();
+  }
+
+  function handleWrapperSort(col) {
+    if (CURRENT_WRAP_SORT_COLUMN === col) { CURRENT_WRAP_SORT_DESC = !CURRENT_WRAP_SORT_DESC; }
+    else { CURRENT_WRAP_SORT_COLUMN = col; CURRENT_WRAP_SORT_DESC = false; }
+    applyWrapperSort();
+  }
+
+  function applyWrapperSort() {
+    var sorted = [...GLOBAL_WRAPPER_DATA];
+    sorted.sort(function(a, b) {
+      var vA = String(a[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
+      var vB = String(b[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
+      if (vA < vB) return CURRENT_WRAP_SORT_DESC ? 1 : -1;
+      if (vA > vB) return CURRENT_WRAP_SORT_DESC ? -1 : 1;
+      return 0;
+    });
+
+    // Render visual sort indicators
+    document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('wsort-')) icon.innerHTML = ''; });
+    var iconEl = document.getElementById('wsort-' + CURRENT_WRAP_SORT_COLUMN);
+    if (iconEl) iconEl.innerHTML = CURRENT_WRAP_SORT_DESC ? '▼' : '▲';
+
+    renderWrapperTableRows(sorted);
+  }
+
+  function renderWrapperTableRows(wrappers) {
+    var tbody = document.getElementById('wrapperTableBody');
+    tbody.innerHTML = '';
+    if (wrappers.length === 0) { 
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No layouts found. Click Create Wrapper to begin.</td></tr>'; 
+      return; 
+    }
+    
+    wrappers.forEach(w => {
+      var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      tbody.innerHTML += `
+        <tr>
+          <td><strong>${w.name}</strong></td>
+          <td>${w.description || "<span style='color:#94a3b8; font-style:italic;'>No description</span>"}</td>
+          <td><span class="badge ${pill}">${w.status}</span></td>
+          <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex})">Edit Code</button></td>
+        </tr>
+      `;
+    });
+  }
+
+  function openAddWrapperForm() {
+    switchView('editWrapperView');
+    document.getElementById('editWrapperForm').reset();
+    document.getElementById('edt-wrap-rowIndex').value = "";
+    document.getElementById('edt-wrap-id').value = "";
+    document.getElementById('wrap-form-title').innerText = "Create Layout";
+  }
+
+  function openEditWrapperForm(rowIndex) {
+    switchView('editWrapperView');
+    document.getElementById('editWrapperForm').reset();
+    document.getElementById('wrap-form-title').innerText = "Edit Layout";
+    
+    var w = GLOBAL_WRAPPER_DATA.find(x => x.rowIndex === rowIndex);
+    if (!w) return;
+    
+    document.getElementById('edt-wrap-rowIndex').value = w.rowIndex;
+    document.getElementById('edt-wrap-id').value = w.id;
+    document.getElementById('edt-wrap-name').value = w.name;
+    document.getElementById('edt-wrap-desc').value = w.description || "";
+    document.getElementById('edt-wrap-status').value = w.status;
+    document.getElementById('edt-wrap-html').value = w.html;
+  }
+
+  function handleWrapperSubmit(e) {
+    if(e) e.preventDefault();
+    toggleTemplateOverlay('edit-wrap-overlay', true, 'Saving Layout...');
+    
+    var payload = {
+      rowIndex: document.getElementById('edt-wrap-rowIndex').value,
+      id: document.getElementById('edt-wrap-id').value,
+      name: document.getElementById('edt-wrap-name').value,
+      description: document.getElementById('edt-wrap-desc').value,
+      status: document.getElementById('edt-wrap-status').value,
+      html: document.getElementById('edt-wrap-html').value
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleTemplateOverlay('edit-wrap-overlay', false);
+      if (res.includes("Success")) { 
+        // FIX: Switch back to main container, then trigger the sub-view!
+        switchView('templatesListView'); 
+        toggleTemplateSubView('wraps'); 
+      } else alert(res);
+    }).updateWrapperRecord(payload);
+  }
+
+  /**
+   * Fetches wrappers and updates the dropdown in the Template Editor.
+   */
+  function syncWrapperDropdown() {
+    var select = document.getElementById('edt-tpl-wrapper');
+    if (!select) return;
+    select.innerHTML = GLOBAL_WRAPPER_DATA.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
   }
 
   /* ========================================================================
@@ -575,6 +716,22 @@
       toggleTemplateOverlay('edit-template-overlay', false);
       alert(res);
     }).sendTestEmailAction(rowIndex, email);
+  }
+
+  /* --- MISSING ACCORDION HANDLERS (Fixes Add/Edit Buttons) --- */
+  function toggleAccordion(btn) {
+    btn.classList.toggle("active");
+    var panel = btn.nextElementSibling;
+    panel.style.display = (panel.style.display === "block") ? "none" : "block";
+  }
+
+  function resetAccordions(containerId) {
+    var container = document.getElementById(containerId);
+    if(!container) return;
+    var accs = container.querySelectorAll('.accordion');
+    var panels = container.querySelectorAll('.panel');
+    accs.forEach((a, i) => { if(i===0) a.classList.add('active'); else a.classList.remove('active'); });
+    panels.forEach((p, i) => { if(i===0) p.style.display = 'block'; else p.style.display = 'none'; });
   }
 </script>
 <!-- [SPARKHUB INTEGRITY ANCHOR: END] -->

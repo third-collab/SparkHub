@@ -18,8 +18,3 @@ function resetTestingEnvironment() {
 
   console.log("Environment reset complete. Wiped " + deletedCount + " properties. WEBHOOK_SECRET was safely preserved.");
 }
-
-function patchUserBar() {
-  PropertiesService.getScriptProperties().setProperty('INSTALLED_PLUGINS', 'UserBar');
-  console.log("UserBar plugin successfully registered to system properties.");
-}
