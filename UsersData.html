@@ -124,8 +124,8 @@
           </select>
         </div>
       </div>
-      <div class="form-row auth-local-field">
-        <div class="form-group"><label>Local Password</label><input type="password" id="add-user-password" class="form-control" placeholder="Required for Local Auth"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Local Password</label><input type="password" id="add-user-password" class="form-control" placeholder="Set a local fallback password"></div>
       </div>
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
         <button type="submit" class="btn-primary" id="add-user-submit">Create User</button>
@@ -161,7 +161,7 @@
           </select>
         </div>
       </div>
-      <div class="form-row auth-local-field">
+      <div class="form-row">
         <div class="form-group"><label>Local Password</label><input type="password" id="edt-user-password" class="form-control" placeholder="Leave blank to keep current, or enter new"></div>
       </div>
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
@@ -198,7 +198,7 @@
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Authentication</h4>
         <p><strong>System Email:</strong> <span id="ro-user-email"></span></p>
-        <p class="auth-local-field" style="display: none;"><strong>Local Password:</strong> <span id="ro-user-password" style="font-family: monospace;"></span></p>
+        <p><strong>Local Password:</strong> <span id="ro-user-password" style="font-family: monospace;"></span></p>
         <p><strong>Last Login:</strong> <span id="ro-user-lastlogin" style="color: #64748b;"></span></p>
       </div>
     </div>
@@ -230,7 +230,7 @@
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Account Information</h4>
         <p><strong>System Email:</strong> <span id="my-profile-email"></span></p>
-        <p class="auth-local-field" style="display: none;"><strong>Local Password:</strong> <span id="my-profile-password" style="font-family: monospace;"></span></p>
+        <p><strong>Local Password:</strong> <span id="my-profile-password" style="font-family: monospace;"></span></p>
         <p><strong>Last Login:</strong> <span id="my-profile-lastlogin" style="color: #64748b;"></span></p>
       </div>
     </div>
@@ -255,7 +255,7 @@
         </div>
         <div class="form-group"><label>System Email *</label><input type="email" id="edt-my-email" class="form-control" required></div>
       </div>
-      <div class="form-row auth-local-field">
+      <div class="form-row">
         <div class="form-group"><label>Local Password</label><input type="password" id="edt-my-password" class="form-control" placeholder="Leave blank to keep current password"></div>
       </div>
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
@@ -432,6 +432,9 @@
         document.getElementById('my-profile-last').innerText = data.lastName;
         document.getElementById('my-profile-email').innerText = data.email;
         document.getElementById('my-profile-lastlogin').innerText = data.lastLogin || "Never logged in";
+
+        // Add these two lines inside the success handler of openMyProfile()
+        document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
       })
       .withFailureHandler(function(err) {
         // Expose any silent backend errors
@@ -737,6 +740,9 @@
       document.getElementById('ro-user-email').innerText = data.email;
       document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
       document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex); };
+
+      // Add these two lines inside the success handler of openReadOnlyUser()
+      document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
     }).getUserById(rowIndex);
   }
 
@@ -897,27 +903,4 @@
       if(res.includes("Success")) { openRolesList(); } else { alert(res); }
     }).saveRoleRecord(payload);
   }
-
-  function applyAuthModeVisibility() {
-    var isLocal = (typeof SYSTEM_AUTH_MODE !== 'undefined' && SYSTEM_AUTH_MODE === 'Local');
-    document.querySelectorAll('.auth-local-field').forEach(function(el) {
-      if (!isLocal) {
-        el.style.display = 'none';
-      } else {
-        // Use flex for form-rows, block for <p> tags
-        el.style.display = el.tagName.toLowerCase() === 'div' ? 'flex' : 'block';
-      }
-    });
-  }
-
-  // Add these two lines inside the success handler of openReadOnlyUser()
-  document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
-  applyAuthModeVisibility();
-
-  // Add these two lines inside the success handler of openMyProfile()
-  document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
-  applyAuthModeVisibility();
-
-  // Add this one line to openAddUserForm(), openEditUserForm(), and openEditMyProfile()
-  applyAuthModeVisibility();
 </script>
