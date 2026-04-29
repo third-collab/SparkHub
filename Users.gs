@@ -102,6 +102,111 @@ function updateMyProfileRecord(obj) {
   } catch (e) { return "Error: " + e.message; }
 }
 
+/**
+ * Creates a secure table for temporary password reset tokens
+ */
+function ensureTokensSheet() {
+  var ss = getMainDb();
+  var sheet = ss.getSheetByName("Password Tokens");
+  if (!sheet) {
+    sheet = ss.insertSheet("Password Tokens");
+    sheet.getRange(1, 1, 1, 3).setValues([["Token", "Email", "Expiration Date"]]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * Generates a 15-minute secure token and emails it to the user
+ */
+function sendPasswordResetEmail(email) {
+  try {
+    var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getValues();
+    var userExists = false;
+    var userFirst = "User";
+
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][3]).toLowerCase() === String(email).toLowerCase()) {
+        userExists = true;
+        userFirst = data[i][5];
+        break;
+      }
+    }
+
+    // Security practice: Give identical success messages whether the email exists or not
+    // to prevent malicious actors from guessing active user emails.
+    if (!userExists) return "If that email is in our system, a reset link has been sent.";
+
+    var token = Utilities.getUuid();
+    var expiry = new Date(new Date().getTime() + 15 * 60000); // Expires in 15 minutes
+    
+    var tokenSheet = ensureTokensSheet();
+    tokenSheet.appendRow([token, email, expiry]);
+
+    // getUrl() automatically detects if you are testing on /dev or live on /exec!
+    var resetLink = ScriptApp.getService().getUrl() + "?token=" + token;
+
+    var htmlBody = "<div style='font-family: sans-serif; padding: 20px;'>" +
+                   "<h2>Password Reset Request</h2>" +
+                   "<p>Hi " + userFirst + ",</p>" +
+                   "<p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p>" +
+                   "<a href='" + resetLink + "' style='display:inline-block; padding: 10px 20px; background: #c40004; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a>" +
+                   "</div>";
+
+    MailApp.sendEmail({
+      to: email, subject: "Password Reset Link", htmlBody: htmlBody, name: getSystemSettings().systemName
+    });
+
+    return "If that email is in our system, a reset link has been sent.";
+  } catch(e) { return "Error: " + e.message; }
+}
+
+/**
+ * Verifies the token and overwrites the old password hash
+ */
+function processPasswordReset(token, newPassword) {
+  try {
+    var tokenSheet = ensureTokensSheet();
+    var data = tokenSheet.getDataRange().getValues();
+    var emailToReset = null;
+    var tokenRow = -1;
+
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === token) {
+        var expiry = new Date(data[i][2]);
+        if (new Date() > expiry) return { success: false, message: "This reset link has expired." };
+        emailToReset = data[i][1];
+        tokenRow = i + 1;
+        break;
+      }
+    }
+
+    if (!emailToReset) return { success: false, message: "Invalid or expired reset token." };
+
+    var userSheet = getMainDb().getSheetByName("Users");
+    var userData = userSheet.getDataRange().getValues();
+    var userRow = -1;
+
+    for (var u = 1; u < userData.length; u++) {
+      if (String(userData[u][3]).toLowerCase() === String(emailToReset).toLowerCase()) {
+        userRow = u + 1;
+        break;
+      }
+    }
+
+    if (userRow === -1) return { success: false, message: "User account no longer exists." };
+
+    var hashedPw = hashPassword(newPassword);
+    userSheet.getRange(userRow, 5).setValue(hashedPw);
+    tokenSheet.deleteRow(tokenRow);
+
+    SystemEvent.emit("Users", "UPDATE", "Password Reset", "INFO", userData[userRow-1][1], "User reset their password via email link.");
+
+    return { success: true, message: "Password updated successfully!" };
+  } catch(e) { return { success: false, message: "Error: " + e.message }; }
+}
+
 function getUserById(rowIndex) {
   try {
     var sheet = getMainDb().getSheetByName("Users");

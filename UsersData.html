@@ -49,6 +49,37 @@
   </div>
 </template>
 
+<div style="text-align: right; margin-top: 5px;">
+   <a href="#" onclick="document.getElementById('loginScreen').style.display='none'; document.getElementById('forgotScreen').style.display='flex';" style="font-size: 12px; color: var(--brand-primary); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+</div>
+
+<div class="system-overlay" id="forgotScreen" style="display: none; z-index: 9999; background: var(--brand-bg);">
+  <div class="overlay-card" style="max-width: 400px; border-bottom: none; box-shadow: var(--shadow-md);">
+    <h2>Reset Password</h2>
+    <p style="margin-bottom: 25px; font-size: 14px;">Enter your system email address and we'll send you a link to reset your password.</p>
+    <form id="forgotForm" onsubmit="handleForgotSubmit(event)">
+      <div class="form-group" style="text-align: left;"><label>System Email</label><input type="email" id="forgot-email" class="form-control" required></div>
+      <button type="submit" class="btn-primary" id="forgot-submit-btn" style="width: 100%; margin-top: 30px;">Send Reset Link</button>
+    </form>
+    <div id="forgot-msg" style="margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
+    <button class="btn-dash-back" onclick="document.getElementById('forgotScreen').style.display='none'; document.getElementById('loginScreen').style.display='flex';" style="margin-top: 20px;">&#8592; Back to Login</button>
+  </div>
+</div>
+
+<div class="system-overlay" id="resetScreen" style="display: none; z-index: 9999; background: var(--brand-bg);">
+  <div class="overlay-card" style="max-width: 400px; border-bottom: none; box-shadow: var(--shadow-md);">
+    <img id="reset-logo-img" src="" style="height: 50px; margin: 0 auto 20px; display: block; object-fit: contain;">
+    <h2>Set New Password</h2>
+    <p style="margin-bottom: 25px;">Enter your new local password below.</p>
+    <form id="resetForm" onsubmit="handleResetSubmit(event)">
+      <div class="form-group" style="text-align: left;"><label>New Password</label><input type="password" id="reset-pass" class="form-control" required></div>
+      <button type="submit" class="btn-primary" id="reset-submit-btn" style="width: 100%; margin-top: 30px;">Update Password</button>
+    </form>
+    <div id="reset-msg" style="margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
+    <button id="reset-login-btn" class="btn-edit" onclick="window.location.href = window.location.href.split('?')[0];" style="display:none; width: 100%; margin-top: 15px;">Go to Login</button>
+  </div>
+</div>
+
 <div id="usersListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
   
@@ -345,6 +376,74 @@
     renderRolesTable();
   }
 
+  // ----------------------------------------------------------------
+  // STATELESS SESSION ENGINE (Local Storage)
+  // ----------------------------------------------------------------
+  function checkLocalSession() {
+    // 1. If Google SSO identified them directly, purge local cache and proceed
+    if (CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== '') {
+      localStorage.removeItem('sparkhub_session');
+      return true; 
+    }
+
+    // 2. If anonymous, check Local Storage for an active token
+    var savedSession = localStorage.getItem('sparkhub_session');
+    if (savedSession) {
+      try {
+        var sessionData = JSON.parse(savedSession);
+        CURRENT_USER_ROLE = sessionData.role;
+        CURRENT_USERNAME = sessionData.username;
+        CURRENT_USER_FIRSTNAME = sessionData.firstName || sessionData.username; // Hydrate
+        CURRENT_USER_PERMISSIONS = JSON.parse(sessionData.permissions);
+        return true; 
+      } catch(e) {}
+    }
+    return false; // User needs to log in
+  }
+
+  function handleLocalLogin(e) {
+    e.preventDefault();
+    var btn = document.getElementById('login-submit-btn');
+    var msg = document.getElementById('login-msg');
+    btn.innerText = "Verifying..."; btn.disabled = true; msg.innerText = "";
+
+    var loginId = document.getElementById('login-id').value;
+    var pass = document.getElementById('login-pass').value;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          // Cache session in browser
+          var sessionPayload = { username: res.username, firstName: res.firstName, role: res.role, permissions: res.permissions };
+          localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
+
+          // Hydrate JS Globals
+          CURRENT_USERNAME = res.username;
+          CURRENT_USER_FIRSTNAME = res.firstName;
+          CURRENT_USER_ROLE = res.role;
+          CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
+          
+          document.getElementById('loginScreen').style.display = 'none';
+          
+          // NEW: Clean up the form in the background so it's ready for the next logout
+          btn.innerText = "Sign In"; 
+          btn.disabled = false;
+          document.getElementById('loginForm').reset();
+          
+          bootApplication();
+        } else {
+          btn.innerText = "Sign In"; btn.disabled = false;
+          msg.innerText = res.message;
+        }
+      })
+      .withFailureHandler(function(error) {
+        // THIS CATCHES SERVER CRASHES AND MISSING FUNCTIONS
+        btn.innerText = "Sign In"; btn.disabled = false;
+        msg.innerText = "Backend Error: " + error.message;
+      })
+      .verifyUserCredentials(loginId, pass);
+  }
+
   /* ========================================================================
      1. INITIALIZATION & DYNAMIC RBAC SEEDING
      ======================================================================== */
@@ -400,8 +499,28 @@
       if (logoutBtn && typeof SYSTEM_AUTH_MODE !== 'undefined' && SYSTEM_AUTH_MODE === 'Local') {
         logoutBtn.style.display = 'block';
         logoutBtn.onclick = function() {
+          // 1. Clear the local storage token
           localStorage.removeItem('sparkhub_session');
-          location.reload();
+          
+          // 2. Prevent the iframe blanking bug
+          document.getElementById('loginScreen').style.display = 'flex';
+          document.getElementById('user-popup').style.display = 'none';
+          
+          // 3. Reset the form, messages, AND button state
+          var loginForm = document.getElementById('loginForm');
+          if (loginForm) loginForm.reset();
+          var msg = document.getElementById('login-msg');
+          if (msg) msg.innerText = '';
+          
+          // NEW: Reset the button back to its default state
+          var loginBtn = document.getElementById('login-submit-btn');
+          if (loginBtn) { 
+            loginBtn.innerText = "Sign In"; 
+            loginBtn.disabled = false; 
+          }
+          
+          CURRENT_USER_ROLE = 'Guest';
+          CURRENT_USER_PERMISSIONS = {};
         };
       }
     }
@@ -902,5 +1021,41 @@
       toggleUserOverlay('role-edit-overlay', false);
       if(res.includes("Success")) { openRolesList(); } else { alert(res); }
     }).saveRoleRecord(payload);
+  }
+  
+  function handleForgotSubmit(e) {
+    e.preventDefault();
+    var btn = document.getElementById('forgot-submit-btn');
+    var msg = document.getElementById('forgot-msg');
+    btn.innerText = "Sending..."; btn.disabled = true; msg.innerText = "";
+    var email = document.getElementById('forgot-email').value;
+
+    google.script.run.withSuccessHandler(function(res) {
+      btn.innerText = "Send Reset Link"; btn.disabled = false;
+      msg.style.color = "green";
+      msg.innerText = res;
+      document.getElementById('forgotForm').reset();
+    }).sendPasswordResetEmail(email);
+  }
+
+  function handleResetSubmit(e) {
+    e.preventDefault();
+    var btn = document.getElementById('reset-submit-btn');
+    var msg = document.getElementById('reset-msg');
+    btn.innerText = "Updating..."; btn.disabled = true; msg.innerText = "";
+    var newPass = document.getElementById('reset-pass').value;
+
+    google.script.run.withSuccessHandler(function(res) {
+      if (res.success) {
+        msg.style.color = "green";
+        msg.innerText = res.message;
+        btn.style.display = 'none';
+        document.getElementById('reset-login-btn').style.display = 'block';
+      } else {
+        btn.innerText = "Update Password"; btn.disabled = false;
+        msg.style.color = "red";
+        msg.innerText = res.message;
+      }
+    }).processPasswordReset(RESET_TOKEN, newPass);
   }
 </script>

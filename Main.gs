@@ -6,7 +6,7 @@
  * - Bridges the Module/Plugin Registry from ScriptProperties to the UI.
  * - Routes to the Installation Wizard or the Modular Dashboard.
  */
-function doGet() {
+function doGet(e) {
   var props = PropertiesService.getScriptProperties();
   var env = props.getProperty('ENVIRONMENT');
   var userEmail = Session.getActiveUser().getEmail();
@@ -17,6 +17,9 @@ function doGet() {
   template.isInstalled = isInstalled;
   template.userEmail = userEmail;
   template.systemName = settings.systemName;
+
+  // NEW: Capture URL parameters to support Password Resets
+  template.resetToken = (e && e.parameter && e.parameter.token) ? e.parameter.token : "";
   
   // DYNAMIC UI REGISTRY
   var includes = ['SettingsData', 'UsersData', 'TemplatesData', 'LogsData'];
