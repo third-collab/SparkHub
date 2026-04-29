@@ -16,7 +16,7 @@
     <p id="user-popup-role" style="font-size:11px; color:#888; margin:5px 0 15px 0;"></p>
     <div style="border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-direction: column; gap: 8px;">
        <button class="btn-edit" onclick="switchView('readOnlyUserView'); document.getElementById('user-popup').style.display='none';" style="width:100%;">My Access Profile</button>
-       <button class="btn-edit" onclick="window.top.location.href='https://accounts.google.com/Logout'" style="width:100%; border-color: #ddd; color: #666;">Sign Out</button>
+       <button id="user-popup-logout-btn" class="btn-edit" style="width:100%; border-color: #ddd; color: #666; display:none;">Sign Out</button>
     </div>
   </div>
 </div>
@@ -324,12 +324,24 @@
 
   function initUserBarPlugin() {
     if (typeof INSTALLED_PLUGINS !== 'undefined' && INSTALLED_PLUGINS.includes('UserBar')) {
-      var nameEl = document.getElementById('display-username');
-      if (nameEl) nameEl.innerText = CURRENT_USERNAME;
+      var nameEl = document.getElementById('display-firstname');
+      if (nameEl) nameEl.innerText = CURRENT_USER_FIRSTNAME;
+      
       var popName = document.getElementById('user-popup-name');
-      if (popName) popName.innerText = CURRENT_USERNAME;
+      if (popName) popName.innerText = CURRENT_USER_FIRSTNAME + " (" + CURRENT_USERNAME + ")";
+      
       var popRole = document.getElementById('user-popup-role');
       if (popRole) popRole.innerText = CURRENT_USER_ROLE;
+
+      // Handle Auth Mode Logout Button
+      var logoutBtn = document.getElementById('user-popup-logout-btn');
+      if (logoutBtn && typeof SYSTEM_AUTH_MODE !== 'undefined' && SYSTEM_AUTH_MODE === 'Local') {
+        logoutBtn.style.display = 'block';
+        logoutBtn.onclick = function() {
+          localStorage.removeItem('sparkhub_session');
+          location.reload();
+        };
+      }
     }
   }
 

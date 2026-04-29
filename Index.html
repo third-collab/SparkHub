@@ -86,10 +86,10 @@
       <h1 id="hub-system-name"><?= typeof systemName !== 'undefined' && systemName ? systemName : 'SparkHub' ?></h1>
     </div>
     <div class="header-right">
-      <div class="header-tools"></div>
       <? if (installedPlugins.indexOf('UserBar') !== -1) { ?>
-        <div class="header-user-pill" onclick="event.stopPropagation(); togglePopup('user-popup')">Hello, <span id="display-username"></span>!</div>
+        <div class="header-user-pill" onclick="event.stopPropagation(); togglePopup('user-popup')">Welcome, <span id="display-firstname"></span></div>
       <? } ?>
+      <div class="header-tools"></div>
     </div>
   </div>
 
@@ -117,6 +117,8 @@
     /* --- CORE SYSTEM SCRIPTS --- */
     var CURRENT_USER_ROLE = "<?= typeof userRole !== 'undefined' ? userRole : '' ?>";
     var CURRENT_USERNAME = "<?= typeof username !== 'undefined' ? username : 'System' ?>";
+    var CURRENT_USER_FIRSTNAME = "<?= typeof userFirstName !== 'undefined' ? userFirstName : 'User' ?>";
+    var SYSTEM_AUTH_MODE = "<?= typeof authMode !== 'undefined' ? authMode : 'SSO' ?>";
     var INSTALLED_MODULES = "<?= typeof installedModules !== 'undefined' ? installedModules : '' ?>";
     var INSTALLED_PLUGINS = "<?= typeof installedPlugins !== 'undefined' ? installedPlugins : '' ?>";
     var CURRENT_USER_PERMISSIONS = <?!= typeof userPermissions !== 'undefined' && userPermissions ? userPermissions : '{}' ?>;
@@ -138,8 +140,9 @@
           var sessionData = JSON.parse(savedSession);
           CURRENT_USER_ROLE = sessionData.role;
           CURRENT_USERNAME = sessionData.username;
+          CURRENT_USER_FIRSTNAME = sessionData.firstName || sessionData.username; // Hydrate
           CURRENT_USER_PERMISSIONS = JSON.parse(sessionData.permissions);
-          return true; // Session is valid!
+          return true; 
         } catch(e) {}
       }
       return false; // User needs to log in
@@ -158,15 +161,15 @@
         .withSuccessHandler(function(res) {
           if (res.success) {
             // Cache session in browser
-            var sessionPayload = { username: res.username, role: res.role, permissions: res.permissions };
+            var sessionPayload = { username: res.username, firstName: res.firstName, role: res.role, permissions: res.permissions };
             localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
 
             // Hydrate JS Globals
             CURRENT_USERNAME = res.username;
+            CURRENT_USER_FIRSTNAME = res.firstName;
             CURRENT_USER_ROLE = res.role;
             CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
-
-            // Boot the App
+            
             document.getElementById('loginScreen').style.display = 'none';
             bootApplication();
           } else {

@@ -107,62 +107,66 @@ function getLogoBlob() {
    ======================================================================== */
 
 /**
- * Sends an automated email based on a Trigger Event Handle.
- */
-/**
- * Sends an automated email based on a Trigger Event Handle.
- * [IMMUTABLE ANCHOR: Sandbox Environment Interceptor must never be removed]
+ * Sends automated emails based on a Trigger Event Handle.
+ * Upgraded to support multiple templates sharing the same trigger.
+ * [IMMUTABLE ANCHOR: Sandbox Environment Interceptor preserved]
  */
 function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
   var data = getMainDb().getSheetByName("Templates").getDataRange().getValues();
   var settings = getSystemSettings();
-  var templateIdx = -1;
-
+  
+  // 1. Gather ALL matching active templates instead of stopping at the first one
+  var matchedTemplates = [];
   for (var i = 1; i < data.length; i++) {
     // 10-COLUMN INDICES: Trigger is 5 (Col F), Status is 8 (Col I)
     if (data[i][5] === triggerHandle && data[i][8] === "Active") {
-      templateIdx = i; 
-      break; 
+      matchedTemplates.push(data[i]); 
     }
   }
 
-  if (templateIdx === -1) return;
+  if (matchedTemplates.length === 0) return;
 
-  var finalToEmail = toEmail;
-  var finalSubject = data[templateIdx][6];  // Col G (Subject)
-  var finalHtmlBody = data[templateIdx][7]; // Col H (Body)
-  var wrapperName = data[templateIdx][9];   // Col J (Wrapper)
-  
-  var wrapperHtml = getWrapperContent(wrapperName);
-  var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
+  // 2. Loop through every matched template and dispatch its email
+  for (var t = 0; t < matchedTemplates.length; t++) {
+    var templateRow = matchedTemplates[t];
+    
+    var finalToEmail = toEmail;
+    var finalSubject = templateRow[6];  // Col G (Subject)
+    var finalHtmlBody = templateRow[7]; // Col H (Body)
+    var wrapperName = templateRow[9];   // Col J (Wrapper)
+    
+    var wrapperHtml = getWrapperContent(wrapperName);
+    var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
 
-  for (var key in dataMap) {
-    var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
-    finalSubject = finalSubject.replace(regex, dataMap[key] || "");
-    fullHtml = fullHtml.replace(regex, dataMap[key] || "");
+    for (var key in dataMap) {
+      var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
+      finalSubject = finalSubject.replace(regex, dataMap[key] || "");
+      fullHtml = fullHtml.replace(regex, dataMap[key] || "");
+    }
+
+    // ========================================================================
+    // [IMMUTABLE ANCHOR: SANDBOX ENVIRONMENT INTERCEPTOR]
+    // Applied individually to each template in the batch
+    // ========================================================================
+    if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
+      finalToEmail = settings.adminEmail;
+      finalSubject = "[Sandbox Mail] " + finalSubject;
+      var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
+      sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
+      sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
+      fullHtml += sandboxWarning;
+    }
+    // ========================================================================
+
+    MailApp.sendEmail({
+      to: finalToEmail, 
+      subject: finalSubject, 
+      htmlBody: fullHtml, 
+      noReply: true,
+      name: settings.systemName, 
+      inlineImages: { logo: getLogoBlob() }
+    });
   }
-
-  // ========================================================================
-  // [IMMUTABLE ANCHOR: SANDBOX ENVIRONMENT INTERCEPTOR]
-  // ========================================================================
-  if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
-    finalToEmail = settings.adminEmail;
-    finalSubject = "[Sandbox Mail] " + finalSubject;
-    var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
-    sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
-    sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
-    fullHtml += sandboxWarning;
-  }
-  // ========================================================================
-
-  MailApp.sendEmail({
-    to: finalToEmail, 
-    subject: finalSubject, 
-    htmlBody: fullHtml, 
-    noReply: true,
-    name: settings.systemName, 
-    inlineImages: { logo: getLogoBlob() }
-  });
 }
 
 /**

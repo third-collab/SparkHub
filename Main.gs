@@ -43,13 +43,21 @@ function doGet() {
   template.themeDark = settings.themeDark;
   template.themeBg = settings.themeBg;
   template.themeHover = settings.themeHover;
+  
+  // NEW: Pass the Auth Mode to the UI
+  template.authMode = settings.authMode;
 
   var role = isInstalled ? (userEmail === '' ? 'Guest' : getUserRole()) : "Administrator";
   if (role === 'Inactive') return serveAccessDeniedScreen(settings);
   
   template.userRole = role;
   template.username = (role === 'Guest') ? '' : getLoggedInUsername();
-  template.userPermissions = (role === 'Guest' || !isInstalled) ? '{"ALL":["ALL"]}' : getUserPermissions(role);
+  
+  // NEW: Pass First Name for the UserBar
+  template.userFirstName = (role === 'Guest' || !isInstalled) ? '' : getLoggedInUserFirstName();
+  
+  template.userPermissions = (role === 'Guest' || !isInstalled) ?
+  '{"ALL":["ALL"]}' : getUserPermissions(role);
 
   // EVALUATE AND SET FAVICON
   return template.evaluate()

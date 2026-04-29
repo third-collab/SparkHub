@@ -136,6 +136,18 @@ function getLoggedInUsername() {
   } catch (e) { return "User"; }
 }
 
+function getLoggedInUserFirstName() {
+  try {
+    var email = Session.getActiveUser().getEmail();
+    var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][3] === email) return data[i][5]; // Column F is First Name
+    }
+    return "User";
+  } catch (e) { return "User"; }
+}
+
 function updateLastLogin() {
   try {
     var email = Session.getActiveUser().getEmail();
@@ -253,8 +265,9 @@ function verifyUserCredentials(loginId, password) {
         return {
           success: true,
           username: String(data[i][1]),
+          firstName: String(data[i][5]), // NEW: Pass the first name to local storage
           role: role,
-          permissions: getUserPermissions(role) // Fetches the JSON matrix
+          permissions: getUserPermissions(role) 
         };
       }
     }
