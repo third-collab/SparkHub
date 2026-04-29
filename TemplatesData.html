@@ -184,6 +184,9 @@
     <h2 id="tpl-form-title" style="margin-top: 0; color: var(--brand-dark);">Add Template</h2>
     
     <form id="editTemplateForm" onsubmit="handleTemplateSubmit(event)">
+      <input type="hidden" id="edt-tpl-rowIndex">
+      <input type="hidden" id="edt-tpl-id">
+      
       <button type="button" class="accordion active" onclick="toggleAccordion(this)">1. Identity & System Binding</button>
       <div class="panel" style="display: block;">
         <div class="form-row" style="margin-top:15px;">
@@ -209,7 +212,6 @@
             </select>
           </div>
         </div>
-        <!-- RESTORED: Column 4 Mapping (Description) -->
         <div class="form-group" style="margin-top:15px;">
           <label>Internal Description & Usage Notes</label>
           <textarea id="edt-tpl-description" class="form-control" style="height: 80px;" placeholder="Explain when this template is sent and who is the audience..."></textarea>
