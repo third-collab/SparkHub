@@ -4,20 +4,34 @@
  * Handles: Staff profiles, permissions, RBAC, and directory management.
  */
 
+/**
+ * Securely hashes passwords using SHA-256 for database storage.
+ */
+function hashPassword(password) {
+  if (!password) return "";
+  var rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password);
+  var txtHash = '';
+  for (var i = 0; i < rawHash.length; i++) {
+    var hashVal = rawHash[i];
+    if (hashVal < 0) hashVal += 256;
+    if (hashVal.toString(16).length == 1) txtHash += '0';
+    txtHash += hashVal.toString(16);
+  }
+  return txtHash;
+}
+
 function processNewUser(obj) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
+    var hashedPw = hashPassword(obj.password);
+    
     sheet.appendRow([
-      new Date(), obj.username, obj.role, obj.email, obj.password, 
+      new Date(), obj.username, obj.role, obj.email, hashedPw, 
       obj.firstName, obj.lastName, obj.status, "" 
     ]);
     
-    // FORCE GOOGLE TO COMMIT THE WRITE IMMEDIATELY
-    SpreadsheetApp.flush(); 
-    
-    // NEW BROADCAST PATTERN
+    SpreadsheetApp.flush();
     SystemEvent.emit("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile established via UI.");
-    
     return "Success! User created.";
   } catch (e) { return "Error: " + e.message; }
 }
@@ -28,16 +42,13 @@ function updateUserRecord(obj) {
     var data = sheet.getDataRange().getValues();
     var row = parseInt(obj.rowIndex);
 
-    // 1. IMMUTABILITY ENFORCEMENT: Ignore the incoming username, force the existing one
-    var existingUsername = data[row-1][1]; 
+    var existingUsername = data[row-1][1];
     obj.username = existingUsername;
 
-    // 2. LAST ADMIN LOCKOUT ENFORCEMENT
     var existingRole = data[row-1][2];
     var existingStatus = data[row-1][7];
     
     if ((existingRole === 'Administrator' || existingRole === 'Admin') && existingStatus === 'Active') {
-      // If the incoming request tries to demote or deactivate this admin
       if (obj.role !== existingRole || obj.status !== 'Active') {
         var activeAdminCount = 0;
         for (var i = 1; i < data.length; i++) {
@@ -51,23 +62,62 @@ function updateUserRecord(obj) {
       }
     }
 
+    // Preserve the old hash if the field was left blank in the UI
+    var oldPassword = data[row-1][4];
+    var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
+
     sheet.getRange(row, 2, 1, 7).setValues([[
-      obj.username, obj.role, obj.email, obj.password, obj.firstName, 
+      obj.username, obj.role, obj.email, newPassword, obj.firstName, 
       obj.lastName, obj.status
     ]]);
     
     SpreadsheetApp.flush();
     SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
     return "Success! User updated.";
-  } catch (e) { 
-    return "Error: " + e.message; 
-  }
+  } catch (e) { return "Error: " + e.message; }
+}
+
+function updateMyProfileRecord(obj) {
+  try {
+    var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getValues();
+    var rowToUpdate = -1;
+    
+    var loggedInUser = getLoggedInUsername();
+    if (obj.username !== loggedInUser) {
+      return "Error: Unauthorized profile modification.";
+    }
+
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === obj.username) {
+        rowToUpdate = i + 1;
+        break;
+      }
+    }
+
+    if (rowToUpdate === -1) return "Error: User profile not found.";
+
+    var oldPassword = data[rowToUpdate-1][4];
+    var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
+
+    sheet.getRange(rowToUpdate, 4, 1, 4).setValues([[
+      obj.email, newPassword, obj.firstName, obj.lastName
+    ]]);
+    
+    SpreadsheetApp.flush();
+    SystemEvent.emit("Users", "UPDATE", "Update Profile", "INFO", obj.username, "User updated their personal profile details.");
+    
+    return {
+      success: true,
+      firstName: obj.firstName,
+      message: "Success! Profile updated."
+    };
+  } catch (e) { return "Error: " + e.message; }
 }
 
 function getUserById(rowIndex) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
-    // Fetch 9 columns
     var rowData = sheet.getRange(rowIndex, 1, 1, 9).getDisplayValues()[0];
     return {
       rowIndex: rowIndex, username: rowData[1], role: rowData[2], email: rowData[3], password: rowData[4],
@@ -76,24 +126,35 @@ function getUserById(rowIndex) {
   } catch (e) { return { error: e.message }; }
 }
 
+function getUserProfileByUsername(username) {
+  try {
+    var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getDisplayValues(); 
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(username)) { 
+        return {
+          rowIndex: i + 1, username: data[i][1], role: data[i][2], email: data[i][3], 
+          password: data[i][4], firstName: data[i][5], lastName: data[i][6], 
+          status: data[i][7], lastLogin: data[i][8] 
+        };
+      }
+    }
+    return { error: "User profile not found in directory." };
+  } catch (e) { return { error: e.message }; }
+}
+
 function getUsersList() {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
-    data.shift(); // Remove headers
-    
+    data.shift(); 
     var validUsers = [];
     data.forEach(function(row, i) {
-      if (row[1]) { // Only map rows that actually contain a Username
+      if (row[1]) { 
         validUsers.push({ 
           rowIndex: i + 2, 
-          // Strictly cast to String to prevent UI crashes on numbers
-          username: String(row[1]), 
-          role: String(row[2]), 
-          email: String(row[3]), 
-          firstName: String(row[5]), 
-          lastName: String(row[6]), 
-          status: String(row[7]) 
+          username: String(row[1]), role: String(row[2]), email: String(row[3]), 
+          firstName: String(row[5]), lastName: String(row[6]), status: String(row[7]) 
         });
       }
     });
@@ -101,22 +162,16 @@ function getUsersList() {
   } catch (e) { return []; }
 }
 
-/* ========================================================================
-   ROLE-BASED ACCESS CONTROL (RBAC) INTENTS
-   ======================================================================== */
-
 function getUserRole() {
   try {
     var email = Session.getActiveUser().getEmail();
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
-    
     for (var i = 1; i < data.length; i++) {
-      if (data[i][3] === email) { // Email is index 3
-        return data[i][7] === 'Inactive' ? 'Inactive' : data[i][2]; // Status is index 7
+      if (data[i][3] === email) { 
+        return data[i][7] === 'Inactive' ? 'Inactive' : data[i][2]; 
       }
     }
-    
     if (email === PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL')) {
       return "Administrator";
     }
@@ -142,7 +197,7 @@ function getLoggedInUserFirstName() {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
-      if (data[i][3] === email) return data[i][5]; // Column F is First Name
+      if (data[i][3] === email) return data[i][5];
     }
     return "User";
   } catch (e) { return "User"; }
@@ -153,23 +208,15 @@ function updateLastLogin() {
     var email = Session.getActiveUser().getEmail();
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
-    
     for (var i = 1; i < data.length; i++) {
       if (data[i][3] === email) { 
-        sheet.getRange(i + 1, 9).setValue(new Date()); // Column 9 is Last Login
+        sheet.getRange(i + 1, 9).setValue(new Date());
         break;
       }
     }
   } catch (e) { console.error("Failed to update last login: " + e.message); }
 }
 
-/* ========================================================================
-   ROLE & PERMISSION MANAGEMENT (RBAC)
-   ======================================================================== */
-
-/**
- * Failsafe: Builds the Roles sheet for existing installations.
- */
 function ensureRolesSheet() {
   var ss = getMainDb();
   var sheet = ss.getSheetByName("Roles");
@@ -199,51 +246,38 @@ function getRolesList() {
 function saveRoleRecord(obj) {
   try {
     var sheet = ensureRolesSheet();
-    
-    // BACKEND LOCK: If the role is Administrator, force the wildcard permission matrix
     if (obj.name === 'Administrator' || obj.name === 'Admin') {
       obj.permissions = '{"ALL":["ALL"]}';
     }
     
     if (obj.rowIndex) {
-      // Update existing role
       sheet.getRange(obj.rowIndex, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
       SystemEvent.emit("Users", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.");
     } else {
-      // Create new role
       var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
       sheet.appendRow([ roleId, obj.name, obj.description, obj.permissions, obj.status ]);
       SystemEvent.emit("Users", "CREATE", "Add Role", "INFO", obj.name, "New system role established.");
     }
     return "Success! Role saved.";
-  } catch (e) { 
-    return "Error: " + e.message; 
-  }
+  } catch (e) { return "Error: " + e.message; }
 }
 
-/**
- * Retrieves the JSON permission matrix for a specific role.
- */
 function getUserPermissions(roleName) {
   if (roleName === 'Administrator' || roleName === 'Admin') {
-    return '{"ALL":["ALL"]}'; // Master wildcard for top-level admins
+    return '{"ALL":["ALL"]}';
   }
   try {
     var sheet = ensureRolesSheet();
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
       if (data[i][1] === roleName && data[i][4] === 'Active') {
-        return data[i][3] ? data[i][3] : "{}"; // Return the JSON string
+        return data[i][3] ? data[i][3] : "{}"; 
       }
     }
   } catch(e) {}
   return "{}";
 }
 
-/**
- * Verifies local credentials for public/hybrid deployments.
- * Returns a session payload to be stored in the browser.
- */
 function verifyUserCredentials(loginId, password) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
@@ -254,10 +288,12 @@ function verifyUserCredentials(loginId, password) {
       var rowUsername = String(data[i][1]).toLowerCase();
       var rowEmail = String(data[i][3]).toLowerCase();
       var rowPassword = String(data[i][4]);
-      var rowStatus = String(data[i][7]);
-
-      if ((rowUsername === loginLower || rowEmail === loginLower) && rowPassword === password) {
-        if (rowStatus === 'Inactive') {
+      
+      // Hash the incoming plaintext password and compare it against the database hash
+      var hashedInput = hashPassword(password);
+      
+      if ((rowUsername === loginLower || rowEmail === loginLower) && rowPassword === hashedInput) {
+        if (String(data[i][7]) === 'Inactive') {
           return { success: false, message: "Account is inactive." };
         }
 
@@ -265,7 +301,7 @@ function verifyUserCredentials(loginId, password) {
         return {
           success: true,
           username: String(data[i][1]),
-          firstName: String(data[i][5]), // NEW: Pass the first name to local storage
+          firstName: String(data[i][5]), 
           role: role,
           permissions: getUserPermissions(role) 
         };
@@ -277,29 +313,21 @@ function verifyUserCredentials(loginId, password) {
   }
 }
 
-/**
- * Aggregates all system permissions dynamically.
- */
 function getDynamicPermissionMatrix() {
-  // 1. Core Permissions
   var matrix = {
     "Core System": ["Manage Settings", "Manage Roles"],
     "Access & Users": ["View Users", "Manage Users"],
     "Templates": ["View Templates", "Manage Templates"],
     "System Logs": ["View Logs"]
   };
-
-  // 2. Discover Module-Specific Permissions
   var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
   if (installed) {
     installed.split(',').forEach(function(modName) {
       var mod = modName.trim();
-      // Convention: Modules can provide a global function [ModuleName]_getPermissions()
       var funcName = mod + "_getPermissions";
       if (typeof this[funcName] === 'function') {
         matrix[mod + " Module"] = this[funcName]();
       } else {
-        // Fallback CRUD
         matrix[mod + " Module"] = ["View " + mod, "Manage " + mod];
       }
     });

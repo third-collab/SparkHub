@@ -6,12 +6,6 @@
  * - Bridges the Module/Plugin Registry from ScriptProperties to the UI.
  * - Routes to the Installation Wizard or the Modular Dashboard.
  */
-
-/**
- * Entry point for the SparkHub Web Application.
- * Handles environment detection, dynamic branding, and registry-based rendering.
- * @return {HtmlService.HtmlOutput} The evaluated HTML template.
- */
 function doGet() {
   var props = PropertiesService.getScriptProperties();
   var env = props.getProperty('ENVIRONMENT');
@@ -44,22 +38,27 @@ function doGet() {
   template.themeBg = settings.themeBg;
   template.themeHover = settings.themeHover;
   
-  // NEW: Pass the Auth Mode to the UI
   template.authMode = settings.authMode;
 
-  var role = isInstalled ? (userEmail === '' ? 'Guest' : getUserRole()) : "Administrator";
-  if (role === 'Inactive') return serveAccessDeniedScreen(settings);
+  // CRITICAL FIX: Bypasses Google's SSO checks if the system is enforcing Local Auth.
+  var role = 'Guest';
+  if (isInstalled) {
+    if (settings.authMode === 'Local') {
+      role = 'Guest'; 
+    } else {
+      role = (userEmail === '' ? 'Guest' : getUserRole());
+    }
+  } else {
+    role = 'Administrator';
+  }
   
+  if (role === 'Inactive') return serveAccessDeniedScreen(settings);
+
   template.userRole = role;
   template.username = (role === 'Guest') ? '' : getLoggedInUsername();
-  
-  // NEW: Pass First Name for the UserBar
   template.userFirstName = (role === 'Guest' || !isInstalled) ? '' : getLoggedInUserFirstName();
-  
-  template.userPermissions = (role === 'Guest' || !isInstalled) ?
-  '{"ALL":["ALL"]}' : getUserPermissions(role);
+  template.userPermissions = (role === 'Guest' || !isInstalled) ? '{"ALL":["ALL"]}' : getUserPermissions(role);
 
-  // EVALUATE AND SET FAVICON
   return template.evaluate()
       .setTitle(settings.systemName)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

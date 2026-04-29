@@ -188,5 +188,26 @@ function sendTestEmailAction(rowIndex, testEmail) {
 }
 
 /**
- * [SPARKHUB INTEGRITY ANCHOR: END]
+ * Securely hashes passwords using SHA-256 for database storage.
  */
+function hashPassword(password) {
+  if (!password) return "";
+  var rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password);
+  var txtHash = '';
+  for (var i = 0; i < rawHash.length; i++) {
+    var hashVal = rawHash[i];
+    if (hashVal < 0) hashVal += 256;
+    if (hashVal.toString(16).length == 1) txtHash += '0';
+    txtHash += hashVal.toString(16);
+  }
+  return txtHash;
+}
+
+/**
+ * Helper to ensure the cell actually contains a valid Date object before checking it.
+ * @param {any} d - The value to check.
+ * @return {boolean} - Returns true if the value is a valid Date object.
+ */
+function isValidDate(d) {
+  return d instanceof Date && !isNaN(d);
+}

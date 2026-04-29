@@ -21,6 +21,9 @@ function performUiInstallation(data) {
     props.setProperty('CLIENT_ID', "CID-" + Utilities.getUuid().substring(0, 8).toUpperCase());
     props.setProperty('INSTANCE_SECRET', Utilities.getUuid());
     
+    // NEW LOGIC: Automatically register the integrated UserBar plugin
+    props.setProperty('INSTALLED_PLUGINS', 'UserBar');
+
     runInstallation();
     setupSystemTriggers();
 

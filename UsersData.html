@@ -15,7 +15,7 @@
     <h4 id="user-popup-name" style="margin:0;">User</h4>
     <p id="user-popup-role" style="font-size:11px; color:#888; margin:5px 0 15px 0;"></p>
     <div style="border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-direction: column; gap: 8px;">
-       <button class="btn-edit" onclick="switchView('readOnlyUserView'); document.getElementById('user-popup').style.display='none';" style="width:100%;">My Access Profile</button>
+       <button class="btn-edit" onclick="openMyProfile();" style="width:100%;">My Access Profile</button>
        <button id="user-popup-logout-btn" class="btn-edit" style="width:100%; border-color: #ddd; color: #666; display:none;">Sign Out</button>
     </div>
   </div>
@@ -111,7 +111,7 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label>Username (Login ID) *</label><input type="text" id="add-user-username" class="form-control" required></div>
-        <div class="form-group"><label>Google Account Email *</label><input type="email" id="add-user-email" class="form-control" required></div>
+        <div class="form-group"><label>System Email *</label><input type="email" id="add-user-email" class="form-control" required></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>System Role *</label>
@@ -124,8 +124,8 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Local Password</label><input type="password" id="add-user-password" class="form-control" placeholder="Leave blank if using Google SSO"></div>
+      <div class="form-row auth-local-field">
+        <div class="form-group"><label>Local Password</label><input type="password" id="add-user-password" class="form-control" placeholder="Required for Local Auth"></div>
       </div>
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
         <button type="submit" class="btn-primary" id="add-user-submit">Create User</button>
@@ -148,7 +148,7 @@
       </div>
       <div class="form-row">
         <div class="form-group"><label>Username (Login ID) *</label><input type="text" id="edt-user-username" class="form-control" required></div>
-        <div class="form-group"><label>Google Account Email *</label><input type="email" id="edt-user-email" class="form-control" required></div>
+        <div class="form-group"><label>System Email *</label><input type="email" id="edt-user-email" class="form-control" required></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>System Role *</label>
@@ -161,7 +161,7 @@
           </select>
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-row auth-local-field">
         <div class="form-group"><label>Local Password</label><input type="password" id="edt-user-password" class="form-control" placeholder="Leave blank to keep current, or enter new"></div>
       </div>
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
@@ -197,10 +197,72 @@
       </div>
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Authentication</h4>
-        <p><strong>Google Login Email:</strong> <span id="ro-user-email"></span></p>
+        <p><strong>System Email:</strong> <span id="ro-user-email"></span></p>
+        <p class="auth-local-field" style="display: none;"><strong>Local Password:</strong> <span id="ro-user-password" style="font-family: monospace;"></span></p>
         <p><strong>Last Login:</strong> <span id="ro-user-lastlogin" style="color: #64748b;"></span></p>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="myProfileView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+  <div class="form-wrapper">
+    <div id="my-profile-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Your Profile...</span></div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+       <div style="display: flex; align-items: center;">
+          <div class="user-avatar-placeholder" id="my-profile-initial">U</div>
+          <div>
+            <h2 id="my-profile-fullname" style="margin:0;"></h2>
+            <p id="my-profile-username" style="margin: 5px 0 0 0; color: #666; font-size: 15px; font-family: monospace;"></p>
+          </div>
+       </div>
+       <button class="btn-edit" onclick="openEditMyProfile()" style="padding: 10px 20px;">Edit Profile</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
+      <div>
+        <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Personal Details</h4>
+        <p><strong>First Name:</strong> <span id="my-profile-first"></span></p>
+        <p><strong>Last Name:</strong> <span id="my-profile-last"></span></p>
+      </div>
+      <div>
+        <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Account Information</h4>
+        <p><strong>System Email:</strong> <span id="my-profile-email"></span></p>
+        <p class="auth-local-field" style="display: none;"><strong>Local Password:</strong> <span id="my-profile-password" style="font-family: monospace;"></span></p>
+        <p><strong>Last Login:</strong> <span id="my-profile-lastlogin" style="color: #64748b;"></span></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="editMyProfileView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="openMyProfile()">&#8592; Cancel & Back to Profile</button>
+  <div class="form-wrapper">
+    <div id="edit-my-profile-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Saving Profile...</span></div>
+    <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit My Profile</h2>
+    
+    <form id="editMyProfileForm" onsubmit="handleEditMyProfileSubmit(event)" novalidate>
+      <div class="form-row">
+        <div class="form-group"><label>First Name *</label><input type="text" id="edt-my-first" class="form-control" required></div>
+        <div class="form-group"><label>Last Name *</label><input type="text" id="edt-my-last" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Username (Login ID)</label>
+          <input type="text" id="edt-my-username" class="form-control" readonly style="background-color: #f8fafc; color: #94a3b8;" title="Username cannot be changed.">
+        </div>
+        <div class="form-group"><label>System Email *</label><input type="email" id="edt-my-email" class="form-control" required></div>
+      </div>
+      <div class="form-row auth-local-field">
+        <div class="form-group"><label>Local Password</label><input type="password" id="edt-my-password" class="form-control" placeholder="Leave blank to keep current password"></div>
+      </div>
+      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
+        <button type="submit" class="btn-primary" id="edt-my-submit">Save Changes</button>
+      </div>
+    </form>
+    <div id="edt-my-msg" class="status-msg" style="margin-top: 20px; font-weight: 600; text-align: right;"></div>
   </div>
 </div>
 
@@ -343,6 +405,106 @@
         };
       }
     }
+  }
+
+  /* ========================================================================
+     PERSONAL PROFILE MANAGEMENT (Decoupled from Directory)
+     ======================================================================== */
+
+  function openMyProfile() {
+    // Hide popup and open the dedicated profile view
+    document.getElementById('user-popup').style.display = 'none';
+    switchView('myProfileView');
+    toggleUserOverlay('my-profile-overlay', true, 'Loading Your Profile...');
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        toggleUserOverlay('my-profile-overlay', false);
+        
+        if (data.error) { alert(data.error); return; }
+        
+        // Populate the dedicated My Profile UI
+        document.getElementById('my-profile-fullname').innerText = data.firstName + " " + data.lastName;
+        document.getElementById('my-profile-username').innerText = "@" + data.username;
+        document.getElementById('my-profile-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
+        
+        document.getElementById('my-profile-first').innerText = data.firstName;
+        document.getElementById('my-profile-last').innerText = data.lastName;
+        document.getElementById('my-profile-email').innerText = data.email;
+        document.getElementById('my-profile-lastlogin').innerText = data.lastLogin || "Never logged in";
+      })
+      .withFailureHandler(function(err) {
+        // Expose any silent backend errors
+        toggleUserOverlay('my-profile-overlay', false);
+        alert("Backend Error: " + err.message);
+      })
+      .getUserProfileByUsername(CURRENT_USERNAME);
+  }
+
+  function openEditMyProfile() {
+    switchView('editMyProfileView');
+    document.getElementById('editMyProfileForm').reset();
+    var msg = document.getElementById('edt-my-msg');
+    if (msg) msg.innerHTML = '';
+    
+    toggleUserOverlay('edit-my-profile-overlay', true, 'Fetching Data...');
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        toggleUserOverlay('edit-my-profile-overlay', false);
+        
+        if (data.error) { alert(data.error); return; }
+        
+        // Populate the specific Edit My Profile fields
+        document.getElementById('edt-my-first').value = data.firstName || "";
+        document.getElementById('edt-my-last').value = data.lastName || "";
+        document.getElementById('edt-my-username').value = data.username || "";
+        document.getElementById('edt-my-email').value = data.email || "";
+      })
+      .withFailureHandler(function(err) {
+        toggleUserOverlay('edit-my-profile-overlay', false);
+        alert("Backend Error: " + err.message);
+      })
+      .getUserProfileByUsername(CURRENT_USERNAME);
+  }
+
+  function handleEditMyProfileSubmit(e) {
+    if(e) e.preventDefault();
+    toggleUserOverlay('edit-my-profile-overlay', true, 'Saving Profile...');
+    var btn = document.getElementById('edt-my-submit');
+    btn.disabled = true;
+
+    var profileData = {
+      username: document.getElementById('edt-my-username').value,
+      firstName: document.getElementById('edt-my-first').value,
+      lastName: document.getElementById('edt-my-last').value,
+      email: document.getElementById('edt-my-email').value,
+      password: document.getElementById('edt-my-password').value
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('edit-my-profile-overlay', false);
+      var msg = document.getElementById('edt-my-msg');
+      btn.disabled = false;
+      
+      if (res.success) {
+        // Automatically update the global variable and UserBar Pill
+        CURRENT_USER_FIRSTNAME = res.firstName;
+        initUserBarPlugin();
+        
+        // If they are logged in locally, update LocalStorage so it persists on refresh
+        var savedSession = localStorage.getItem('sparkhub_session');
+        if (savedSession) {
+           var sessionData = JSON.parse(savedSession);
+           sessionData.firstName = res.firstName;
+           localStorage.setItem('sparkhub_session', JSON.stringify(sessionData));
+        }
+        
+        openMyProfile(); // Redirect back to read-only profile
+      } else { 
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+      }
+    }).updateMyProfileRecord(profileData);
   }
 
   /* ========================================================================
@@ -735,4 +897,27 @@
       if(res.includes("Success")) { openRolesList(); } else { alert(res); }
     }).saveRoleRecord(payload);
   }
+
+  function applyAuthModeVisibility() {
+    var isLocal = (typeof SYSTEM_AUTH_MODE !== 'undefined' && SYSTEM_AUTH_MODE === 'Local');
+    document.querySelectorAll('.auth-local-field').forEach(function(el) {
+      if (!isLocal) {
+        el.style.display = 'none';
+      } else {
+        // Use flex for form-rows, block for <p> tags
+        el.style.display = el.tagName.toLowerCase() === 'div' ? 'flex' : 'block';
+      }
+    });
+  }
+
+  // Add these two lines inside the success handler of openReadOnlyUser()
+  document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
+  applyAuthModeVisibility();
+
+  // Add these two lines inside the success handler of openMyProfile()
+  document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
+  applyAuthModeVisibility();
+
+  // Add this one line to openAddUserForm(), openEditUserForm(), and openEditMyProfile()
+  applyAuthModeVisibility();
 </script>
