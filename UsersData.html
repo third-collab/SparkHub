@@ -88,7 +88,10 @@
         <tr>
           <th class="sortable" onclick="handleUserSort('username')">Username <span id="usort-username" class="sort-icon"></span></th>
           <th class="sortable" onclick="handleUserSort('firstName')">Name <span id="usort-firstName" class="sort-icon"></span></th>
-          <th>System Email</th><th>Role</th><th>Status</th><th>Action</th>
+          <th class="sortable" onclick="handleUserSort('email')">System Email <span id="usort-email" class="sort-icon"></span></th>
+          <th class="sortable" onclick="handleUserSort('role')">Role <span id="usort-role" class="sort-icon"></span></th>
+          <th class="sortable" onclick="handleUserSort('status')">Status <span id="usort-status" class="sort-icon"></span></th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody id="userTableBody"><tr><td colspan="6" style="text-align:center; padding: 30px;">Loading users...</td></tr></tbody>
@@ -219,7 +222,14 @@
   <div class="table-container">
     <div id="role-list-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
     <table>
-      <thead><tr><th>Role Name</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
+      <thead>
+        <tr>
+          <th class="sortable" onclick="handleRoleSort('name')">Role Name <span id="rsort-name" class="sort-icon"></span></th>
+          <th>Description</th>
+          <th class="sortable" onclick="handleRoleSort('status')">Status <span id="rsort-status" class="sort-icon"></span></th>
+          <th>Action</th>
+        </tr>
+      </thead>
       <tbody id="roleTableBody"></tbody>
     </table>
   </div>
@@ -262,6 +272,16 @@
   var GLOBAL_ROLES_DATA = [];
   var CURRENT_USER_SORT_COLUMN = 'username';
   var CURRENT_USER_SORT_DESC = false;
+  
+  // NEW LOGIC: Roles Sorting State
+  var CURRENT_ROLE_SORT_COLUMN = 'name';
+  var CURRENT_ROLE_SORT_DESC = false;
+
+  function handleRoleSort(column) {
+    if (CURRENT_ROLE_SORT_COLUMN === column) { CURRENT_ROLE_SORT_DESC = !CURRENT_ROLE_SORT_DESC; } 
+    else { CURRENT_ROLE_SORT_COLUMN = column; CURRENT_ROLE_SORT_DESC = false; }
+    renderRolesTable();
+  }
 
   /* ========================================================================
      1. INITIALIZATION & DYNAMIC RBAC SEEDING
@@ -455,13 +475,45 @@
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('edit-user-overlay', false);
       document.getElementById('edt-user-rowIndex').value = data.rowIndex;
-      document.getElementById('edt-user-username').value = data.username || "";
-      document.getElementById('edt-user-role').value = data.role || "";
+      
+      // 1. Lock the Username Field
+      var userField = document.getElementById('edt-user-username');
+      userField.value = data.username || "";
+      userField.readOnly = true;
+      userField.style.backgroundColor = "#f8fafc";
+      userField.style.color = "#94a3b8";
+      userField.title = "Username cannot be changed after creation to preserve system audit integrity.";
+
       document.getElementById('edt-user-email').value = data.email || "";
       document.getElementById('edt-user-password').value = data.password || "";
       document.getElementById('edt-user-first').value = data.firstName || "";
       document.getElementById('edt-user-last').value = data.lastName || "";
-      document.getElementById('edt-user-status').value = data.status || "Active";
+      
+      var roleSelect = document.getElementById('edt-user-role');
+      var statusSelect = document.getElementById('edt-user-status');
+      roleSelect.value = data.role || "";
+      statusSelect.value = data.status || "Active";
+
+      // 2. Lock the Last Admin
+      var activeAdmins = GLOBAL_USER_DATA.filter(u => u.role === 'Administrator' && u.status === 'Active');
+      var warnId = 'last-admin-warning';
+      var existingWarn = document.getElementById(warnId);
+      if (existingWarn) existingWarn.remove();
+      
+      if (data.role === 'Administrator' && data.status === 'Active' && activeAdmins.length <= 1) {
+        roleSelect.disabled = true;
+        statusSelect.disabled = true;
+        
+        var warn = document.createElement('div');
+        warn.id = warnId;
+        warn.style.cssText = "padding:10px; background:#fff1f2; color:#9f1239; border:1px solid #fecdd3; border-radius:6px; margin-bottom:15px; font-size:12px;";
+        warn.innerText = "Role and Status cannot be changed. This is the last active Administrator in the system.";
+        document.getElementById('editUserForm').prepend(warn);
+      } else {
+        roleSelect.disabled = false;
+        statusSelect.disabled = false;
+      }
+
     }).getUserById(rowIndex);
   }
 
@@ -532,7 +584,22 @@
   function renderRolesTable() {
     var tbody = document.getElementById('roleTableBody');
     tbody.innerHTML = '';
-    GLOBAL_ROLES_DATA.forEach(function(r) {
+    
+    // 1. Sort the roles data before rendering
+    var sortedRoles = [...GLOBAL_ROLES_DATA].sort(function(a, b) {
+      var valA = String(a[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
+      var valB = String(b[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
+      if (valA < valB) return CURRENT_ROLE_SORT_DESC ? 1 : -1;
+      if (valA > valB) return CURRENT_ROLE_SORT_DESC ? -1 : 1;
+      return 0;
+    });
+
+    // 2. Manage UI Sort Icons
+    document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('rsort-')) icon.innerHTML = ''; });
+    var iconEl = document.getElementById('rsort-' + CURRENT_ROLE_SORT_COLUMN);
+    if (iconEl) iconEl.innerHTML = CURRENT_ROLE_SORT_DESC ? '▼' : '▲';
+
+    sortedRoles.forEach(function(r) {
       var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
       var editRoleHtml = hasPermission('Core System', 'Manage Roles')
         ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Permissions</button></td>`
@@ -550,18 +617,43 @@
   }
 
   // Ensure renderPermissionMatrix accepts the new matrix parameter
-  function renderPermissionMatrix(savedPerms, matrix) {
+  // Replace these functions inside the <script> block of UsersData.html
+
+  function renderPermissionMatrix(savedPerms, matrix, isSystemAdmin) {
     var container = document.getElementById('permission-matrix-container');
     container.innerHTML = '';
-    for (var category in matrix) {
+    
+    // Custom Priority Order for Core Modules
+    var priorityOrder = ["Core System", "Access & Users", "Templates", "System Logs"];
+    var allCategories = Object.keys(matrix);
+
+    // Sort categories based on priority order, then alphabetically
+    allCategories.sort(function(a, b) {
+      var idxA = priorityOrder.indexOf(a);
+      var idxB = priorityOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    // Administrator Override Notice
+    if (isSystemAdmin) {
+       container.innerHTML = '<div style="padding:15px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:20px; font-size:13px; color:#1e3a8a;"><strong>System Administrator</strong> roles have unrestricted access. Individual permissions cannot be edited.</div>';
+    }
+
+    allCategories.forEach(function(category) {
       var html = `<div class="perm-group"><div class="perm-group-title">${category}</div><div class="perm-group-items">`;
       matrix[category].forEach(function(perm) {
-        var isChecked = savedPerms[category] && savedPerms[category].includes(perm) ? "checked" : "";
-        html += `<label class="perm-cb-label"><input type="checkbox" class="role-perm-cb" data-category="${category}" value="${perm}" ${isChecked}> ${perm}</label>`;
+        // Admins automatically get all boxes visually checked and disabled
+        var isChecked = (isSystemAdmin || (savedPerms[category] && savedPerms[category].includes(perm))) ? "checked" : "";
+        var isDisabled = isSystemAdmin ? "disabled" : "";
+        
+        html += `<label class="perm-cb-label"><input type="checkbox" class="role-perm-cb" data-category="${category}" value="${perm}" ${isChecked} ${isDisabled}> ${perm}</label>`;
       });
       html += `</div></div>`;
       container.innerHTML += html;
-    }
+    });
   }
 
   function openAddRoleForm() {
@@ -569,10 +661,12 @@
     document.getElementById('roleForm').reset();
     document.getElementById('edt-role-rowIndex').value = '';
     document.getElementById('role-form-title').innerText = "Create New Role";
+    document.getElementById('edt-role-name').readOnly = false; // Ensure name is editable
     
-    // Fetch dynamic matrix from backend before rendering
+    toggleUserOverlay('role-edit-overlay', true, "Loading Matrix...");
     google.script.run.withSuccessHandler(function(matrix) {
-       renderPermissionMatrix({}, matrix);
+       toggleUserOverlay('role-edit-overlay', false);
+       renderPermissionMatrix({}, matrix, false);
     }).getDynamicPermissionMatrix();
   }
 
@@ -589,9 +683,19 @@
     document.getElementById('edt-role-desc').value = role.description;
     document.getElementById('edt-role-status').value = role.status;
 
+    var isSystemAdmin = (role.name === 'Administrator');
+    // Prevent changing the name of the Master Admin role
+    document.getElementById('edt-role-name').readOnly = isSystemAdmin;
+
     var savedPerms = {};
     try { savedPerms = JSON.parse(role.permissions || "{}"); } catch(e){}
-    renderPermissionMatrix(savedPerms);
+    
+    // FIX: Fetch the dynamic matrix before rendering so the checkboxes populate
+    toggleUserOverlay('role-edit-overlay', true, "Loading Matrix...");
+    google.script.run.withSuccessHandler(function(matrix) {
+       toggleUserOverlay('role-edit-overlay', false);
+       renderPermissionMatrix(savedPerms, matrix, isSystemAdmin);
+    }).getDynamicPermissionMatrix();
   }
 
   function handleRoleSubmit(e) {

@@ -4,12 +4,14 @@
  */
 var SystemEvent = (function() {
   
-  function emit(module, type, name, entity, details, recipientEmail) {
+  // FIX: Added 'severity' as the 4th parameter to prevent column shifting
+  function emit(module, type, name, severity, entity, details, recipientEmail) {
     var payload = {
       module: module, 
       type: type, 
-      handle: module + ":" + type, // The link to the Template "Trigger" handle
+      handle: module + ":" + type, 
       name: name,
+      severity: severity || "INFO", // Dynamic Severity
       entity: entity, 
       details: details,
       recipientEmail: recipientEmail || "",

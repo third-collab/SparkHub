@@ -2,11 +2,7 @@
  * Logs Module - Backend
  * Core module for system audit trails and event monitoring.
  */
-
 var Logs = {
-  /**
-   * Subscriber function called by the Event Broker.
-   */
   handleSystemEvent: function(payload) {
     try {
       var ss = getLogsDb();
@@ -14,25 +10,21 @@ var Logs = {
       if (!sheet) return;
 
       var env = PropertiesService.getScriptProperties().getProperty('ENVIRONMENT') || "Sandbox";
-
-      var rowData = [[
+      
+      sheet.appendRow([
         payload.timestamp,
         payload.module,
         payload.type,
         payload.name,
-        "INFO", // Default severity
+        payload.severity, // FIX: Now dynamically pulls INFO, WARN, or ERROR
         payload.user,
         payload.entity,
         payload.details,
         env
-      ]];
-
-      sheet.insertRowAfter(1);
-      sheet.getRange(2, 1, 1, 9).setValues(rowData);
+      ]);
+      
       SpreadsheetApp.flush();
-    } catch (e) {
-      console.error("Logs Handler Error: " + e.message);
-    }
+    } catch (e) { console.error("Logs Handler Error: " + e.message); }
   }
 };
 
@@ -45,7 +37,7 @@ function getLogsList() {
     var data = sheet.getDataRange().getDisplayValues();
     data.shift(); // Remove headers
     
-    return data.map(function(row, i) {
+    var formattedLogs = data.map(function(row, i) {
       return {
         rowIndex: i + 2,
         timestamp: row[0],
@@ -59,5 +51,8 @@ function getLogsList() {
         env: row[8]
       };
     });
+    
+    // Reverse the array so the frontend dashboard still displays the newest logs at the top
+    return formattedLogs.reverse();
   } catch (e) { return []; }
 }

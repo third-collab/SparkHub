@@ -16,7 +16,7 @@ function processNewUser(obj) {
     SpreadsheetApp.flush(); 
     
     // NEW BROADCAST PATTERN
-    SystemEvent.emit("Users", "CREATE", "Add User", obj.username, "New user access profile established via UI.");
+    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile established via UI.");
     
     return "Success! User created.";
   } catch (e) { return "Error: " + e.message; }
@@ -25,18 +25,43 @@ function processNewUser(obj) {
 function updateUserRecord(obj) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getValues();
     var row = parseInt(obj.rowIndex);
+
+    // 1. IMMUTABILITY ENFORCEMENT: Ignore the incoming username, force the existing one
+    var existingUsername = data[row-1][1]; 
+    obj.username = existingUsername;
+
+    // 2. LAST ADMIN LOCKOUT ENFORCEMENT
+    var existingRole = data[row-1][2];
+    var existingStatus = data[row-1][7];
+    
+    if ((existingRole === 'Administrator' || existingRole === 'Admin') && existingStatus === 'Active') {
+      // If the incoming request tries to demote or deactivate this admin
+      if (obj.role !== existingRole || obj.status !== 'Active') {
+        var activeAdminCount = 0;
+        for (var i = 1; i < data.length; i++) {
+          if ((data[i][2] === 'Administrator' || data[i][2] === 'Admin') && data[i][7] === 'Active') {
+            activeAdminCount++;
+          }
+        }
+        if (activeAdminCount <= 1) {
+          return "Error: Cannot modify the role or status of the last active Administrator. Ensure another active admin exists first.";
+        }
+      }
+    }
+
     sheet.getRange(row, 2, 1, 7).setValues([[
       obj.username, obj.role, obj.email, obj.password, obj.firstName, 
       obj.lastName, obj.status
     ]]);
     
-    // FORCE GOOGLE TO COMMIT THE WRITE IMMEDIATELY
     SpreadsheetApp.flush();
-    
     SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
     return "Success! User updated.";
-  } catch (e) { return "Error: " + e.message; }
+  } catch (e) { 
+    return "Error: " + e.message; 
+  }
 }
 
 function getUserById(rowIndex) {
@@ -162,6 +187,12 @@ function getRolesList() {
 function saveRoleRecord(obj) {
   try {
     var sheet = ensureRolesSheet();
+    
+    // BACKEND LOCK: If the role is Administrator, force the wildcard permission matrix
+    if (obj.name === 'Administrator' || obj.name === 'Admin') {
+      obj.permissions = '{"ALL":["ALL"]}';
+    }
+    
     if (obj.rowIndex) {
       // Update existing role
       sheet.getRange(obj.rowIndex, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
@@ -173,7 +204,9 @@ function saveRoleRecord(obj) {
       SystemEvent.emit("Users", "CREATE", "Add Role", "INFO", obj.name, "New system role established.");
     }
     return "Success! Role saved.";
-  } catch (e) { return "Error: " + e.message; }
+  } catch (e) { 
+    return "Error: " + e.message; 
+  }
 }
 
 /**

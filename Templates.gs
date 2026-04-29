@@ -2,15 +2,9 @@
  * Templates Module - Backend
  * Standardized under SparkHub Architecture Blueprint.
  */
-
 var Templates = {
-  /**
-   * Orchestrates email dispatch based on the Event Handle.
-   */
   handleEventEmail: function(payload) {
     if (!payload.recipientEmail) return;
-    
-    // We pass the payload handle (e.g. Users:CREATE) as the search key
     sendTriggerEmail(payload.handle, payload.recipientEmail, {
       "username": payload.entity,
       "details": payload.details,
@@ -27,8 +21,8 @@ function getTemplatesList() {
       return {
         rowIndex: index + 2,
         timestamp: row[0], id: row[1], name: row[2], category: row[3],
-        trigger: row[6], // Handle is now Column G (Index 6)
-        subject: row[7], status: row[9], wrapper: row[10]
+        // Indices shifted by -1 after Description
+        trigger: row[5], subject: row[6], status: row[8], wrapper: row[9]
       };
     });
   } catch (e) { return []; }
@@ -36,11 +30,12 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getValues()[0];
+    // Fetch 10 columns instead of 11
+    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 10).getValues()[0];
     return {
       rowIndex: rowIndex, timestamp: row[0], id: row[1], name: row[2], category: row[3],
-      description: row[4], lastUpdatedBy: row[5], trigger: row[6], subject: row[7],
-      body: row[8], status: row[9], wrapper: row[10]
+      description: row[4], trigger: row[5], subject: row[6],
+      body: row[7], status: row[8], wrapper: row[9]
     };
   } catch (e) { return { error: e.message }; }
 }
@@ -49,17 +44,33 @@ function updateTemplateRecord(data) {
   try {
     var sheet = getMainDb().getSheetByName("Templates");
     var values = [
-      data.timestamp || new Date(), data.id || "TPL-" + Utilities.getUuid().substring(0,8),
-      data.name, data.category, data.description, getLoggedInUsername(),
+      data.timestamp || new Date(), 
+      data.id || "TPL-" + Utilities.getUuid().substring(0,8),
+      data.name, data.category, data.description, 
       data.trigger, data.subject, data.body, data.status, data.wrapper
     ];
+    
     if (data.rowIndex) {
-      sheet.getRange(parseInt(data.rowIndex), 1, 1, 11).setValues([values]);
+      sheet.getRange(parseInt(data.rowIndex), 1, 1, 10).setValues([values]);
+      // LOG THIS ACTION TO THE AUDIT TRAIL
+      SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template content or logic updated.");
     } else {
       sheet.appendRow(values);
+      SystemEvent.emit("Templates", "CREATE", "Create Template", "INFO", data.name, "New template created.");
     }
     return "Success! Template synced.";
   } catch (e) { return "Error: " + e.message; }
+}
+
+function getRenderedTemplatePreview(rowIndex) {
+  // Fetch 10 columns
+  var rowData = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 10).getValues()[0];
+  var rawHtml = rowData[7] || ""; // Was 8
+  var wrapperType = rowData[9] || "Internal"; // Was 10
+  var fullHtml = getWrapperContent(wrapperType).replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
+  var settings = getSystemSettings();
+  var logo = settings.systemLogoId ? settings.systemLogoUrl : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23C40004'/%3E%3Ctext x='50' y='65' font-family='Arial' font-size='40' font-weight='bold' fill='white' text-anchor='middle'%3EMR%3C/text%3E%3C/svg%3E";
+  return fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
 }
 
 function getPlaceholderSuggestions() {
@@ -122,14 +133,4 @@ function getWrapperContent(wrapperName) {
     }
     return "{{USER_MESSAGE_CONTENT}}";
   } catch (e) { return "{{USER_MESSAGE_CONTENT}}"; }
-}
-
-function getRenderedTemplatePreview(rowIndex) {
-  var rowData = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 10).getValues()[0];
-  var rawHtml = rowData[7] || "";
-  var wrapperType = rowData[9] || "Internal";
-  var fullHtml = getWrapperContent(wrapperType).replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
-  var settings = getSystemSettings();
-  var logo = settings.systemLogoId ? settings.systemLogoUrl : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23C40004'/%3E%3Ctext x='50' y='65' font-family='Arial' font-size='40' font-weight='bold' fill='white' text-anchor='middle'%3EMR%3C/text%3E%3C/svg%3E";
-  return fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
 }

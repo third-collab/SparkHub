@@ -109,26 +109,29 @@ function getLogoBlob() {
 /**
  * Sends an automated email based on a Trigger Event Handle.
  */
+/**
+ * Sends an automated email based on a Trigger Event Handle.
+ * [IMMUTABLE ANCHOR: Sandbox Environment Interceptor must never be removed]
+ */
 function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
-  var sheet = getMainDb().getSheetByName("Templates");
-  var data = sheet.getDataRange().getValues();
+  var data = getMainDb().getSheetByName("Templates").getDataRange().getValues();
   var settings = getSystemSettings();
-  
   var templateIdx = -1;
+
   for (var i = 1; i < data.length; i++) {
-    // Column G (Index 6) is the Handle; Column J (Index 9) is Status
-    if (data[i][6] === triggerHandle && data[i][9] === "Active") {
-      templateIdx = i;
-      break;
+    // 10-COLUMN INDICES: Trigger is 5 (Col F), Status is 8 (Col I)
+    if (data[i][5] === triggerHandle && data[i][8] === "Active") {
+      templateIdx = i; 
+      break; 
     }
   }
 
   if (templateIdx === -1) return;
 
   var finalToEmail = toEmail;
-  var finalSubject = data[templateIdx][7];  // Column H
-  var finalHtmlBody = data[templateIdx][8]; // Column I
-  var wrapperName = data[templateIdx][10]; // Column K
+  var finalSubject = data[templateIdx][6];  // Col G (Subject)
+  var finalHtmlBody = data[templateIdx][7]; // Col H (Body)
+  var wrapperName = data[templateIdx][9];   // Col J (Wrapper)
   
   var wrapperHtml = getWrapperContent(wrapperName);
   var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
@@ -139,7 +142,9 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     fullHtml = fullHtml.replace(regex, dataMap[key] || "");
   }
 
-  // RESTORED: Sandbox Environment Interceptor
+  // ========================================================================
+  // [IMMUTABLE ANCHOR: SANDBOX ENVIRONMENT INTERCEPTOR]
+  // ========================================================================
   if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
     finalToEmail = settings.adminEmail;
     finalSubject = "[Sandbox Mail] " + finalSubject;
@@ -148,10 +153,14 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
     fullHtml += sandboxWarning;
   }
+  // ========================================================================
 
   MailApp.sendEmail({
-    to: finalToEmail, subject: finalSubject, htmlBody: fullHtml,
-    noReply: true, name: settings.systemName,
+    to: finalToEmail, 
+    subject: finalSubject, 
+    htmlBody: fullHtml, 
+    noReply: true,
+    name: settings.systemName, 
     inlineImages: { logo: getLogoBlob() }
   });
 }
@@ -162,28 +171,16 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
  */
 function sendTestEmailAction(rowIndex, testEmail) {
   try {
-    var sheet = getMainDb().getSheetByName("Templates");
-    var data = sheet.getDataRange().getValues();
-    var rowData = data[rowIndex];
+    // Fetch 10 columns
+    var rowData = getMainDb().getSheetByName("Templates").getRange(rowIndex, 1, 1, 10).getValues()[0];
     
-    var subject = rowData[7] || "No Subject"; // Col H
-    var rawHtml = rowData[8] || "";           // Col I
-    var wrapperType = rowData[10] || "Internal Hub"; // Col K
+    // NEW INDICES: Wrapper is 9, Body is 7, Subject is 6
+    var fullHtml = getWrapperContent(rowData[9]).replace("{{USER_MESSAGE_CONTENT}}", rowData[7]);
+    var finalHtml = fullHtml.replace("{{username}}", "jdoe").replace("{{systemName}}", getSystemSettings().systemName);
     
-    var fullLayoutHtml = getWrapperContent(wrapperType).replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
-    var dummyData = { "companyName": "Acme Corp (Test)", "username": "jdoe", "systemName": getSystemSettings().systemName };
-    
-    var finalSubject = "[TEST] " + subject;
-    var finalHtml = fullLayoutHtml;
-    for (var key in dummyData) {
-      var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
-      finalSubject = finalSubject.replace(regex, dummyData[key]);
-      finalHtml = finalHtml.replace(regex, dummyData[key]);
-    }
-
-    MailApp.sendEmail({ to: testEmail, subject: finalSubject, htmlBody: finalHtml, noReply: true, inlineImages: { logo: getLogoBlob() } });
-    return "Test email successfully sent to " + testEmail;
-  } catch (e) { return "Failed to send test: " + e.message; }
+    MailApp.sendEmail({ to: testEmail, subject: "[TEST] " + rowData[6], htmlBody: finalHtml, inlineImages: { logo: getLogoBlob() } });
+    return "Test email sent to " + testEmail;
+  } catch (e) { return "Error: " + e.message; }
 }
 
 /**
