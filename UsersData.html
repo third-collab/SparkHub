@@ -104,44 +104,64 @@
 
   <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
     <div class="tab-nav" style="margin: 0; border: none;">
-      <button class="tab-btn active">User Directory</button>
-      <button class="tab-btn" onclick="openRolesList()">Roles & Permissions</button>
+      <button class="tab-btn active" id="btn-tab-users" onclick="toggleUserSubView('users')">User Directory</button>
+      <button class="tab-btn" id="btn-tab-roles" onclick="toggleUserSubView('roles')">Roles & Permissions</button>
     </div>
-    <button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>
+    <div id="user-action-btns">
+      <button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>
+    </div>
   </div>
 
-  <div class="filter-wrapper">
-    <input type="text" id="user-filter-search" class="filter-input" placeholder="Search users..." onkeyup="applyUserFilters()">
-    <button class="btn-filter-toggle" onclick="toggleFilter('user-adv')">Filters</button>
-    <div id="user-adv" class="filter-advanced">
-      <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-status-drop')">Status ▼</button>
-        <div class="dropdown-content" id="user-status-drop">
-          <label><input type="checkbox" class="user-filter-status-cb" value="Active" checked onchange="applyUserFilters()"> Active</label>
-          <label><input type="checkbox" class="user-filter-status-cb" value="Inactive" onchange="applyUserFilters()"> Inactive</label>
-        </div>
-      </div>
-      <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-role-drop')">Role ▼</button>
-        <div class="dropdown-content" id="user-role-drop">
+  <div id="users-sub-view">
+    <div class="filter-wrapper">
+      <input type="text" id="user-filter-search" class="filter-input" placeholder="Search users..." onkeyup="applyUserFilters()">
+      <button class="btn-filter-toggle" onclick="toggleFilter('user-adv')">Filters</button>
+      <div id="user-adv" class="filter-advanced">
+        <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-status-drop')">Status ▼</button>
+          <div class="dropdown-content" id="user-status-drop">
+            <label><input type="checkbox" class="user-filter-status-cb" value="Active" checked onchange="applyUserFilters()"> Active</label>
+            <label><input type="checkbox" class="user-filter-status-cb" value="Inactive" onchange="applyUserFilters()"> Inactive</label>
           </div>
+        </div>
+        <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('user-role-drop')">Role ▼</button>
+          <div class="dropdown-content" id="user-role-drop"></div>
+        </div>
+        <button type="button" class="btn-reset-filters" onclick="resetUserFilters()">Reset</button>
       </div>
-      <button type="button" class="btn-reset-filters" onclick="resetUserFilters()">Reset</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="handleUserSort('username')">Username <span id="usort-username" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleUserSort('firstName')">Name <span id="usort-firstName" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleUserSort('email')">System Email <span id="usort-email" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleUserSort('role')">Role <span id="usort-role" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleUserSort('status')">Status <span id="usort-status" class="sort-icon"></span></th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody"><tr><td colspan="6" style="text-align:center; padding: 30px;">Loading users...</td></tr></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="table-container">
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" onclick="handleUserSort('username')">Username <span id="usort-username" class="sort-icon"></span></th>
-          <th class="sortable" onclick="handleUserSort('firstName')">Name <span id="usort-firstName" class="sort-icon"></span></th>
-          <th class="sortable" onclick="handleUserSort('email')">System Email <span id="usort-email" class="sort-icon"></span></th>
-          <th class="sortable" onclick="handleUserSort('role')">Role <span id="usort-role" class="sort-icon"></span></th>
-          <th class="sortable" onclick="handleUserSort('status')">Status <span id="usort-status" class="sort-icon"></span></th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="userTableBody"><tr><td colspan="6" style="text-align:center; padding: 30px;">Loading users...</td></tr></tbody>
-    </table>
+  <div id="roles-sub-view" style="display: none;">
+    <div class="table-container">
+      <div id="role-list-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="handleRoleSort('name')">Role Name <span id="rsort-name" class="sort-icon"></span></th>
+            <th>Description</th>
+            <th class="sortable" onclick="handleRoleSort('status')">Status <span id="rsort-status" class="sort-icon"></span></th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="roleTableBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -182,7 +202,7 @@
 </div>
 
 <div id="editUserView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to Directory</button>
+  <button id="btn-back-edit-user" class="btn-dash-back">&#8592; Back to Directory</button>
   <div class="form-wrapper">
     <div id="edit-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span id="edit-user-overlay-txt">Loading User Data...</span></div>
     <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit User Access</h2>
@@ -219,7 +239,7 @@
 </div>
 
 <div id="readOnlyUserView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to Directory</button>
+  <button id="btn-back-ro-user" class="btn-dash-back" onclick="switchView('usersListView'); toggleUserSubView('users');">&#8592; Back to Directory</button>
   <div class="form-wrapper">
     <div id="ro-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Profile...</span></div>
     
@@ -312,39 +332,8 @@
   </div>
 </div>
 
-<div id="rolesListView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
-  
-  <div class="view-header-bar" style="margin-bottom: 20px;">
-    <h2 style="margin: 0; color: var(--brand-dark);">Access Management</h2>
-  </div>
-
-  <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
-    <div class="tab-nav" style="margin: 0; border: none;">
-      <button class="tab-btn" onclick="switchView('usersListView')">User Directory</button>
-      <button class="tab-btn active">Roles & Permissions</button>
-    </div>
-    <button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Core System" data-perm-action="Manage Roles">+ Create Role</button>
-  </div>
-
-  <div class="table-container">
-    <div id="role-list-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
-    <table>
-      <thead>
-        <tr>
-          <th class="sortable" onclick="handleRoleSort('name')">Role Name <span id="rsort-name" class="sort-icon"></span></th>
-          <th>Description</th>
-          <th class="sortable" onclick="handleRoleSort('status')">Status <span id="rsort-status" class="sort-icon"></span></th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="roleTableBody"></tbody>
-    </table>
-  </div>
-</div>
-
 <div id="editRoleView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="openRolesList()">&#8592; Back to Roles</button>
+  <button id="btn-back-edit-role" class="btn-dash-back" onclick="switchView('usersListView'); toggleUserSubView('roles');">&#8592; Back to Roles</button>
   <div class="form-wrapper">
     <div id="role-edit-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Saving Role...</span></div>
     <h2 id="role-form-title" style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Create Role</h2>
@@ -463,6 +452,26 @@
      1. INITIALIZATION & DYNAMIC RBAC SEEDING
      ======================================================================== */
   
+  function toggleUserSubView(view) {
+    var usersView = document.getElementById('users-sub-view');
+    var rolesView = document.getElementById('roles-sub-view');
+    var actBtns = document.getElementById('user-action-btns');
+    
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    if (view === 'users') {
+      usersView.style.display = 'block'; rolesView.style.display = 'none';
+      document.getElementById('btn-tab-users').classList.add('active');
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>`;
+    } else {
+      usersView.style.display = 'none'; rolesView.style.display = 'block';
+      document.getElementById('btn-tab-roles').classList.add('active');
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Core System" data-perm-action="Manage Roles">+ Create Role</button>`;
+      openRolesList();
+    }
+    if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
+  }
+
   function initUsersModule() {
     switchView('usersListView');
     // Fetch Roles first to build the dynamic checkboxes and dropdowns!
@@ -713,9 +722,7 @@
       tr.onclick = function(e) { if (!e.target.closest('.btn-edit')) openReadOnlyUser(u.rowIndex); };
       
       var badgeClass = "badge badge-" + (u.status || "").toLowerCase();
-      var editBtnHtml = hasPermission('Access & Users', 'Manage Users') 
-        ? `<td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}); event.stopPropagation();">Edit</button></td>` 
-        : `<td></td>`;
+      var editBtnHtml = ${hasPermission('Access & Users', 'Manage Users') ? `<td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}, 'list'); event.stopPropagation();">Edit</button></td>` : `<td></td>`}
 
       tr.innerHTML = `
         <td><strong>${u.username}</strong></td>
@@ -776,24 +783,41 @@
     }).processNewUser(userData);
   }
 
-  function openEditUserForm(rowIndex) {
+  function openEditUserForm(rowIndex, source) {
     switchView('editUserView');
     document.getElementById('editUserForm').reset();
     var msg = document.getElementById('edt-user-msg');
     if (msg) msg.innerHTML = '';
+    
+    // Dynamic Back Button
+    var backBtn = document.getElementById('btn-back-edit-user');
+    if (backBtn) {
+      if (source === 'view') {
+        backBtn.innerHTML = '&#8592; Back to User Details';
+        backBtn.onclick = function() { openReadOnlyUser(rowIndex); };
+      } else {
+        backBtn.innerHTML = '&#8592; Back to Directory';
+        backBtn.onclick = function() { switchView('usersListView'); toggleUserSubView('users'); };
+      }
+    }
+    
+    // Purge Ghost Data
+    document.getElementById('edt-user-username').value = "Loading...";
+    document.getElementById('edt-user-email').value = "";
+    document.getElementById('edt-user-first').value = "";
+    document.getElementById('edt-user-last').value = "";
+
     toggleUserOverlay('edit-user-overlay', true, 'Fetching Data...');
 
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('edit-user-overlay', false);
       document.getElementById('edt-user-rowIndex').value = data.rowIndex;
       
-      // 1. Lock the Username Field
       var userField = document.getElementById('edt-user-username');
       userField.value = data.username || "";
       userField.readOnly = true;
       userField.style.backgroundColor = "#f8fafc";
       userField.style.color = "#94a3b8";
-      userField.title = "Username cannot be changed after creation to preserve system audit integrity.";
 
       document.getElementById('edt-user-email').value = data.email || "";
       document.getElementById('edt-user-password').value = data.password || "";
@@ -805,26 +829,20 @@
       roleSelect.value = data.role || "";
       statusSelect.value = data.status || "Active";
 
-      // 2. Lock the Last Admin
       var activeAdmins = GLOBAL_USER_DATA.filter(u => u.role === 'Administrator' && u.status === 'Active');
-      var warnId = 'last-admin-warning';
-      var existingWarn = document.getElementById(warnId);
+      var existingWarn = document.getElementById('last-admin-warning');
       if (existingWarn) existingWarn.remove();
       
       if (data.role === 'Administrator' && data.status === 'Active' && activeAdmins.length <= 1) {
-        roleSelect.disabled = true;
-        statusSelect.disabled = true;
-        
+        roleSelect.disabled = true; statusSelect.disabled = true;
         var warn = document.createElement('div');
-        warn.id = warnId;
+        warn.id = 'last-admin-warning';
         warn.style.cssText = "padding:10px; background:#fff1f2; color:#9f1239; border:1px solid #fecdd3; border-radius:6px; margin-bottom:15px; font-size:12px;";
         warn.innerText = "Role and Status cannot be changed. This is the last active Administrator in the system.";
         document.getElementById('editUserForm').prepend(warn);
       } else {
-        roleSelect.disabled = false;
-        statusSelect.disabled = false;
+        roleSelect.disabled = false; statusSelect.disabled = false;
       }
-
     }).getUserById(rowIndex);
   }
 
@@ -860,6 +878,18 @@
 
   function openReadOnlyUser(rowIndex) {
     switchView('readOnlyUserView');
+    
+    // Purge Ghost Data
+    document.getElementById('ro-user-fullname').innerText = "Loading profile...";
+    document.getElementById('ro-user-subline').innerText = "";
+    document.getElementById('ro-user-initial').innerText = "";
+    document.getElementById('ro-user-status-pill').innerHTML = "";
+    document.getElementById('ro-user-username').innerText = "Loading...";
+    document.getElementById('ro-user-role').innerText = "Loading...";
+    document.getElementById('ro-user-email').innerText = "Loading...";
+    document.getElementById('ro-user-lastlogin').innerText = "";
+    document.getElementById('ro-user-password').innerText = "";
+
     toggleUserOverlay('ro-user-overlay', true, 'Loading Profile...');
 
     google.script.run.withSuccessHandler(function(data) {
@@ -867,16 +897,18 @@
       document.getElementById('ro-user-fullname').innerText = data.firstName + " " + data.lastName;
       document.getElementById('ro-user-subline').innerText = data.role;
       document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
+      
       var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
       document.getElementById('ro-user-status-pill').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
+      
       document.getElementById('ro-user-username').innerText = data.username;
       document.getElementById('ro-user-role').innerText = data.role;
       document.getElementById('ro-user-email').innerText = data.email;
       document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
-      document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex); };
-
-      // Add these two lines inside the success handler of openReadOnlyUser()
       document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
+      
+      // Pass 'view' source
+      document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex, 'view'); };
     }).getUserById(rowIndex);
   }
 
@@ -916,7 +948,7 @@
     sortedRoles.forEach(function(r) {
       var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
       var editRoleHtml = hasPermission('Core System', 'Manage Roles')
-        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Permissions</button></td>`
+        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Role</button></td>`
         : `<td></td>`;
 
       tbody.innerHTML += `
@@ -989,6 +1021,11 @@
     document.getElementById('roleForm').reset();
     document.getElementById('role-form-title').innerText = "Edit Role Configuration";
     
+    // Purge Ghost Data
+    document.getElementById('edt-role-name').value = "Loading...";
+    document.getElementById('edt-role-desc').value = "";
+    document.getElementById('permission-matrix-container').innerHTML = "";
+    
     var role = GLOBAL_ROLES_DATA.find(r => r.rowIndex === rowIndex);
     if (!role) return;
 
@@ -998,13 +1035,11 @@
     document.getElementById('edt-role-status').value = role.status;
 
     var isSystemAdmin = (role.name === 'Administrator');
-    // Prevent changing the name of the Master Admin role
     document.getElementById('edt-role-name').readOnly = isSystemAdmin;
 
     var savedPerms = {};
     try { savedPerms = JSON.parse(role.permissions || "{}"); } catch(e){}
     
-    // FIX: Fetch the dynamic matrix before rendering so the checkboxes populate
     toggleUserOverlay('role-edit-overlay', true, "Loading Matrix...");
     google.script.run.withSuccessHandler(function(matrix) {
        toggleUserOverlay('role-edit-overlay', false);

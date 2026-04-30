@@ -47,9 +47,8 @@ function getTemplateById(rowIndex) {
 function updateTemplateRecord(data) {
   try {
     var sheet = getMainDb().getSheetByName("Templates");
-    
-    // Auto-populate the Module based on the text before the colon in the trigger
     var autoModule = data.trigger ? data.trigger.split(':')[0] : "System";
+    if (autoModule === "Roles") autoModule = "Users";
     
     var values = [
       data.timestamp || new Date(), 
@@ -58,25 +57,38 @@ function updateTemplateRecord(data) {
       data.trigger, data.subject, data.body, data.wrapper, data.status
     ];
     
+    var targetRow;
     if (data.rowIndex) {
-      sheet.getRange(parseInt(data.rowIndex), 1, 1, 11).setValues([values]);
+      targetRow = parseInt(data.rowIndex);
+      var oldStatus = sheet.getRange(targetRow, 11).getValue(); // Col K (11) is Status
+      sheet.getRange(targetRow, 1, 1, 11).setValues([values]);
+      
       SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template content or logic updated.");
+      
+      // NEW: Granular Activation Logging
+      if (oldStatus !== data.status) {
+        var actionVerb = data.status === "Active" ? "activated" : "deactivated";
+        SystemEvent.emit("Templates", "UPDATE", "Template Status Changed", "WARN", data.name, "Template was manually " + actionVerb + ".");
+      }
     } else {
       sheet.appendRow(values);
+      targetRow = sheet.getLastRow();
       SystemEvent.emit("Templates", "CREATE", "Create Template", "INFO", data.name, "New template created.");
     }
-    return "Success! Template synced.";
-  } catch (e) { return "Error: " + e.message; }
+    return { success: true, rowIndex: targetRow, message: "Success! Template synced." };
+  } catch (e) { return { error: "Error: " + e.message }; }
 }
 
 function getRenderedTemplatePreview(rowIndex) {
   var rowData = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getValues()[0];
-  var rawHtml = rowData[8] || ""; // Body is now Col 9 (Index 8)
-  var wrapperType = rowData[9] || "Internal"; // Wrapper is now Col 10 (Index 9)
+  var rawHtml = rowData[8] || ""; 
+  var wrapperType = rowData[9] || "Internal"; 
   
   var fullHtml = getWrapperContent(wrapperType).replace("{{USER_MESSAGE_CONTENT}}", rawHtml);
   var settings = getSystemSettings();
-  var logo = settings.systemLogoId ? settings.systemLogoUrl : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23C40004'/%3E%3Ctext x='50' y='65' font-family='Arial' font-size='40' font-weight='bold' fill='white' text-anchor='middle'%3EMR%3C/text%3E%3C/svg%3E";
+  
+  // FIX: Using the exact configured fallback logo instead of the old MR SVG
+  var logo = settings.systemLogoId ? settings.systemLogoUrl : settings.appFallbackLogo;
   return fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
 }
 
@@ -90,15 +102,14 @@ function ensureWrappersSheet() {
   var ss = getMainDb();
   var sheet = ss.getSheetByName("Wrappers") || ss.insertSheet("Wrappers");
   if (sheet.getLastRow() < 2) {
-    // NEW ORDER: TS, ID, Name, Description, HTML, Status
     sheet.getRange(1, 1, 1, 6).setValues([["Timestamp", "Wrapper ID", "Name", "Description", "HTML Content", "Status"]]).setFontWeight("bold");
     sheet.setFrozenRows(1);
 
-    var internalHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #F1C404;"><img src="cid:logo" alt="Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.</div></div></div>`;
+    // FIX: Removed hardcoded "MegaRhino" and branding names
+    var internalHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #666DF2;"><img src="cid:logo" alt="Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.</div></div></div>`;
     var externalHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #eee;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #ddd; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="color: #555; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px;">Sent from the Hub Team.</div></div></div>`;
     var userHtml = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"><div style="padding: 30px; text-align: center; border-bottom: 1px solid #f1f5f9;"><img src="cid:logo" alt="Logo" style="max-width: 120px; height: auto;"></div><div style="padding: 30px; color: #334155; line-height: 1.6; font-size: 15px;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; background-color: #f8fafc; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">Security & Access Notification</div></div></div>`;
     
-    // UPDATED: Replaced "Internal" and "External" with your custom names
     sheet.appendRow([new Date(), "W-INT", "Internal Communication", "Standard internal messaging", internalHtml, "Active"]);
     sheet.appendRow([new Date(), "W-EXT", "External Communication", "Client-facing messaging", externalHtml, "Active"]);
     sheet.appendRow([new Date(), "W-USER", "User Communications", "Dedicated layout for user access and security emails", userHtml, "Active"]);
@@ -128,13 +139,27 @@ function updateWrapperRecord(data) {
       data.id || "W-" + Utilities.getUuid().substring(0,8).toUpperCase(), 
       data.name, data.description || "", data.html, data.status
     ];
+    
+    var targetRow;
     if (data.rowIndex) {
-      sheet.getRange(parseInt(data.rowIndex), 1, 1, 6).setValues([values]);
+      targetRow = parseInt(data.rowIndex);
+      var oldStatus = sheet.getRange(targetRow, 6).getValue(); // Col F (6) is Status
+      sheet.getRange(targetRow, 1, 1, 6).setValues([values]);
+      
+      SystemEvent.emit("Templates", "UPDATE", "Edit Wrapper", "INFO", data.name, "Wrapper layout HTML or settings updated.");
+
+      // NEW: Granular Activation Logging
+      if (oldStatus !== data.status) {
+        var actionVerb = data.status === "Active" ? "activated" : "deactivated";
+        SystemEvent.emit("Templates", "UPDATE", "Wrapper Status Changed", "WARN", data.name, "Wrapper layout was manually " + actionVerb + ".");
+      }
     } else {
       sheet.appendRow(values);
+      targetRow = sheet.getLastRow();
+      SystemEvent.emit("Templates", "CREATE", "Create Wrapper", "INFO", data.name, "New wrapper layout created.");
     }
-    return "Success! Wrapper updated.";
-  } catch (e) { return "Error: " + e.message; }
+    return { success: true, rowIndex: targetRow, message: "Success! Wrapper updated." };
+  } catch (e) { return { error: "Error: " + e.message }; }
 }
 
 function getWrapperContent(wrapperName) {

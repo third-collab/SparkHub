@@ -49,7 +49,6 @@ function updateUserRecord(obj) {
       }
     }
 
-    // Preserve the old hash if the field was left blank in the UI
     var oldPassword = data[row-1][4];
     var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
 
@@ -57,9 +56,16 @@ function updateUserRecord(obj) {
       obj.username, obj.role, obj.email, newPassword, obj.firstName, 
       obj.lastName, obj.status
     ]]);
-    
     SpreadsheetApp.flush();
+    
     SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
+
+    // NEW: Granular Activation Logging
+    if (existingStatus !== obj.status) {
+      var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
+      SystemEvent.emit("Users", "UPDATE", "User Status Changed", "WARN", obj.username, "User account was manually " + actionVerb + ".");
+    }
+
     return "Success! User updated.";
   } catch (e) { return "Error: " + e.message; }
 }
@@ -362,8 +368,17 @@ function saveRoleRecord(obj) {
     }
     
     if (obj.rowIndex) {
+      var oldData = sheet.getRange(parseInt(obj.rowIndex), 1, 1, 5).getValues()[0];
+      var oldStatus = oldData[4]; // Status is Index 4
+      
       sheet.getRange(obj.rowIndex, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
       SystemEvent.emit("Users", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.");
+      
+      // NEW: Granular Activation Logging
+      if (oldStatus !== obj.status) {
+        var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
+        SystemEvent.emit("Users", "UPDATE", "Role Status Changed", "WARN", obj.name, "Role was manually " + actionVerb + ".");
+      }
     } else {
       var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
       sheet.appendRow([ roleId, obj.name, obj.description, obj.permissions, obj.status ]);

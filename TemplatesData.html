@@ -129,6 +129,19 @@
   </div>
 
   <div id="wrapper-sub-view" style="display:none;">
+    <div class="filter-wrapper">
+       <input type="text" id="wrap-filter-search" class="filter-input" placeholder="Search layouts..." onkeyup="applyWrapperSort()">
+       <button class="btn-filter-toggle" onclick="toggleFilter('wrap-adv')">Filters</button>
+       <div id="wrap-adv" class="filter-advanced">
+         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('wrap-stat-drop')">Status ▼</button>
+           <div class="dropdown-content" id="wrap-stat-drop">
+             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Active" checked onchange="applyWrapperSort()"> Active</label>
+             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Inactive" onchange="applyWrapperSort()"> Inactive</label>
+           </div>
+         </div>
+         <button type="button" class="btn-reset-filters" onclick="resetWrapperFilters()">Reset</button>
+       </div>
+    </div>
     <div class="table-container">
       <table>
         <thead>
@@ -139,8 +152,7 @@
             <th style="text-align:right;">Action</th>
           </tr>
         </thead>
-        <tbody id="wrapperTableBody">
-          </tbody>
+        <tbody id="wrapperTableBody"></tbody>
       </table>
     </div>
   </div>
@@ -150,6 +162,7 @@
        <input type="text" id="tpl-filter-search" class="filter-input" placeholder="Search by Template Name, Subject, or Trigger Handle..." onkeyup="applyTemplateFilters()">
        <button class="btn-filter-toggle" onclick="toggleFilter('tpl-adv')">Filters</button>
        <div id="tpl-adv" class="filter-advanced">
+         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-wrap-drop')">Wrapper ▼</button><div class="dropdown-content" id="tpl-wrap-drop"></div></div>
          <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-mod-drop')">Module ▼</button><div class="dropdown-content" id="tpl-mod-drop"></div></div>
          <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-cat-drop')">Category ▼</button><div class="dropdown-content" id="tpl-cat-drop"></div></div>
          <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('tpl-stat-drop')">Status ▼</button><div class="dropdown-content" id="tpl-stat-drop"></div></div>
@@ -163,6 +176,7 @@
         <thead>
           <tr>
             <th class="sortable" onclick="handleTemplateSort('name')">Template Name <span id="tsort-name" class="sort-icon"></span></th>
+            <th class="sortable" onclick="handleTemplateSort('wrapper')">Wrapper <span id="tsort-wrapper" class="sort-icon"></span></th>
             <th class="sortable" onclick="handleTemplateSort('module')">Module <span id="tsort-module" class="sort-icon"></span></th>
             <th class="sortable" onclick="handleTemplateSort('category')">Category <span id="tsort-category" class="sort-icon"></span></th>
             <th class="sortable" onclick="handleTemplateSort('trigger')">Trigger Event <span id="tsort-trigger" class="sort-icon"></span></th>
@@ -174,11 +188,12 @@
       </table>
     </div>
   </div>
+  </div>
 </div>
 
 <!-- Edit Template Form (Full 10-Column Logic restoration) -->
 <div id="editTemplateView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
+  <button id="btn-back-edit-tpl" class="btn-dash-back">&#8592; Back to Library</button>
   <div class="form-wrapper">
     <div id="edit-template-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span id="edit-tpl-overlay-text">Merging Data...</span></div>
     <h2 id="tpl-form-title" style="margin-top: 0; color: var(--brand-dark);">Add Template</h2>
@@ -205,7 +220,7 @@
           <div class="form-group"><label>HTML Wrapper</label>
             <select id="edt-tpl-wrapper" class="form-control"></select>
           </div>
-          <div class="form-group"><label>Template Status</label>
+          <div class="form-group" id="tpl-status-group"><label>Template Status</label>
             <select id="edt-tpl-status" class="form-control">
               <option value="Active">Active (Live Triggers)</option>
               <option value="Draft">Draft (Disabled)</option>
@@ -236,7 +251,10 @@
       </div>
 
       <div class="action-buttons" style="display: flex; justify-content: space-between; margin-top: 45px; align-items: center;">
-        <button type="button" class="btn-reset-filters" onclick="sendTestEmail()" style="padding: 12px 24px;">Send Test Preview Email</button>
+        <div>
+          <button type="button" class="btn-reset-filters" onclick="openTestEmailModal(document.getElementById('edt-tpl-rowIndex').value)" style="padding: 12px 24px;">Send Test Preview Email</button>
+          <button type="button" class="btn-reset-filters" onclick="showQuickPreview('template')" style="padding: 12px 24px; margin-left: 10px;">Quick Live Preview</button>
+        </div>
         <button type="submit" class="btn-primary" id="edt-tpl-submit-btn" style="padding: 12px 40px;">Add Template</button>
       </div>
     </form>
@@ -254,7 +272,22 @@
           <h2 id="ro-tpl-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
           <p id="ro-tpl-subline" style="margin:8px 0 0 0; color:#64748b; font-size:14px; font-weight: 500;"></p>
        </div>
-       <button id="ro-tpl-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Logic</button>
+       <div style="display: flex; gap: 10px;">
+          <button id="ro-tpl-test-btn" class="btn-reset-filters" style="padding: 10px 24px;">Send Test Email</button>
+          <button id="ro-tpl-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Template</button>
+       </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 25px; font-size: 14px;">
+       <div>
+         <p><strong>Subject Line:</strong> <span id="ro-tpl-subject"></span></p>
+         <p><strong>Description:</strong> <span id="ro-tpl-desc"></span></p>
+       </div>
+       <div>
+         <p><strong>System Module:</strong> <span id="ro-tpl-module"></span></p>
+         <p><strong>Layout Wrapper:</strong> <span id="ro-tpl-wrapper"></span></p>
+         <p><strong>Status:</strong> <span id="ro-tpl-status"></span></p>
+       </div>
     </div>
 
     <div class="preview-frame-container">
@@ -265,7 +298,7 @@
 </div>
 
 <div id="editWrapperView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="toggleTemplateSubView('wraps')">&#8592; Back to Layouts</button>
+  <button id="btn-back-edit-wrap" class="btn-dash-back">&#8592; Back to Layouts</button>
   <div class="form-wrapper">
     <div id="edit-wrap-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Saving Layout...</span></div>
     <h2 id="wrap-form-title" style="margin-top: 0; color: var(--brand-dark);">Design Wrapper Layout</h2>
@@ -274,7 +307,8 @@
       <input type="hidden" id="edt-wrap-id">
       <div class="form-row" style="margin-top:25px;">
         <div class="form-group"><label>Layout Name *</label><input type="text" id="edt-wrap-name" class="form-control" required placeholder="e.g., Monthly Newsletter"></div>
-        <div class="form-group"><label>Status</label>
+        <div class="form-group" id="wrap-status-group">
+          <label>Status</label>
           <select id="edt-wrap-status" class="form-control">
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
@@ -291,10 +325,56 @@
         <label>HTML Blueprint (Use <code>{{USER_MESSAGE_CONTENT}}</code> where the message should appear)</label>
         <textarea id="edt-wrap-html" class="form-control" style="height: 400px; font-family: monospace; font-size: 13px;" required></textarea>
       </div>
-      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 30px;">
+      <div class="action-buttons" style="display: flex; justify-content: space-between; margin-top: 30px; align-items: center;">
+        <button type="button" class="btn-reset-filters" onclick="showQuickPreview('wrapper')" style="padding: 12px 24px;">Quick Live Preview</button>
         <button type="submit" class="btn-primary" style="padding: 12px 40px;">Save Global Layout</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div id="readOnlyWrapperView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('templatesListView'); toggleTemplateSubView('wraps');">&#8592; Back to Layouts</button>
+  <div class="form-wrapper">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
+       <div>
+          <h2 id="ro-wrap-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
+          <p id="ro-wrap-desc" style="margin:8px 0 0 0; color:#64748b; font-size:14px;"></p>
+          <div id="ro-wrap-status" style="margin-top: 8px;"></div>
+       </div>
+       <button id="ro-wrap-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Layout</button>
+    </div>
+    <div class="preview-frame-container">
+       <div style="margin-bottom: 10px; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Branded Environment Preview:</div>
+       <iframe id="wrap-preview-frame" class="preview-iframe"></iframe>
+    </div>
+  </div>
+</div>
+
+<div id="quickPreviewModal" class="system-overlay" style="display:none;">
+  <div class="overlay-card" style="max-width: 800px; width: 100%; padding: 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+      <h3 style="margin:0;">Live Preview</h3>
+      <button class="btn-dash-back" style="margin:0;" onclick="document.getElementById('quickPreviewModal').style.display='none'">Close X</button>
+    </div>
+    <iframe id="quick-preview-frame" class="preview-iframe" style="height: 500px;"></iframe>
+  </div>
+</div>
+
+<div id="testEmailModal" class="system-overlay" style="display:none; z-index: 10005;">
+  <div class="overlay-card" style="max-width: 450px; padding: 30px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+      <h3 style="margin:0; font-size: 18px;">Send Test Preview</h3>
+      <button class="btn-dash-back" style="margin:0; font-size:12px;" onclick="document.getElementById('testEmailModal').style.display='none'">Close X</button>
+    </div>
+    <p style="text-align: left; font-size: 13px; margin-bottom: 25px;">Enter the recipient email address to dispatch a branded test of this template.</p>
+    <div class="form-group" style="text-align: left; margin-bottom: 25px;">
+      <label>Recipient Email *</label>
+      <input type="email" id="test-email-address" class="form-control" required>
+    </div>
+    <input type="hidden" id="test-email-row-index">
+    <button class="btn-primary" id="btn-send-test-modal" style="width: 100%; padding: 12px;" onclick="submitTestEmail()">Dispatch Test Email</button>
+    <div id="test-email-msg" style="margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
   </div>
 </div>
 
@@ -310,9 +390,8 @@
   /**
    * Action Verb: loadTemplatesTable()
    */
-  function loadTemplatesTable() {
-    toggleTemplateOverlay('tpl-list-overlay', true);
-    // Fetch Wrappers FIRST to prevent UI race conditions, then Templates
+  function loadTemplatesTable(callback) {
+    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Templates...');
     google.script.run.withSuccessHandler(function(wrappers) {
       GLOBAL_WRAPPER_DATA = wrappers || [];
       google.script.run.withSuccessHandler(function(templates) {
@@ -320,18 +399,19 @@
         GLOBAL_TEMPLATE_DATA = templates || [];
         populateTemplateFilters();
         applyTemplateFilters();
+        if (callback) callback();
       }).getTemplatesList();
     }).getWrappersList();
   }
 
   function populateTemplateFilters() {
-    var mods = new Set(), cats = new Set(), stats = new Set();
+    var mods = new Set(), cats = new Set(), stats = new Set(), wraps = new Set();
     GLOBAL_TEMPLATE_DATA.forEach(t => { 
       if(t.module) mods.add(t.module); 
       if(t.category) cats.add(t.category); 
       if(t.status) stats.add(t.status); 
+      if(t.wrapper) wraps.add(t.wrapper);
     });
-    
     function build(id, set, valClass) {
        var el = document.getElementById(id); if(!el) return;
        el.innerHTML = Array.from(set).map(v => `<label><input type="checkbox" class="${valClass}" value="${v}" checked onchange="applyTemplateFilters()"> ${v}</label>`).join('');
@@ -339,6 +419,7 @@
     build('tpl-mod-drop', mods, 'tpl-filter-mod-cb');
     build('tpl-cat-drop', cats, 'tpl-filter-cat-cb');
     build('tpl-stat-drop', stats, 'tpl-filter-stat-cb');
+    build('tpl-wrap-drop', wraps, 'tpl-filter-wrap-cb');
   }
 
   function applyTemplateFilters() {
@@ -346,13 +427,15 @@
     var checkedMods = Array.from(document.querySelectorAll('.tpl-filter-mod-cb:checked')).map(cb => cb.value);
     var checkedCats = Array.from(document.querySelectorAll('.tpl-filter-cat-cb:checked')).map(cb => cb.value);
     var checkedStats = Array.from(document.querySelectorAll('.tpl-filter-stat-cb:checked')).map(cb => cb.value);
+    var checkedWraps = Array.from(document.querySelectorAll('.tpl-filter-wrap-cb:checked')).map(cb => cb.value);
 
     var filtered = GLOBAL_TEMPLATE_DATA.filter(function(t) {
       var matchS = (t.name + t.subject + (t.trigger || "")).toLowerCase().includes(search);
       var matchM = checkedMods.length === 0 || checkedMods.includes(t.module);
       var matchC = checkedCats.length === 0 || checkedCats.includes(t.category);
       var matchSt = checkedStats.length === 0 || checkedStats.includes(t.status);
-      return matchS && matchM && matchC && matchSt;
+      var matchW = checkedWraps.length === 0 || checkedWraps.includes(t.wrapper);
+      return matchS && matchM && matchC && matchSt && matchW;
     });
 
     filtered.sort(function(a, b) {
@@ -366,11 +449,12 @@
     renderTemplateTableRows(filtered);
   }
 
+  // Find renderTemplateTableRows(data) and update the table HTML creation:
   function renderTemplateTableRows(data) {
     var tbody = document.getElementById('templateTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:50px;">No templates match filters.</td></tr>'; return; }
+    if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:50px;">No templates match filters.</td></tr>'; return; }
 
     data.forEach(function(t) {
       var tr = document.createElement('tr');
@@ -378,19 +462,18 @@
       tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyTemplate(t.rowIndex); };
       
       var pillClass = t.status === 'Active' ? 'badge-active' : 'badge-onboarding';
-      
-      // NEW: Inactive Wrapper Warning Symbol
       var warnHtml = "";
       var wrapData = GLOBAL_WRAPPER_DATA.find(w => w.name === t.wrapper);
       if (wrapData && wrapData.status !== 'Active') warnHtml = `<span title="Assigned layout is inactive!" style="color:#eab308; margin-right:5px; font-size:14px;">⚠️</span>`;
 
       tr.innerHTML = `
         <td><strong>${warnHtml}${t.name}</strong></td>
+        <td><span style="font-size:12px; color:#64748b;">${t.wrapper || "Internal"}</span></td>
         <td><span class="badge" style="background:#f1f5f9; color:#475569;">${t.module}</span></td>
         <td>${t.category || "-"}</td>
         <td><span class="tpl-trigger-code">${t.trigger || "N/A"}</span></td>
         <td><span class="badge ${pillClass}">${t.status}</span></td>
-        <td style="text-align:right;"><button class="btn-edit" onclick="openEditTemplateForm(${t.rowIndex}); event.stopPropagation();">Edit</button></td>
+        <td style="text-align:right;"><button class="btn-edit" onclick="openEditTemplateForm(${t.rowIndex}, 'list'); event.stopPropagation();">Edit</button></td>
       `;
       tbody.appendChild(tr);
     });
@@ -399,7 +482,8 @@
   function resetTemplateFilters() {
     var searchBox = document.getElementById('tpl-filter-search');
     if (searchBox) searchBox.value = '';
-    document.querySelectorAll('.tpl-filter-mod-cb, .tpl-filter-cat-cb, .tpl-filter-stat-cb').forEach(cb => cb.checked = true);
+    // FIX: Included '.tpl-filter-wrap-cb' in the reset list
+    document.querySelectorAll('.tpl-filter-mod-cb, .tpl-filter-cat-cb, .tpl-filter-stat-cb, .tpl-filter-wrap-cb').forEach(cb => cb.checked = true);
     applyTemplateFilters();
   }
 
@@ -426,15 +510,20 @@
     document.getElementById('edt-tpl-rowIndex').value = "";
     document.getElementById('edt-tpl-id').value = "";
     
-    // UI Label Reset
+    // UI Label Reset & Back Button
+    var backBtn = document.getElementById('btn-back-edit-tpl');
+    if (backBtn) { backBtn.innerHTML = '&#8592; Back to Library'; backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('lib'); }; }
     document.getElementById('tpl-form-title').innerText = "Add Template";
     document.getElementById('edt-tpl-submit-btn').innerText = "Add Template";
+    
+    // NEW: Hide Status Field and Default to Active
+    document.getElementById('tpl-status-group').style.display = 'none';
+    document.getElementById('edt-tpl-status').value = 'Active';
+    
     var wrapSelect = document.getElementById('edt-tpl-wrapper');
     if(wrapSelect) { wrapSelect.style.border = ''; wrapSelect.title = ''; }
     
-    // CRITICAL FIX: Safely clear Quill without crashing the thread
     if (tplQuill) tplQuill.setText(''); 
-    
     initTplEditor();
     loadPlaceholderSuggestions();
   }
@@ -463,7 +552,7 @@
   }
 
   // Add this to your existing openEditTemplateForm
-  function openEditTemplateForm(rowIndex) {
+  function openEditTemplateForm(rowIndex, source) {
     syncWrapperDropdown();
     resetAccordions('editTemplateView');
     switchView('editTemplateView');
@@ -471,15 +560,27 @@
     loadPlaceholderSuggestions();
     
     document.getElementById('editTemplateForm').reset();
-    
-    // CRITICAL FIX: Safely clear Quill without crashing the thread
     if(tplQuill) tplQuill.setText('');
     
-    // UI Label Update
+    // Dynamic Back Button Routing
+    var backBtn = document.getElementById('btn-back-edit-tpl');
+    if (backBtn) {
+      if (source === 'view') {
+        backBtn.innerHTML = '&#8592; Back to Template Details';
+        backBtn.onclick = function() { openReadOnlyTemplate(rowIndex); };
+      } else {
+        backBtn.innerHTML = '&#8592; Back to Library';
+        backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('lib'); };
+      }
+    }
+    
     document.getElementById('tpl-form-title').innerText = "Edit Template";
     document.getElementById('edt-tpl-submit-btn').innerText = "Save Template";
+
+    // NEW: Ensure Status Field is Visible
+    document.getElementById('tpl-status-group').style.display = 'flex';
     
-    toggleTemplateOverlay('edit-template-overlay', true, 'Pulling Master Template...');
+    toggleTemplateOverlay('edit-template-overlay', true, 'Pulling Template...');
 
     google.script.run.withSuccessHandler(function(data) {
       toggleTemplateOverlay('edit-template-overlay', false);
@@ -497,7 +598,6 @@
       var wrapperSelect = document.getElementById('edt-tpl-wrapper');
       wrapperSelect.value = data.wrapper || "Internal Communication";
       
-      // Highlight Field if Wrapper is Inactive
       var wrapData = GLOBAL_WRAPPER_DATA.find(w => w.name === wrapperSelect.value);
       if (wrapData && wrapData.status !== 'Active') {
         wrapperSelect.style.border = '2px solid #eab308';
@@ -513,7 +613,7 @@
 
   function handleTemplateSubmit(e) {
     if(e) e.preventDefault();
-    toggleTemplateOverlay('edit-template-overlay', true, 'Synchronizing Registry Logic...');
+    toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');
     
     var payload = {
       rowIndex: document.getElementById('edt-tpl-rowIndex').value,
@@ -529,9 +629,15 @@
     };
 
     google.script.run.withSuccessHandler(function(res) {
-      toggleTemplateOverlay('edit-template-overlay', false);
-      if (res.includes("Success")) { loadTemplatesTable(); switchView('templatesListView'); }
-      else alert(res);
+      if (res.success) { 
+        loadTemplatesTable(function() {
+           toggleTemplateOverlay('edit-template-overlay', false);
+           openReadOnlyTemplate(res.rowIndex); 
+        });
+      } else {
+        toggleTemplateOverlay('edit-template-overlay', false);
+        alert(res.error || res);
+      }
     }).updateTemplateRecord(payload);
   }
 
@@ -540,12 +646,13 @@
   var CURRENT_WRAP_SORT_COLUMN = 'name';
   var CURRENT_WRAP_SORT_DESC = false;
 
-  function loadWrappersTable() {
+  function loadWrappersTable(callback) {
     toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
     google.script.run.withSuccessHandler(function(wrappers) {
       toggleTemplateOverlay('tpl-list-overlay', false);
       GLOBAL_WRAPPER_DATA = wrappers || [];
       applyWrapperSort();
+      if (callback) callback();
     }).getWrappersList();
   }
 
@@ -556,8 +663,16 @@
   }
 
   function applyWrapperSort() {
-    var sorted = [...GLOBAL_WRAPPER_DATA];
-    sorted.sort(function(a, b) {
+    var search = document.getElementById('wrap-filter-search').value.toLowerCase();
+    var checkedStats = Array.from(document.querySelectorAll('.wrap-filter-stat-cb:checked')).map(cb => cb.value);
+
+    var filtered = GLOBAL_WRAPPER_DATA.filter(function(w) {
+      var matchS = (w.name + (w.description || "")).toLowerCase().includes(search);
+      var matchSt = checkedStats.length === 0 || checkedStats.includes(w.status);
+      return matchS && matchSt;
+    });
+
+    filtered.sort(function(a, b) {
       var vA = String(a[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
       var vB = String(b[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
       if (vA < vB) return CURRENT_WRAP_SORT_DESC ? 1 : -1;
@@ -565,47 +680,65 @@
       return 0;
     });
 
-    // Render visual sort indicators
     document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('wsort-')) icon.innerHTML = ''; });
     var iconEl = document.getElementById('wsort-' + CURRENT_WRAP_SORT_COLUMN);
     if (iconEl) iconEl.innerHTML = CURRENT_WRAP_SORT_DESC ? '▼' : '▲';
 
-    renderWrapperTableRows(sorted);
+    renderWrapperTableRows(filtered);
   }
 
   function renderWrapperTableRows(wrappers) {
     var tbody = document.getElementById('wrapperTableBody');
     tbody.innerHTML = '';
     if (wrappers.length === 0) { 
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No layouts found. Click Create Wrapper to begin.</td></tr>'; 
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No layouts match criteria.</td></tr>'; 
       return; 
     }
     
     wrappers.forEach(w => {
+      var tr = document.createElement('tr');
+      tr.style.cursor = "pointer";
+      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyWrapper(w.rowIndex); };
+      
       var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      tbody.innerHTML += `
-        <tr>
-          <td><strong>${w.name}</strong></td>
-          <td>${w.description || "<span style='color:#94a3b8; font-style:italic;'>No description</span>"}</td>
-          <td><span class="badge ${pill}">${w.status}</span></td>
-          <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex})">Edit Code</button></td>
-        </tr>
+      tr.innerHTML = `
+        <td><strong>${w.name}</strong></td>
+        <td>${w.description || "<span style='color:#94a3b8; font-style:italic;'>No description</span>"}</td>
+        <td><span class="badge ${pill}">${w.status}</span></td>
+        <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex}, 'list'); event.stopPropagation();">Edit Code</button></td>
       `;
+      tbody.appendChild(tr);
     });
   }
 
-  function openAddWrapperForm() {
-    switchView('editWrapperView');
-    document.getElementById('editWrapperForm').reset();
-    document.getElementById('edt-wrap-rowIndex').value = "";
-    document.getElementById('edt-wrap-id').value = "";
-    document.getElementById('wrap-form-title').innerText = "Create Layout";
+  function resetWrapperFilters() {
+    var searchBox = document.getElementById('wrap-filter-search');
+    if (searchBox) searchBox.value = '';
+    
+    // FIX: Strictly default back to 'Active' only
+    document.querySelectorAll('.wrap-filter-stat-cb').forEach(cb => {
+      cb.checked = (cb.value === 'Active');
+    });
+    
+    applyWrapperSort();
   }
 
-  function openEditWrapperForm(rowIndex) {
+  function openEditWrapperForm(rowIndex, source) {
     switchView('editWrapperView');
     document.getElementById('editWrapperForm').reset();
     document.getElementById('wrap-form-title').innerText = "Edit Layout";
+    
+    // Dynamic Back Button Routing
+    var backBtn = document.getElementById('btn-back-edit-wrap');
+    if (backBtn) {
+      if (source === 'view') {
+        backBtn.innerHTML = '&#8592; Back to Layout Details';
+        backBtn.onclick = function() { openReadOnlyWrapper(rowIndex); };
+      } else {
+        backBtn.innerHTML = '&#8592; Back to Layouts';
+        backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('wraps'); };
+      }
+    }
     
     var w = GLOBAL_WRAPPER_DATA.find(x => x.rowIndex === rowIndex);
     if (!w) return;
@@ -614,8 +747,92 @@
     document.getElementById('edt-wrap-id').value = w.id;
     document.getElementById('edt-wrap-name').value = w.name;
     document.getElementById('edt-wrap-desc').value = w.description || "";
-    document.getElementById('edt-wrap-status').value = w.status;
     document.getElementById('edt-wrap-html').value = w.html;
+
+    // NEW: Ensure Status Field is Visible
+    document.getElementById('wrap-status-group').style.display = 'flex';
+
+    var statusDrop = document.getElementById('edt-wrap-status');
+    statusDrop.value = w.status;
+
+    var inUseCount = GLOBAL_TEMPLATE_DATA.filter(t => t.wrapper === w.name).length;
+    var warnText = document.getElementById('wrap-status-warning');
+    if (!warnText) {
+       warnText = document.createElement('div');
+       warnText.id = 'wrap-status-warning';
+       warnText.style.cssText = "font-size:12px; color:#9f1239; margin-top:8px; font-weight:600;";
+       statusDrop.parentNode.appendChild(warnText);
+    }
+    if (inUseCount > 0) {
+       statusDrop.value = "Active";
+       statusDrop.disabled = true;
+       warnText.innerText = "Cannot deactivate: Currently assigned to " + inUseCount + " active template(s).";
+    } else {
+       statusDrop.disabled = false;
+       warnText.innerText = "";
+    }
+  }
+
+  function openReadOnlyWrapper(rowIndex) {
+    switchView('readOnlyWrapperView');
+    var w = GLOBAL_WRAPPER_DATA.find(x => x.rowIndex === rowIndex);
+    if (!w) return;
+    
+    document.getElementById('ro-wrap-name').innerText = w.name;
+    document.getElementById('ro-wrap-desc').innerText = w.description || "No description provided.";
+    var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
+    document.getElementById('ro-wrap-status').innerHTML = `<span class="badge ${pill}">${w.status}</span>`;
+    
+    // Pass 'view' source to the Edit function
+    document.getElementById('ro-wrap-edit-btn').onclick = () => openEditWrapperForm(rowIndex, 'view');
+
+    var dummyContent = "<h2 style='margin-top:0;'>Preview Content</h2><p>This is how your message will appear inside the layout when dispatched.</p>";
+    var fullHtml = w.html.replace("{{USER_MESSAGE_CONTENT}}", dummyContent);
+    var logo = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
+    fullHtml = fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
+    
+    document.getElementById('wrap-preview-frame').srcdoc = fullHtml;
+  }
+
+  function showQuickPreview(type) {
+    var fullHtml = "";
+    var logo = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
+    
+    if (type === 'template') {
+      var body = tplQuill ? tplQuill.root.innerHTML : "";
+      var wrapName = document.getElementById('edt-tpl-wrapper').value;
+      var wrapData = GLOBAL_WRAPPER_DATA.find(w => w.name === wrapName);
+      var wrapperHtml = wrapData ? wrapData.html : "{{USER_MESSAGE_CONTENT}}";
+      fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", body);
+    } else {
+      var wrapperHtml = document.getElementById('edt-wrap-html').value;
+      var dummyContent = "<h2 style='margin-top:0;'>Preview Content</h2><p>This is how your message will appear inside the layout.</p>";
+      fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", dummyContent);
+    }
+    
+    fullHtml = fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
+    document.getElementById('quick-preview-frame').srcdoc = fullHtml;
+    document.getElementById('quickPreviewModal').style.display = 'flex';
+  }
+  
+  function openAddWrapperForm() {
+    switchView('editWrapperView');
+    document.getElementById('editWrapperForm').reset();
+    document.getElementById('edt-wrap-rowIndex').value = "";
+    document.getElementById('edt-wrap-id').value = "";
+    document.getElementById('wrap-form-title').innerText = "Create Layout";
+    
+    var backBtn = document.getElementById('btn-back-edit-wrap');
+    if (backBtn) { backBtn.innerHTML = '&#8592; Back to Layouts'; backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('wraps'); }; }
+    
+    // NEW: Hide Status Field and Default to Active
+    document.getElementById('wrap-status-group').style.display = 'none';
+    document.getElementById('edt-wrap-status').value = 'Active';
+    
+    var statusDrop = document.getElementById('edt-wrap-status');
+    if (statusDrop) statusDrop.disabled = false;
+    var warnText = document.getElementById('wrap-status-warning');
+    if (warnText) warnText.innerText = "";
   }
 
   function handleWrapperSubmit(e) {
@@ -632,12 +849,15 @@
     };
 
     google.script.run.withSuccessHandler(function(res) {
-      toggleTemplateOverlay('edit-wrap-overlay', false);
-      if (res.includes("Success")) { 
-        // FIX: Switch back to main container, then trigger the sub-view!
-        switchView('templatesListView'); 
-        toggleTemplateSubView('wraps'); 
-      } else alert(res);
+      if (res.success) { 
+        loadWrappersTable(function() {
+          toggleTemplateOverlay('edit-wrap-overlay', false);
+          openReadOnlyWrapper(res.rowIndex);
+        });
+      } else {
+        toggleTemplateOverlay('edit-wrap-overlay', false);
+        alert(res.error || res);
+      }
     }).updateWrapperRecord(payload);
   }
 
@@ -690,7 +910,6 @@
 
   function openReadOnlyTemplate(rowIndex) {
     switchView('readOnlyTemplateView');
-    /* MR HUB MANDATE: THE INSTANT PURGE (Prevents Ghost Data) */
     document.getElementById('ro-tpl-name').innerText = "";
     document.getElementById('ro-tpl-subline').innerText = "Loading attributes...";
     document.getElementById('tpl-preview-frame').srcdoc = "<html><body style='font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:90vh; color:#94a3b8;'><div>Rendering Branded Hub Preview...</div></body></html>";
@@ -700,9 +919,21 @@
     google.script.run.withSuccessHandler(function(data) {
       document.getElementById('ro-tpl-name').innerText = data.name;
       document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
-      document.getElementById('ro-tpl-edit-btn').onclick = () => openEditTemplateForm(data.rowIndex);
       
-      // Fetch rendered preview via EmailEngine.gs 10-column logic
+      // Populate New Details
+      document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
+      document.getElementById('ro-tpl-desc').innerText = data.description || "No description provided";
+      document.getElementById('ro-tpl-module').innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569;">${data.module}</span>`;
+      document.getElementById('ro-tpl-wrapper').innerText = data.wrapper || "Internal Communication";
+      
+      var pillClass = data.status === 'Active' ? 'badge-active' : 'badge-onboarding';
+      document.getElementById('ro-tpl-status').innerHTML = `<span class="badge ${pillClass}">${data.status}</span>`;
+
+      // ---> PUT IT RIGHT HERE: Connect both buttons at the same time <---
+      document.getElementById('ro-tpl-edit-btn').onclick = () => openEditTemplateForm(data.rowIndex, 'view');
+      document.getElementById('ro-tpl-test-btn').onclick = () => openTestEmailModal(data.rowIndex);
+      
+      // Second success handler (Fetches the HTML preview iframe)
       google.script.run.withSuccessHandler(function(html) {
         toggleTemplateOverlay('ro-template-overlay', false);
         document.getElementById('tpl-preview-frame').srcdoc = html;
@@ -711,16 +942,33 @@
     }).getTemplateById(rowIndex);
   }
 
-  function sendTestEmail() {
-    var rowIndex = document.getElementById('edt-tpl-rowIndex').value;
+  function openTestEmailModal(rowIndex) {
     if (!rowIndex) { alert("Please save the template as a record before dispatching a test email."); return; }
-    var email = prompt("Enter recipient email for branded test dispatch:", CURRENT_USERNAME + "@rhinocentral.com");
-    if (!email) return;
     
-    toggleTemplateOverlay('edit-template-overlay', true, 'Dispatching QA Test Message...');
+    document.getElementById('test-email-row-index').value = rowIndex;
+    document.getElementById('test-email-address').value = "";
+    document.getElementById('test-email-msg').innerText = "";
+    
+    var btn = document.getElementById('btn-send-test-modal');
+    btn.innerText = "Dispatch Test Email";
+    btn.disabled = false;
+    
+    document.getElementById('testEmailModal').style.display = 'flex';
+  }
+
+  function submitTestEmail() {
+    var rowIndex = document.getElementById('test-email-row-index').value;
+    var email = document.getElementById('test-email-address').value;
+    if (!email) return;
+
+    var btn = document.getElementById('btn-send-test-modal');
+    var msg = document.getElementById('test-email-msg');
+    btn.innerText = "Dispatching..."; btn.disabled = true; msg.innerText = "";
+
     google.script.run.withSuccessHandler(function(res) {
-      toggleTemplateOverlay('edit-template-overlay', false);
-      alert(res);
+      btn.innerText = "Dispatch Test Email"; btn.disabled = false;
+      msg.style.color = res.includes("Error") ? "#9f1239" : "#166534";
+      msg.innerText = res;
     }).sendTestEmailAction(rowIndex, email);
   }
 
