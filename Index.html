@@ -109,6 +109,9 @@
     var INSTALLED_PLUGINS = "<?= typeof installedPlugins !== 'undefined' ? installedPlugins : '' ?>";
     var CURRENT_USER_PERMISSIONS = <?!= typeof userPermissions !== 'undefined' && userPermissions ? userPermissions : '{}' ?>;
     
+    // NEW: Captures the resolved Dashboard Config from the backend
+    var DASHBOARD_LAYOUT = <?!= JSON.stringify(typeof dashboardLayout !== 'undefined' ? dashboardLayout : 'DEFAULT') ?>;
+
     // EXPOSE UI CONFIGURATIONS
     var SYSTEM_LOGO_URL = "<?= typeof systemLogoUrl !== 'undefined' ? systemLogoUrl : '' ?>";
     var APP_FALLBACK_LOGO = "<?= typeof appFallbackLogo !== 'undefined' ? appFallbackLogo : '' ?>";
@@ -136,29 +139,59 @@
     // ----------------------------------------------------------------
     // DYNAMIC CARD INJECTION ENGINE
     // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
+    // DYNAMIC WIDGET INJECTION ENGINE
+    // ----------------------------------------------------------------
     function injectDashboardCards() {
       var templates = Array.from(document.querySelectorAll('.module-card-template'));
+      var isDefault = (DASHBOARD_LAYOUT === 'DEFAULT');
+      var layoutMap = [];
+      
+      if (!isDefault) {
+        try { layoutMap = typeof DASHBOARD_LAYOUT === 'string' ? JSON.parse(DASHBOARD_LAYOUT) : DASHBOARD_LAYOUT; } 
+        catch(e) { isDefault = true; }
+      }
 
-      templates.forEach(tpl => {
-        // Read specific granular requirements
-        var reqCat = tpl.getAttribute('data-perm-category');
-        var reqAct = tpl.getAttribute('data-perm-action');
-        
-        // If requirements exist and user fails the check, abort injecting this card
-        if (reqCat && reqAct && !hasPermission(reqCat, reqAct)) return;
+      if (isDefault) {
+        // STANDARD LOAD (Fallback: Loads all permitted cards at span-2)
+        templates.forEach(tpl => {
+          var reqCat = tpl.getAttribute('data-perm-category');
+          var reqAct = tpl.getAttribute('data-perm-action');
+          if (reqCat && reqAct && !hasPermission(reqCat, reqAct)) return;
 
-        var category = tpl.getAttribute('data-category'); 
-        var grid = document.getElementById('grid-' + category);
-        var title = document.getElementById('title-' + category);
+          var category = tpl.getAttribute('data-category'); 
+          var grid = document.getElementById('grid-' + category);
+          var title = document.getElementById('title-' + category);
 
-        if (grid) {
-          var cardId = tpl.content.firstElementChild.id;
-          if (!document.getElementById(cardId)) {
-            grid.appendChild(tpl.content.cloneNode(true));
+          if (grid && !document.getElementById(tpl.content.firstElementChild.id)) {
+            var newCard = tpl.content.cloneNode(true);
+            newCard.firstElementChild.classList.add('span-2');
+            grid.appendChild(newCard);
             if (title) title.style.display = 'block';
           }
-        }
-      });
+        });
+      } else {
+        // CUSTOM WIDGET CONFIG LOAD (e.g., [{id: 'card-users', span: 4}, ...])
+        layoutMap.forEach(widget => {
+          var tpl = templates.find(t => t.content.firstElementChild.id === widget.id);
+          if (!tpl) return; // Ignores uninstalled/deleted widgets
+          
+          var reqCat = tpl.getAttribute('data-perm-category');
+          var reqAct = tpl.getAttribute('data-perm-action');
+          if (reqCat && reqAct && !hasPermission(reqCat, reqAct)) return; // Security First
+
+          var category = widget.category || tpl.getAttribute('data-category'); 
+          var grid = document.getElementById('grid-' + category);
+          var title = document.getElementById('title-' + category);
+
+          if (grid && !document.getElementById(widget.id)) {
+            var newCard = tpl.content.cloneNode(true);
+            newCard.firstElementChild.classList.add('span-' + (widget.span || 2));
+            grid.appendChild(newCard);
+            if (title) title.style.display = 'block';
+          }
+        });
+      }
     }
 
     // ----------------------------------------------------------------

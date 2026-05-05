@@ -45,13 +45,16 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    // CRITICAL FIX: Changed .getValues() to .getDisplayValues()
-    // This safely serializes the Timestamp so the network request doesn't crash!
+    // CRITICAL FIX: .getDisplayValues() safely serializes the Timestamp
     var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getDisplayValues()[0];
     
+    var templateName = row[2];
+    var lastUpdated = getEventTimestampFromLogs("Templates", "UPDATE", templateName);
+    
     return {
-      rowIndex: rowIndex, timestamp: row[0], id: row[1], name: row[2], description: row[3], category: row[4],
-      module: row[5], trigger: row[6], subject: row[7], body: row[8], wrapper: row[9], status: row[10]
+      rowIndex: rowIndex, timestamp: row[0], id: row[1], name: templateName, description: row[3], category: row[4],
+      module: row[5], trigger: row[6], subject: row[7], body: row[8], wrapper: row[9], status: row[10],
+      lastUpdated: lastUpdated
     };
   } catch (e) { return { error: e.message }; }
 }
@@ -155,6 +158,19 @@ function getWrappersList() {
       };
     });
   } catch (e) { return []; }
+}
+
+function getWrapperById(rowIndex) {
+  try {
+    var row = ensureWrappersSheet().getRange(parseInt(rowIndex), 1, 1, 6).getDisplayValues()[0];
+    var wrapperName = row[2];
+    var lastUpdated = getEventTimestampFromLogs("Templates:Wrappers", "UPDATE", wrapperName);
+    
+    return {
+      rowIndex: rowIndex, timestamp: row[0], id: row[1], name: wrapperName, description: row[3],
+      html: row[4], status: row[5], lastUpdated: lastUpdated
+    };
+  } catch (e) { return { error: e.message }; }
 }
 
 function updateWrapperRecord(data) {

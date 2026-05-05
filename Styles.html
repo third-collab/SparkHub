@@ -111,7 +111,7 @@
     margin-bottom: 25px;
   }
 
-  /* --- Dashboard Cards --- */
+  /* --- Dashboard Cards (6-Column Widget Grid) --- */
   .module-group-title {
     font-size: 13px;
     text-transform: uppercase;
@@ -122,11 +122,29 @@
     padding-bottom: 8px;
   }
 
+  /* Defines the 6-column master grid */
   .card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(6, 1fr);
     gap: 24px;
     margin-bottom: 40px;
+  }
+
+  /* Widget Sizing Classes */
+  .span-1 { grid-column: span 1; }
+  .span-2 { grid-column: span 2; } /* Default standard card */
+  .span-3 { grid-column: span 3; } /* Half-width card */
+  .span-4 { grid-column: span 4; }
+  .span-5 { grid-column: span 5; }
+  .span-6 { grid-column: span 6; } /* Full-width banner widget */
+
+  /* Responsive Fallback: On small screens, force everything to stack */
+  @media (max-width: 900px) {
+    .card-grid { grid-template-columns: repeat(2, 1fr); }
+    .span-1, .span-2, .span-3, .span-4, .span-5, .span-6 { grid-column: span 2; }
+  }
+  @media (max-width: 600px) {
+    .card-grid { display: flex; flex-direction: column; }
   }
 
   .card {
@@ -272,6 +290,7 @@
 
   /* --- Forms & Controls --- */
   .form-wrapper {
+    position: relative; /* FIX: Anchors absolute loading overlays to the form */
     background: white;
     padding: 40px;
     border-radius: var(--border-radius-med);
@@ -383,11 +402,13 @@
 
   /* --- Tables --- */
   .table-container {
+    position: relative; /* FIX: Anchors absolute loading overlays to the table */
     background: white;
     border-radius: var(--border-radius-med);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     border: 1px solid #e2e8f0;
+    min-height: 300px; /* Provides a baseline height when lists are empty */
   }
 
   table { width: 100%; border-collapse: collapse; }

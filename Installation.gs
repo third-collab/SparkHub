@@ -118,18 +118,18 @@ function setupCoreDatabase(rootFolder) {
   }
 
   // 3. Schema Initialization
-  initializeSheet(verifiedDb, "Users", ["Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login"]);
-  initializeSheet(verifiedDb, "Roles", ["Role ID", "Role Name", "Description", "Permissions JSON", "Status"]);
+  initializeSheet(verifiedDb, "Users", ["Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login", "Dashboard Config"]);
+  initializeSheet(verifiedDb, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status", "Dashboard Config"]);
   initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Category", "Description", "Trigger", "Subject", "Body", "Status", "Wrapper"]);
   initializeSheet(verifiedDb, "Wrappers", ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"]);
 
   // 4. Admin Creation
   var adminEmail = Session.getActiveUser().getEmail();
   var adminUsername = adminEmail.split('@')[0];
-  verifiedDb.getSheetByName("Users").appendRow([new Date(), adminUsername, "Administrator", adminEmail, "", "System", "Admin", "Active", new Date()]);
-  
+  verifiedDb.getSheetByName("Users").appendRow([new Date(), adminUsername, "Administrator", adminEmail, "", "System", "Admin", "Active", new Date(), ""]);
   var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"], "System Logs": ["View Logs"] });
-  verifiedDb.getSheetByName("Roles").appendRow(["R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active"]);
+  // FIX: Appended empty string "" for the Dashboard Config column
+  verifiedDb.getSheetByName("Roles").appendRow([new Date(), "R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active", ""]);
   
   // 5. Asset Seeding (Happens BEFORE the trigger)
   seedCoreAssets(verifiedDb);
@@ -138,7 +138,7 @@ function setupCoreDatabase(rootFolder) {
 
   // 6. ORCHESTRATION: Trigger 2
   // Because the ID is saved, the DB is verified, and the Template is seeded, this will succeed.
-  SystemEvent.emit("Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail);
+  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail);
   SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail);
   
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));

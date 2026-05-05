@@ -442,6 +442,7 @@
         CURRENT_USERNAME = sessionData.username;
         CURRENT_USER_FIRSTNAME = sessionData.firstName || sessionData.username; // Hydrate
         CURRENT_USER_PERMISSIONS = JSON.parse(sessionData.permissions);
+        DASHBOARD_LAYOUT = sessionData.dashboardLayout || "DEFAULT"; // NEW LINE
         return true; 
       } catch(e) {}
     }
@@ -461,7 +462,7 @@
       .withSuccessHandler(function(res) {
         if (res.success) {
           // Cache session in browser
-          var sessionPayload = { username: res.username, firstName: res.firstName, role: res.role, permissions: res.permissions };
+          var sessionPayload = { username: res.username, firstName: res.firstName, role: res.role, permissions: res.permissions, dashboardLayout: res.dashboardLayout }; // NEW LINE
           localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
 
           // Hydrate JS Globals
@@ -469,6 +470,7 @@
           CURRENT_USER_FIRSTNAME = res.firstName;
           CURRENT_USER_ROLE = res.role;
           CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
+          DASHBOARD_LAYOUT = res.dashboardLayout || "DEFAULT"; // NEW LINE
           
           document.getElementById('loginScreen').style.display = 'none';
           

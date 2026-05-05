@@ -44,12 +44,15 @@ function doGet(e) {
   template.authMode = settings.authMode;
 
   // CRITICAL FIX: Bypasses Google's SSO checks if the system is enforcing Local Auth.
+  // CRITICAL FIX: Bypasses Google's SSO checks if the system is enforcing Local Auth.
   var role = 'Guest';
+  var layout = 'DEFAULT'; // NEW LINE
   if (isInstalled) {
     if (settings.authMode === 'Local') {
-      role = 'Guest'; 
+      role = 'Guest';
     } else {
       role = (userEmail === '' ? 'Guest' : getUserRole());
+      if (role !== 'Guest' && role !== 'Inactive') layout = getResolvedDashboardLayout(userEmail, role); // NEW LINE
     }
   } else {
     role = 'Administrator';
@@ -58,6 +61,7 @@ function doGet(e) {
   if (role === 'Inactive') return serveAccessDeniedScreen(settings);
 
   template.userRole = role;
+  template.dashboardLayout = layout; // NEW LINE
   template.username = (role === 'Guest') ? '' : getLoggedInUsername();
   template.userFirstName = (role === 'Guest' || !isInstalled) ? '' : getLoggedInUserFirstName();
   template.userPermissions = (role === 'Guest' || !isInstalled) ? '{"ALL":["ALL"]}' : getUserPermissions(role);

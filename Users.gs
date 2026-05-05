@@ -250,15 +250,24 @@ function getUserById(rowIndex) {
 function getRoleById(rowIndex) {
   try {
     var sheet = ensureRolesSheet();
-    var rowData = sheet.getRange(rowIndex, 1, 1, 5).getDisplayValues()[0];
-    var roleName = rowData[1];
-    var createdOn = getEventTimestampFromLogs("Users:Roles", "CREATE", roleName);
-    if (createdOn === "Not recorded" && (roleName === "Administrator" || roleName === "Admin")) createdOn = "System Default";
+    // FIX: Pull 6 columns instead of 5
+    var rowData = sheet.getRange(rowIndex, 1, 1, 6).getDisplayValues()[0];
+    var roleName = rowData[2];
+    
+    // FIX: Pulls the actual DB timestamp
+    var createdOn = rowData[0] || "System Default";
     var lastUpdated = getEventTimestampFromLogs("Users:Roles", "UPDATE", roleName);
 
     return {
-      rowIndex: rowIndex, id: rowData[0], name: roleName, description: rowData[2],
-      permissions: rowData[3], status: rowData[4], createdOn: createdOn, lastUpdated: lastUpdated
+      rowIndex: rowIndex, 
+      timestamp: rowData[0], 
+      id: rowData[1], 
+      name: roleName, 
+      description: rowData[3],
+      permissions: rowData[4], 
+      status: rowData[5], 
+      createdOn: createdOn, 
+      lastUpdated: lastUpdated
     };
   } catch (e) { return { error: e.message }; }
 }
@@ -358,10 +367,12 @@ function ensureRolesSheet() {
   var ss = getMainDb();
   var sheet = ss.getSheetByName("Roles");
   if (!sheet) {
-    initializeSheet(ss, "Roles", ["Role ID", "Role Name", "Description", "Permissions JSON", "Status"]);
+    // FIX: Initialized with the Timestamp column
+    initializeSheet(ss, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status"]);
     sheet = ss.getSheetByName("Roles");
-    var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"] });
-    sheet.appendRow(["R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active"]);
+    var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"], "System Logs": ["View Logs"] });
+    // FIX: Prepend the timestamp (new Date())
+    sheet.appendRow([new Date(), "R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active"]);
   }
   return sheet;
 }
@@ -369,14 +380,28 @@ function ensureRolesSheet() {
 function getRolesList() {
   try {
     var sheet = ensureRolesSheet();
-    var data = sheet.getDataRange().getValues();
+    
+    // CRITICAL FIX: getDisplayValues() converts the Date objects into Strings.
+    // google.script.run will crash silently if you try to send a raw Date object!
+    var data = sheet.getDataRange().getDisplayValues(); 
     data.shift();
-    return data.map(function(row, i) {
-      return { 
-        rowIndex: i + 2, id: row[0], name: row[1], 
-        description: row[2], permissions: row[3], status: row[4] 
-      };
+    
+    var validRoles = [];
+    data.forEach(function(row, i) {
+      if (row[2]) { // Ensures we don't accidentally load blank rows
+        validRoles.push({ 
+          rowIndex: i + 2, 
+          timestamp: row[0], 
+          id: row[1], 
+          name: row[2], 
+          description: row[3], 
+          permissions: row[4], 
+          status: row[5] 
+        });
+      }
     });
+    
+    return validRoles;
   } catch(e) { return []; }
 }
 
@@ -390,39 +415,41 @@ function saveRoleRecord(obj) {
     
     if (obj.rowIndex) {
       targetRow = parseInt(obj.rowIndex);
-      var oldData = sheet.getRange(targetRow, 1, 1, 5).getValues()[0];
-      var oldStatus = oldData[4];
+      // FIX: Extended range to 6 columns
+      var oldData = sheet.getRange(targetRow, 1, 1, 6).getValues()[0];
+      var oldStatus = oldData[5];
       
-      sheet.getRange(targetRow, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
+      // FIX: Start writing at Column C (3) to preserve Timestamp and ID
+      sheet.getRange(targetRow, 3, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
       
-      // NEW: Uses Sub-Module SystemEvent identifier
-      SystemEvent.emit("Users:Roles", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.", activeUserEmail);
+      SystemEvent.emit("Users:Roles", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.", activeUserEmail, { roleTimestamp: oldData[0], roleName: obj.name, roleDescription: obj.description });
+      
       if (oldStatus !== obj.status) {
         var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
-        SystemEvent.emit("Users:Roles", "UPDATE", "Role Status Changed", "WARN", obj.name, "Role was manually " + actionVerb + ".", activeUserEmail);
+        SystemEvent.emit("Users:Roles", "UPDATE", "Role Status Changed", "WARN", obj.name, "Role was manually " + actionVerb + ".", activeUserEmail, { roleTimestamp: oldData[0], roleName: obj.name, roleDescription: obj.description });
       }
     } else {
       var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
-      sheet.appendRow([ roleId, obj.name, obj.description, obj.permissions, obj.status ]);
+      var now = new Date();
+      // FIX: Appended 6 columns to the new row
+      sheet.appendRow([ now, roleId, obj.name, obj.description, obj.permissions, obj.status ]);
       targetRow = sheet.getLastRow();
       
-      // NEW: Uses Sub-Module SystemEvent identifier
-      SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", obj.name, "New system role established.", activeUserEmail);
+      SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", obj.name, "New system role established.", activeUserEmail, { roleTimestamp: now, roleName: obj.name, roleDescription: obj.description });
     }
     return { success: true, rowIndex: targetRow, message: "Success! Role saved." };
   } catch (e) { return { error: "Error: " + e.message }; }
 }
 
 function getUserPermissions(roleName) {
-  if (roleName === 'Administrator' || roleName === 'Admin') {
-    return '{"ALL":["ALL"]}';
-  }
+  if (roleName === 'Administrator' || roleName === 'Admin') return '{"ALL":["ALL"]}';
   try {
     var sheet = ensureRolesSheet();
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
-      if (data[i][1] === roleName && data[i][4] === 'Active') {
-        return data[i][3] ? data[i][3] : "{}"; 
+      // FIX: roleName is now Index 2, Status is Index 5, Permissions is Index 4
+      if (data[i][2] === roleName && data[i][5] === 'Active') {
+        return data[i][4] ? data[i][4] : "{}"; 
       }
     }
   } catch(e) {}
@@ -454,7 +481,8 @@ function verifyUserCredentials(loginId, password) {
           username: String(data[i][1]),
           firstName: String(data[i][5]), 
           role: role,
-          permissions: getUserPermissions(role) 
+          permissions: getUserPermissions(role),
+          dashboardLayout: getResolvedDashboardLayout(String(data[i][3]), role) // NEW LINE
         };
       }
     }
@@ -485,4 +513,32 @@ function getDynamicPermissionMatrix() {
     });
   }
   return matrix;
+}
+
+function getResolvedDashboardLayout(email, roleName) {
+  try {
+    var db = getMainDb();
+    
+    // 1. Check User Config (Column 10 / J)
+    var usersData = db.getSheetByName("Users").getDataRange().getValues();
+    for (var i = 1; i < usersData.length; i++) {
+      if (usersData[i][3] === email) {
+        var userConfig = usersData[i][9]; 
+        if (userConfig && userConfig.trim() !== "" && userConfig !== "[]") return userConfig;
+        break;
+      }
+    }
+    
+    // 2. Check Role Config (Column 7 / G)
+    var rolesData = ensureRolesSheet().getDataRange().getValues();
+    for (var r = 1; r < rolesData.length; r++) {
+      if (rolesData[r][2] === roleName) {
+        var roleConfig = rolesData[r][6]; 
+        if (roleConfig && roleConfig.trim() !== "" && roleConfig !== "[]") return roleConfig;
+        break;
+      }
+    }
+  } catch(e) {}
+  
+  return "DEFAULT";
 }
