@@ -1,3 +1,15 @@
+// --- TEMPLATES MODULE REGISTRY EXPORTS ---
+function Templates_getTriggers() {
+  return [
+    "Templates:CREATE", "Templates:UPDATE", 
+    "Templates:Wrappers:CREATE", "Templates:Wrappers:UPDATE"
+  ];
+}
+
+function Templates_getPlaceholders() {
+  return ["templateName", "wrapperName", "triggerEvent"];
+}
+
 /**
  * Templates Module - Backend
  * Standardized under SparkHub Architecture Blueprint.
@@ -92,8 +104,22 @@ function getRenderedTemplatePreview(rowIndex) {
   return fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
 }
 
+/**
+ * Returns a dynamic registry of all available template placeholders.
+ * Uses V8 Auto-Discovery to scan global memory for placeholder declarations.
+ */
 function getPlaceholderSuggestions() {
-  return ["companyName", "brandName", "address", "website", "priFirstName", "priLastName", "priEmail", "monthlyContractValue", "contractStartDate", "services", "notes", "username", "firstName", "lastName", "role"];
+  var placeholders = ["details"]; // Universal fallback variable
+  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
+  
+  // V8 Auto-Discovery: Scan the entire system's memory for placeholder declarations
+  for (var key in globalScope) {
+    if (typeof key === 'string' && key.endsWith('_getPlaceholders') && typeof globalScope[key] === 'function') {
+      placeholders = placeholders.concat(globalScope[key]());
+    }
+  }
+  
+  return [...new Set(placeholders)].sort();
 }
 
 /** * WRAPPER ENGINE: Database-driven HTML frames
@@ -146,17 +172,17 @@ function updateWrapperRecord(data) {
       var oldStatus = sheet.getRange(targetRow, 6).getValue(); // Col F (6) is Status
       sheet.getRange(targetRow, 1, 1, 6).setValues([values]);
       
-      SystemEvent.emit("Templates", "UPDATE", "Edit Wrapper", "INFO", data.name, "Wrapper layout HTML or settings updated.");
+      SystemEvent.emit("Templates:Wrappers", "UPDATE", "Edit Wrapper", "INFO", data.name, "Wrapper layout HTML or settings updated.");
 
       // NEW: Granular Activation Logging
       if (oldStatus !== data.status) {
         var actionVerb = data.status === "Active" ? "activated" : "deactivated";
-        SystemEvent.emit("Templates", "UPDATE", "Wrapper Status Changed", "WARN", data.name, "Wrapper layout was manually " + actionVerb + ".");
+        SystemEvent.emit("Templates:Wrappers", "UPDATE", "Wrapper Status Changed", "WARN", data.name, "Wrapper layout was manually " + actionVerb + ".");
       }
     } else {
       sheet.appendRow(values);
       targetRow = sheet.getLastRow();
-      SystemEvent.emit("Templates", "CREATE", "Create Wrapper", "INFO", data.name, "New wrapper layout created.");
+      SystemEvent.emit("Templates:Wrappers", "CREATE", "Create Wrapper", "INFO", data.name, "New wrapper layout created.");
     }
     return { success: true, rowIndex: targetRow, message: "Success! Wrapper updated." };
   } catch (e) { return { error: "Error: " + e.message }; }
@@ -170,4 +196,37 @@ function getWrapperContent(wrapperName) {
     }
     return "{{USER_MESSAGE_CONTENT}}";
   } catch (e) { return "{{USER_MESSAGE_CONTENT}}"; }
+}
+
+/**
+ * Returns a dynamic registry of all available system trigger events.
+ * Uses V8 Auto-Discovery to scan global memory for module declarations.
+ */
+function getDynamicTriggerRegistry() {
+  var triggers = [];
+  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
+  
+  // 1. V8 Auto-Discovery: Scan the entire system's memory for trigger declarations
+  for (var key in globalScope) {
+    if (typeof key === 'string' && key.endsWith('_getTriggers') && typeof globalScope[key] === 'function') {
+      triggers = triggers.concat(globalScope[key]());
+    }
+  }
+  
+  // 2. External Fallback: Inject standard CRUD triggers for installed modules that lack custom triggers
+  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
+  if (installed) {
+    installed.split(',').forEach(function(modName) {
+      var mod = modName.trim();
+      var funcName = mod + "_getTriggers";
+      
+      // If the module didn't announce itself above, give it the default triggers
+      if (typeof globalScope[funcName] !== 'function') {
+        triggers.push(mod + ":CREATE");
+        triggers.push(mod + ":UPDATE");
+      }
+    });
+  }
+  
+  return [...new Set(triggers)].sort();
 }

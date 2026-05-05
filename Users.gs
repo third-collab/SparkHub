@@ -1,26 +1,38 @@
+// --- USERS MODULE REGISTRY EXPORTS ---
+function Users_getTriggers() {
+  return [
+    "Users:CREATE", "Users:UPDATE", "Users:RESET_REQUEST", "Users:PASSWORD_UPDATED",
+    "Users:Roles:CREATE", "Users:Roles:UPDATE"
+  ];
+}
+
+function Users_getPlaceholders() {
+  return [
+    "username", "firstName", "lastName", "role", "userFirst", "resetLink",
+    "userEmail", "userStatus", "userTimestamp",
+    "roleName", "roleDescription", "roleTimestamp"
+  ];
+}
+
 /**
  * Users Module - Backend
  * Standardized under SparkHub Architecture Blueprint.
  * Handles: Staff profiles, permissions, RBAC, and directory management.
  */
-
-/**
- * Securely hashes passwords using SHA-256 for database storage.
- */
 function processNewUser(obj) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var hashedPw = hashPassword(obj.password);
-    
     sheet.appendRow([
       new Date(), obj.username, obj.role, obj.email, hashedPw, 
       obj.firstName, obj.lastName, obj.status, "" 
     ]);
-    
+    var targetRow = sheet.getLastRow();
     SpreadsheetApp.flush();
-    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile established via UI.");
-    return "Success! User created.";
-  } catch (e) { return "Error: " + e.message; }
+    
+    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile established via UI.", obj.email);
+    return { success: true, rowIndex: targetRow, message: "Success! User created." };
+  } catch (e) { return { error: "Error: " + e.message }; }
 }
 
 function updateUserRecord(obj) {
@@ -31,7 +43,6 @@ function updateUserRecord(obj) {
 
     var existingUsername = data[row-1][1];
     obj.username = existingUsername;
-
     var existingRole = data[row-1][2];
     var existingStatus = data[row-1][7];
     
@@ -39,35 +50,25 @@ function updateUserRecord(obj) {
       if (obj.role !== existingRole || obj.status !== 'Active') {
         var activeAdminCount = 0;
         for (var i = 1; i < data.length; i++) {
-          if ((data[i][2] === 'Administrator' || data[i][2] === 'Admin') && data[i][7] === 'Active') {
-            activeAdminCount++;
-          }
+          if ((data[i][2] === 'Administrator' || data[i][2] === 'Admin') && data[i][7] === 'Active') activeAdminCount++;
         }
-        if (activeAdminCount <= 1) {
-          return "Error: Cannot modify the role or status of the last active Administrator. Ensure another active admin exists first.";
-        }
+        if (activeAdminCount <= 1) return { error: "Error: Cannot modify the role or status of the last active Administrator." };
       }
     }
 
     var oldPassword = data[row-1][4];
     var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
 
-    sheet.getRange(row, 2, 1, 7).setValues([[
-      obj.username, obj.role, obj.email, newPassword, obj.firstName, 
-      obj.lastName, obj.status
-    ]]);
+    sheet.getRange(row, 2, 1, 7).setValues([[ obj.username, obj.role, obj.email, newPassword, obj.firstName, obj.lastName, obj.status ]]);
     SpreadsheetApp.flush();
     
     SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
-
-    // NEW: Granular Activation Logging
     if (existingStatus !== obj.status) {
       var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
       SystemEvent.emit("Users", "UPDATE", "User Status Changed", "WARN", obj.username, "User account was manually " + actionVerb + ".");
     }
-
-    return "Success! User updated.";
-  } catch (e) { return "Error: " + e.message; }
+    return { success: true, rowIndex: row, message: "Success! User updated." };
+  } catch (e) { return { error: "Error: " + e.message }; }
 }
 
 function updateMyProfileRecord(obj) {
@@ -236,9 +237,28 @@ function getUserById(rowIndex) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var rowData = sheet.getRange(rowIndex, 1, 1, 9).getDisplayValues()[0];
+    var username = rowData[1];
+    var lastUpdated = getEventTimestampFromLogs("Users", "UPDATE", username);
+
     return {
-      rowIndex: rowIndex, username: rowData[1], role: rowData[2], email: rowData[3], password: rowData[4],
-      firstName: rowData[5], lastName: rowData[6], status: rowData[7], lastLogin: rowData[8]
+      rowIndex: rowIndex, timestamp: rowData[0], lastUpdated: lastUpdated, username: username, role: rowData[2], email: rowData[3], 
+      password: rowData[4], firstName: rowData[5], lastName: rowData[6], status: rowData[7], lastLogin: rowData[8]
+    };
+  } catch (e) { return { error: e.message }; }
+}
+
+function getRoleById(rowIndex) {
+  try {
+    var sheet = ensureRolesSheet();
+    var rowData = sheet.getRange(rowIndex, 1, 1, 5).getDisplayValues()[0];
+    var roleName = rowData[1];
+    var createdOn = getEventTimestampFromLogs("Users:Roles", "CREATE", roleName);
+    if (createdOn === "Not recorded" && (roleName === "Administrator" || roleName === "Admin")) createdOn = "System Default";
+    var lastUpdated = getEventTimestampFromLogs("Users:Roles", "UPDATE", roleName);
+
+    return {
+      rowIndex: rowIndex, id: rowData[0], name: roleName, description: rowData[2],
+      permissions: rowData[3], status: rowData[4], createdOn: createdOn, lastUpdated: lastUpdated
     };
   } catch (e) { return { error: e.message }; }
 }
@@ -363,29 +383,34 @@ function getRolesList() {
 function saveRoleRecord(obj) {
   try {
     var sheet = ensureRolesSheet();
-    if (obj.name === 'Administrator' || obj.name === 'Admin') {
-      obj.permissions = '{"ALL":["ALL"]}';
-    }
+    var activeUserEmail = Session.getActiveUser().getEmail(); 
+    var targetRow;
+    
+    if (obj.name === 'Administrator' || obj.name === 'Admin') obj.permissions = '{"ALL":["ALL"]}';
     
     if (obj.rowIndex) {
-      var oldData = sheet.getRange(parseInt(obj.rowIndex), 1, 1, 5).getValues()[0];
-      var oldStatus = oldData[4]; // Status is Index 4
+      targetRow = parseInt(obj.rowIndex);
+      var oldData = sheet.getRange(targetRow, 1, 1, 5).getValues()[0];
+      var oldStatus = oldData[4];
       
-      sheet.getRange(obj.rowIndex, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
-      SystemEvent.emit("Users", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.");
+      sheet.getRange(targetRow, 2, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
       
-      // NEW: Granular Activation Logging
+      // NEW: Uses Sub-Module SystemEvent identifier
+      SystemEvent.emit("Users:Roles", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.", activeUserEmail);
       if (oldStatus !== obj.status) {
         var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
-        SystemEvent.emit("Users", "UPDATE", "Role Status Changed", "WARN", obj.name, "Role was manually " + actionVerb + ".");
+        SystemEvent.emit("Users:Roles", "UPDATE", "Role Status Changed", "WARN", obj.name, "Role was manually " + actionVerb + ".", activeUserEmail);
       }
     } else {
       var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
       sheet.appendRow([ roleId, obj.name, obj.description, obj.permissions, obj.status ]);
-      SystemEvent.emit("Users", "CREATE", "Add Role", "INFO", obj.name, "New system role established.");
+      targetRow = sheet.getLastRow();
+      
+      // NEW: Uses Sub-Module SystemEvent identifier
+      SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", obj.name, "New system role established.", activeUserEmail);
     }
-    return "Success! Role saved.";
-  } catch (e) { return "Error: " + e.message; }
+    return { success: true, rowIndex: targetRow, message: "Success! Role saved." };
+  } catch (e) { return { error: "Error: " + e.message }; }
 }
 
 function getUserPermissions(roleName) {
@@ -441,11 +466,12 @@ function verifyUserCredentials(loginId, password) {
 
 function getDynamicPermissionMatrix() {
   var matrix = {
-    "Core System": ["Manage Settings", "Manage Roles"],
-    "Access & Users": ["View Users", "Manage Users"],
+    "Core System": ["Manage Settings"],
+    "Access & Users": ["View Users", "Manage Users", "Manage Roles"],
     "Templates": ["View Templates", "Manage Templates"],
     "System Logs": ["View Logs"]
   };
+  
   var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
   if (installed) {
     installed.split(',').forEach(function(modName) {

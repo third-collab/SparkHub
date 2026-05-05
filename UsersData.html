@@ -148,6 +148,20 @@
   </div>
 
   <div id="roles-sub-view" style="display: none;">
+    <div class="filter-wrapper">
+      <input type="text" id="role-filter-search" class="filter-input" placeholder="Search roles..." onkeyup="applyRoleFilters()">
+      <button class="btn-filter-toggle" onclick="toggleFilter('role-adv')">Filters</button>
+      <div id="role-adv" class="filter-advanced">
+        <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('role-status-drop')">Status ▼</button>
+          <div class="dropdown-content" id="role-status-drop">
+            <label><input type="checkbox" class="role-filter-status-cb" value="Active" checked onchange="applyRoleFilters()"> Active</label>
+            <label><input type="checkbox" class="role-filter-status-cb" value="Inactive" onchange="applyRoleFilters()"> Inactive</label>
+          </div>
+        </div>
+        <button type="button" class="btn-reset-filters" onclick="resetRoleFilters()">Reset</button>
+      </div>
+    </div>
+
     <div class="table-container">
       <div id="role-list-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
       <table>
@@ -208,6 +222,7 @@
     <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit User Access</h2>
     <form id="editUserForm" onsubmit="handleEditUserSubmit(event)" novalidate>
       <input type="hidden" id="edt-user-rowIndex">
+      <input type="hidden" id="edt-user-source">
       <div class="form-row">
         <div class="form-group"><label>First Name *</label><input type="text" id="edt-user-first" class="form-control" required></div>
         <div class="form-group"><label>Last Name *</label><input type="text" id="edt-user-last" class="form-control" required></div>
@@ -260,12 +275,14 @@
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">System Profile</h4>
         <p><strong>Username:</strong> <span id="ro-user-username"></span></p>
         <p><strong>System Role:</strong> <span id="ro-user-role"></span></p>
+        <p><strong>Created On:</strong> <span id="ro-user-created" style="color: #64748b; font-size:13px;"></span></p>
+        <p><strong>Last Updated:</strong> <span id="ro-user-updated" style="color: #64748b; font-size:13px;"></span></p>
       </div>
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Authentication</h4>
         <p><strong>System Email:</strong> <span id="ro-user-email"></span></p>
         <p><strong>Local Password:</strong> <span id="ro-user-password" style="font-family: monospace;"></span></p>
-        <p><strong>Last Login:</strong> <span id="ro-user-lastlogin" style="color: #64748b;"></span></p>
+        <p><strong>Last Login:</strong> <span id="ro-user-lastlogin" style="color: #64748b; font-size:13px;"></span></p>
       </div>
     </div>
   </div>
@@ -340,6 +357,7 @@
     
     <form id="roleForm" onsubmit="handleRoleSubmit(event)">
       <input type="hidden" id="edt-role-rowIndex">
+      <input type="hidden" id="edt-role-source">
       <div class="form-row">
         <div class="form-group"><label>Role Name *</label><input type="text" id="edt-role-name" class="form-control" required></div>
         <div class="form-group"><label>Status</label>
@@ -364,6 +382,31 @@
   </div>
 </div>
 
+<div id="readOnlyRoleView" class="container" style="display: none;">
+  <button id="btn-back-ro-role" class="btn-dash-back" onclick="switchView('usersListView'); toggleUserSubView('roles');">&#8592; Back to Roles</button>
+  <div class="form-wrapper">
+    <div id="ro-role-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Role...</span></div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
+       <div>
+          <h2 id="ro-role-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
+          <p id="ro-role-desc" style="margin:8px 0 0 0; color:#64748b; font-size:14px;"></p>
+          <div id="ro-role-status" style="margin-top: 8px;"></div>
+       </div>
+       <button id="ro-role-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Access & Users" data-perm-action="Manage Roles">Edit Role</button>
+    </div>
+
+    <div style="display: flex; gap: 40px; margin-bottom: 25px; font-size: 13px; color: #475569;">
+       <p style="margin:0;"><strong>Role ID:</strong> <span id="ro-role-id"></span></p>
+       <p style="margin:0;"><strong>Created On:</strong> <span id="ro-role-created"></span></p>
+       <p style="margin:0;"><strong>Last Updated:</strong> <span id="ro-role-updated"></span></p>
+    </div>
+
+    <h3 style="font-size: 16px; margin-bottom: 15px; color: var(--brand-dark); border-top: 1px solid #eee; padding-top: 20px;">Assigned Permissions</h3>
+    <div id="ro-permission-matrix-container"></div>
+  </div>
+</div>
+
 <script>
   var GLOBAL_USER_DATA = [];
   var GLOBAL_ROLES_DATA = [];
@@ -377,7 +420,7 @@
   function handleRoleSort(column) {
     if (CURRENT_ROLE_SORT_COLUMN === column) { CURRENT_ROLE_SORT_DESC = !CURRENT_ROLE_SORT_DESC; } 
     else { CURRENT_ROLE_SORT_COLUMN = column; CURRENT_ROLE_SORT_DESC = false; }
-    renderRolesTable();
+    applyRoleFilters();
   }
 
   // ----------------------------------------------------------------
@@ -466,7 +509,8 @@
     } else {
       usersView.style.display = 'none'; rolesView.style.display = 'block';
       document.getElementById('btn-tab-roles').classList.add('active');
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Core System" data-perm-action="Manage Roles">+ Create Role</button>`;
+      // FIX: Changed data-perm-category from 'Core System' to 'Access & Users'
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Access & Users" data-perm-action="Manage Roles">+ Create Role</button>`;
       openRolesList();
     }
     if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
@@ -671,8 +715,19 @@
   }
 
   function resetUserFilters() {
-    document.getElementById('user-filter-search').value = '';
-    document.querySelectorAll('.user-filter-status-cb, .user-filter-role-cb').forEach(cb => cb.checked = true);
+    var searchBox = document.getElementById('user-filter-search');
+    if (searchBox) searchBox.value = '';
+    
+    // FIX: Strictly default Status back to 'Active' only
+    document.querySelectorAll('.user-filter-status-cb').forEach(cb => {
+      cb.checked = (cb.value === 'Active');
+    });
+
+    // Reset Roles so all are checked
+    document.querySelectorAll('.user-filter-role-cb').forEach(cb => {
+      cb.checked = true;
+    });
+    
     applyUserFilters();
   }
 
@@ -722,7 +777,7 @@
       tr.onclick = function(e) { if (!e.target.closest('.btn-edit')) openReadOnlyUser(u.rowIndex); };
       
       var badgeClass = "badge badge-" + (u.status || "").toLowerCase();
-      var editBtnHtml = ${hasPermission('Access & Users', 'Manage Users') ? `<td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}, 'list'); event.stopPropagation();">Edit</button></td>` : `<td></td>`}
+      var editBtnHtml = hasPermission('Access & Users', 'Manage Users') ? `<td><button class="btn-edit" onclick="openEditUserForm(${u.rowIndex}, 'list'); event.stopPropagation();">Edit</button></td>` : `<td></td>`;
 
       tr.innerHTML = `
         <td><strong>${u.username}</strong></td>
@@ -753,32 +808,26 @@
 
   function handleAddUserSubmit(e) {
     if(e) e.preventDefault();
-    var username = document.getElementById('add-user-username').value;
-    if (!username) return;
-
     toggleUserOverlay('add-user-overlay', true, 'Creating Profile...');
     var btn = document.getElementById('add-user-submit');
     btn.disabled = true;
 
     var userData = {
-      username: username, 
-      role: document.getElementById('add-user-role').value,
-      email: document.getElementById('add-user-email').value, 
-      password: document.getElementById('add-user-password').value,
-      firstName: document.getElementById('add-user-first').value, 
-      lastName: document.getElementById('add-user-last').value, 
-      status: document.getElementById('add-user-status').value || "Active" // Safe fallback
+      username: document.getElementById('add-user-username').value, role: document.getElementById('add-user-role').value,
+      email: document.getElementById('add-user-email').value, password: document.getElementById('add-user-password').value,
+      firstName: document.getElementById('add-user-first').value, lastName: document.getElementById('add-user-last').value, status: document.getElementById('add-user-status').value || "Active"
     };
 
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('add-user-overlay', false);
       var msg = document.getElementById('add-user-msg');
-      if (res.includes("Success")) {
-        if(msg) { msg.style.color = "green"; msg.innerHTML = res; }
-        setTimeout(() => { initUsersModule(); }, 1000);
+      if (res.success) {
+        btn.disabled = false;
+        loadUsersTable();
+        openReadOnlyUser(res.rowIndex); // Instant Redirect
       } else { 
         btn.disabled = false; 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
       }
     }).processNewUser(userData);
   }
@@ -786,10 +835,11 @@
   function openEditUserForm(rowIndex, source) {
     switchView('editUserView');
     document.getElementById('editUserForm').reset();
+    document.getElementById('edt-user-source').value = source || 'list';
+    
     var msg = document.getElementById('edt-user-msg');
     if (msg) msg.innerHTML = '';
     
-    // Dynamic Back Button
     var backBtn = document.getElementById('btn-back-edit-user');
     if (backBtn) {
       if (source === 'view') {
@@ -800,13 +850,8 @@
         backBtn.onclick = function() { switchView('usersListView'); toggleUserSubView('users'); };
       }
     }
-    
-    // Purge Ghost Data
-    document.getElementById('edt-user-username').value = "Loading...";
-    document.getElementById('edt-user-email').value = "";
-    document.getElementById('edt-user-first').value = "";
-    document.getElementById('edt-user-last').value = "";
 
+    document.getElementById('edt-user-username').value = "Loading...";
     toggleUserOverlay('edit-user-overlay', true, 'Fetching Data...');
 
     google.script.run.withSuccessHandler(function(data) {
@@ -851,45 +896,32 @@
     toggleUserOverlay('edit-user-overlay', true, 'Saving Changes...');
     var btn = document.getElementById('edt-user-submit');
     btn.disabled = true;
+    var source = document.getElementById('edt-user-source').value;
 
     var userData = {
-      rowIndex: document.getElementById('edt-user-rowIndex').value,
-      username: document.getElementById('edt-user-username').value,
-      role: document.getElementById('edt-user-role').value,
-      email: document.getElementById('edt-user-email').value,
-      password: document.getElementById('edt-user-password').value,
-      firstName: document.getElementById('edt-user-first').value,
-      lastName: document.getElementById('edt-user-last').value,
-      status: document.getElementById('edt-user-status').value || "Active"
+      rowIndex: document.getElementById('edt-user-rowIndex').value, username: document.getElementById('edt-user-username').value,
+      role: document.getElementById('edt-user-role').value, email: document.getElementById('edt-user-email').value,
+      password: document.getElementById('edt-user-password').value, firstName: document.getElementById('edt-user-first').value,
+      lastName: document.getElementById('edt-user-last').value, status: document.getElementById('edt-user-status').value || "Active"
     };
 
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('edit-user-overlay', false);
       var msg = document.getElementById('edt-user-msg');
-      if (res.includes("Success")) {
+      if (res.success) {
+        btn.disabled = false; 
         loadUsersTable(); 
-        openReadOnlyUser(userData.rowIndex);
+        if (source === 'view') { openReadOnlyUser(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('users'); }
       } else { 
         btn.disabled = false; 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
       }
     }).updateUserRecord(userData);
   }
 
   function openReadOnlyUser(rowIndex) {
     switchView('readOnlyUserView');
-    
-    // Purge Ghost Data
     document.getElementById('ro-user-fullname').innerText = "Loading profile...";
-    document.getElementById('ro-user-subline').innerText = "";
-    document.getElementById('ro-user-initial').innerText = "";
-    document.getElementById('ro-user-status-pill').innerHTML = "";
-    document.getElementById('ro-user-username').innerText = "Loading...";
-    document.getElementById('ro-user-role').innerText = "Loading...";
-    document.getElementById('ro-user-email').innerText = "Loading...";
-    document.getElementById('ro-user-lastlogin').innerText = "";
-    document.getElementById('ro-user-password').innerText = "";
-
     toggleUserOverlay('ro-user-overlay', true, 'Loading Profile...');
 
     google.script.run.withSuccessHandler(function(data) {
@@ -907,7 +939,10 @@
       document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
       document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
       
-      // Pass 'view' source
+      // NEW: Log Timestamps
+      document.getElementById('ro-user-created').innerText = data.timestamp || "Not recorded";
+      document.getElementById('ro-user-updated').innerText = data.lastUpdated || "Not recorded";
+      
       document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex, 'view'); };
     }).getUserById(rowIndex);
   }
@@ -917,73 +952,113 @@
      ======================================================================== */
 
   function openRolesList() {
-    switchView('rolesListView');
     toggleUserOverlay('role-list-overlay', true);
     google.script.run.withSuccessHandler(function(roles) {
       toggleUserOverlay('role-list-overlay', false);
       GLOBAL_ROLES_DATA = roles || [];
-      renderRolesTable();
-      populateDynamicRoleUI(); // Keep filters in sync
+      applyRoleFilters(); // Filters out Inactive roles by default
+      populateDynamicRoleUI(); 
     }).getRolesList();
   }
 
-  function renderRolesTable() {
-    var tbody = document.getElementById('roleTableBody');
-    tbody.innerHTML = '';
-    
-    // 1. Sort the roles data before rendering
-    var sortedRoles = [...GLOBAL_ROLES_DATA].sort(function(a, b) {
-      var valA = String(a[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
-      var valB = String(b[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
-      if (valA < valB) return CURRENT_ROLE_SORT_DESC ? 1 : -1;
-      if (valA > valB) return CURRENT_ROLE_SORT_DESC ? -1 : 1;
-      return 0;
+  function applyRoleFilters() {
+    var search = document.getElementById('role-filter-search').value.toLowerCase();
+    var checkedStatuses = Array.from(document.querySelectorAll('.role-filter-status-cb:checked')).map(cb => cb.value);
+
+    var filtered = GLOBAL_ROLES_DATA.filter(function(r) {
+      var matchS = (r.name + (r.description || "")).toLowerCase().includes(search);
+      var matchSt = checkedStatuses.length === 0 || checkedStatuses.includes(r.status);
+      return matchS && matchSt;
     });
 
-    // 2. Manage UI Sort Icons
+    renderRolesTable(filtered);
+  }
+
+  function resetRoleFilters() {
+    var searchBox = document.getElementById('role-filter-search');
+    if (searchBox) searchBox.value = '';
+    
+    // Strictly default back to 'Active' only
+    document.querySelectorAll('.role-filter-status-cb').forEach(cb => {
+      cb.checked = (cb.value === 'Active');
+    });
+    
+    applyRoleFilters();
+  }
+
+  function renderRolesTable(rolesData) {
+    var tbody = document.getElementById('roleTableBody');
+    tbody.innerHTML = '';
+    if (!rolesData || rolesData.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px;">No roles match your criteria.</td></tr>'; return; }
+    
+    var sortedRoles = [...rolesData].sort(function(a, b) {
+      var valA = String(a[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase(); var valB = String(b[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
+      if (valA < valB) return CURRENT_ROLE_SORT_DESC ? 1 : -1; if (valA > valB) return CURRENT_ROLE_SORT_DESC ? -1 : 1; return 0;
+    });
+
     document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('rsort-')) icon.innerHTML = ''; });
-    var iconEl = document.getElementById('rsort-' + CURRENT_ROLE_SORT_COLUMN);
-    if (iconEl) iconEl.innerHTML = CURRENT_ROLE_SORT_DESC ? '▼' : '▲';
+    var iconEl = document.getElementById('rsort-' + CURRENT_ROLE_SORT_COLUMN); if (iconEl) iconEl.innerHTML = CURRENT_ROLE_SORT_DESC ? '▼' : '▲';
 
     sortedRoles.forEach(function(r) {
       var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      var editRoleHtml = hasPermission('Core System', 'Manage Roles')
-        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex})">Edit Role</button></td>`
-        : `<td></td>`;
+      
+      var editRoleHtml = hasPermission('Access & Users', 'Manage Roles')
+        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex}, 'list'); event.stopPropagation();">Edit Role</button></td>` : `<td></td>`;
 
-      tbody.innerHTML += `
-        <tr>
-          <td><strong>${r.name}</strong></td>
-          <td>${r.description || "-"}</td>
-          <td><span class="badge ${sClass}">${r.status}</span></td>
-          ${editRoleHtml}
-        </tr>
-      `;
+      var tr = document.createElement('tr');
+      tr.style.cursor = "pointer";
+      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyRole(r.rowIndex); };
+      
+      tr.innerHTML = `<td><strong>${r.name}</strong></td><td>${r.description || "-"}</td><td><span class="badge ${sClass}">${r.status}</span></td>${editRoleHtml}`;
+      tbody.appendChild(tr);
     });
+  }
+
+  function openReadOnlyRole(rowIndex) {
+    switchView('readOnlyRoleView');
+    document.getElementById('ro-role-name').innerText = "Loading attributes...";
+    toggleUserOverlay('ro-role-overlay', true, 'Pulling Role Matrix...');
+
+    google.script.run.withSuccessHandler(function(data) {
+      document.getElementById('ro-role-name').innerText = data.name;
+      document.getElementById('ro-role-desc').innerText = data.description || "No description provided.";
+      document.getElementById('ro-role-id').innerText = data.id;
+      document.getElementById('ro-role-created').innerText = data.createdOn || "Not recorded";
+      document.getElementById('ro-role-updated').innerText = data.lastUpdated || "Not recorded";
+      
+      var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      document.getElementById('ro-role-status').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
+
+      document.getElementById('ro-role-edit-btn').onclick = () => openEditRoleForm(data.rowIndex, 'view');
+      
+      var isSystemAdmin = (data.name === 'Administrator');
+      var savedPerms = {};
+      try { savedPerms = JSON.parse(data.permissions || "{}"); } catch(e){}
+
+      google.script.run.withSuccessHandler(function(matrix) {
+         toggleUserOverlay('ro-role-overlay', false);
+         renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, 'ro-permission-matrix-container', true);
+      }).getDynamicPermissionMatrix();
+      
+    }).getRoleById(rowIndex);
   }
 
   // Ensure renderPermissionMatrix accepts the new matrix parameter
   // Replace these functions inside the <script> block of UsersData.html
 
-  function renderPermissionMatrix(savedPerms, matrix, isSystemAdmin) {
-    var container = document.getElementById('permission-matrix-container');
+  function renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, containerId, isReadOnly) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = '';
     
-    // Custom Priority Order for Core Modules
     var priorityOrder = ["Core System", "Access & Users", "Templates", "System Logs"];
-    var allCategories = Object.keys(matrix);
-
-    // Sort categories based on priority order, then alphabetically
-    allCategories.sort(function(a, b) {
-      var idxA = priorityOrder.indexOf(a);
-      var idxB = priorityOrder.indexOf(b);
+    var allCategories = Object.keys(matrix).sort(function(a, b) {
+      var idxA = priorityOrder.indexOf(a); var idxB = priorityOrder.indexOf(b);
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
+      if (idxA !== -1) return -1; if (idxB !== -1) return 1;
       return a.localeCompare(b);
     });
 
-    // Administrator Override Notice
     if (isSystemAdmin) {
        container.innerHTML = '<div style="padding:15px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:20px; font-size:13px; color:#1e3a8a;"><strong>System Administrator</strong> roles have unrestricted access. Individual permissions cannot be edited.</div>';
     }
@@ -991,10 +1066,8 @@
     allCategories.forEach(function(category) {
       var html = `<div class="perm-group"><div class="perm-group-title">${category}</div><div class="perm-group-items">`;
       matrix[category].forEach(function(perm) {
-        // Admins automatically get all boxes visually checked and disabled
         var isChecked = (isSystemAdmin || (savedPerms[category] && savedPerms[category].includes(perm))) ? "checked" : "";
-        var isDisabled = isSystemAdmin ? "disabled" : "";
-        
+        var isDisabled = (isSystemAdmin || isReadOnly) ? "disabled" : "";
         html += `<label class="perm-cb-label"><input type="checkbox" class="role-perm-cb" data-category="${category}" value="${perm}" ${isChecked} ${isDisabled}> ${perm}</label>`;
       });
       html += `</div></div>`;
@@ -1016,16 +1089,23 @@
     }).getDynamicPermissionMatrix();
   }
 
-  function openEditRoleForm(rowIndex) {
+  function openEditRoleForm(rowIndex, source) {
     switchView('editRoleView');
     document.getElementById('roleForm').reset();
+    document.getElementById('edt-role-source').value = source || 'list';
     document.getElementById('role-form-title').innerText = "Edit Role Configuration";
     
-    // Purge Ghost Data
-    document.getElementById('edt-role-name').value = "Loading...";
-    document.getElementById('edt-role-desc').value = "";
-    document.getElementById('permission-matrix-container').innerHTML = "";
-    
+    var backBtn = document.getElementById('btn-back-edit-role');
+    if (backBtn) {
+      if (source === 'view') {
+        backBtn.innerHTML = '&#8592; Back to Role Details';
+        backBtn.onclick = function() { openReadOnlyRole(rowIndex); };
+      } else {
+        backBtn.innerHTML = '&#8592; Back to Roles';
+        backBtn.onclick = function() { switchView('usersListView'); toggleUserSubView('roles'); };
+      }
+    }
+
     var role = GLOBAL_ROLES_DATA.find(r => r.rowIndex === rowIndex);
     if (!role) return;
 
@@ -1043,15 +1123,15 @@
     toggleUserOverlay('role-edit-overlay', true, "Loading Matrix...");
     google.script.run.withSuccessHandler(function(matrix) {
        toggleUserOverlay('role-edit-overlay', false);
-       renderPermissionMatrix(savedPerms, matrix, isSystemAdmin);
+       renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, 'permission-matrix-container', false);
     }).getDynamicPermissionMatrix();
   }
 
   function handleRoleSubmit(e) {
     e.preventDefault();
     toggleUserOverlay('role-edit-overlay', true);
+    var source = document.getElementById('edt-role-source').value;
     
-    // Gather permissions from matrix
     var finalPerms = {};
     document.querySelectorAll('.role-perm-cb:checked').forEach(function(cb) {
       var cat = cb.getAttribute('data-category');
@@ -1060,16 +1140,17 @@
     });
 
     var payload = {
-      rowIndex: document.getElementById('edt-role-rowIndex').value,
-      name: document.getElementById('edt-role-name').value,
-      description: document.getElementById('edt-role-desc').value,
-      status: document.getElementById('edt-role-status').value,
+      rowIndex: document.getElementById('edt-role-rowIndex').value, name: document.getElementById('edt-role-name').value,
+      description: document.getElementById('edt-role-desc').value, status: document.getElementById('edt-role-status').value,
       permissions: JSON.stringify(finalPerms)
     };
 
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('role-edit-overlay', false);
-      if(res.includes("Success")) { openRolesList(); } else { alert(res); }
+      if(res.success) { 
+        openRolesList(); 
+        if (source === 'view' || !payload.rowIndex) { openReadOnlyRole(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('roles'); }
+      } else { alert(res.error || res); }
     }).saveRoleRecord(payload);
   }
   

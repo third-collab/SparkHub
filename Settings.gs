@@ -1,3 +1,16 @@
+// --- SETTINGS & SYSTEM REGISTRY EXPORTS ---
+function System_getTriggers() {
+  return ["System:INSTALL"];
+}
+
+function Settings_getTriggers() {
+  return ["Settings:UPDATE"];
+}
+
+function Settings_getPlaceholders() {
+  return ["systemName", "systemLogoUrl", "environment", "adminEmail"];
+}
+
 /**
  * [SPARKHUB INTEGRITY HEADER: START]
  * FILE: Settings.gs

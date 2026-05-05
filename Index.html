@@ -67,7 +67,7 @@
   <? } ?>
 
   <div class="header">
-    <div class="header-logo">
+    <div class="header-logo" onclick="switchView('dashboardView')" style="cursor: pointer;" title="Back to Dashboard">
       <img id="hub-system-logo" src="<?= typeof systemLogoUrl !== 'undefined' && systemLogoUrl ? systemLogoUrl : appFallbackLogo ?>" alt="System Logo" style="height: 40px; margin-right: 15px; object-fit: contain;">
       <h1 id="hub-system-name"><?= typeof systemName !== 'undefined' && systemName ? systemName : 'SparkHub' ?></h1>
     </div>

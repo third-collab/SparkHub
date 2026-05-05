@@ -210,12 +210,7 @@
         </div>
         <div class="form-row">
           <div class="form-group"><label>Trigger Event *</label>
-            <select id="edt-tpl-trigger" class="form-control" required>
-              <option value="Users:CREATE">Users:CREATE</option>
-              <option value="Users:RESET_REQUEST">Users:RESET_REQUEST</option>
-              <option value="Users:PASSWORD_UPDATED">Users:PASSWORD_UPDATED</option>
-              <option value="Roles:CREATE">Roles:CREATE</option>
-            </select>
+            <select id="edt-tpl-trigger" class="form-control" required></select>
           </div>
           <div class="form-group"><label>HTML Wrapper</label>
             <select id="edt-tpl-wrapper" class="form-control"></select>
@@ -383,6 +378,7 @@
      1. GLOBAL STATE & COMPONENT SYNC
      ======================================================================== */
   var GLOBAL_TEMPLATE_DATA = [];
+  var GLOBAL_SYSTEM_TRIGGERS = []; // NEW: Holds dynamic registry
   var CURRENT_TPL_SORT_COLUMN = 'name';
   var CURRENT_TPL_SORT_DESC = false;
   var tplQuill;
@@ -395,11 +391,17 @@
     google.script.run.withSuccessHandler(function(wrappers) {
       GLOBAL_WRAPPER_DATA = wrappers || [];
       google.script.run.withSuccessHandler(function(templates) {
-        toggleTemplateOverlay('tpl-list-overlay', false);
         GLOBAL_TEMPLATE_DATA = templates || [];
-        populateTemplateFilters();
-        applyTemplateFilters();
-        if (callback) callback();
+        
+        // NEW: Fetch dynamic triggers from the backend registry
+        google.script.run.withSuccessHandler(function(triggers) {
+           GLOBAL_SYSTEM_TRIGGERS = triggers || [];
+           populateTemplateFilters();
+           applyTemplateFilters();
+           toggleTemplateOverlay('tpl-list-overlay', false);
+           if (callback) callback();
+        }).getDynamicTriggerRegistry();
+        
       }).getTemplatesList();
     }).getWrappersList();
   }
@@ -504,6 +506,7 @@
 
   function openAddTemplateForm() {
     syncWrapperDropdown();
+    syncTriggerDropdown(); // NEW: Maps registry to form
     resetAccordions('editTemplateView');
     switchView('editTemplateView');
     document.getElementById('editTemplateForm').reset();
@@ -554,6 +557,7 @@
   // Add this to your existing openEditTemplateForm
   function openEditTemplateForm(rowIndex, source) {
     syncWrapperDropdown();
+    syncTriggerDropdown(); // NEW: Maps registry to form
     resetAccordions('editTemplateView');
     switchView('editTemplateView');
     initTplEditor();
@@ -868,6 +872,15 @@
     var select = document.getElementById('edt-tpl-wrapper');
     if (!select) return;
     select.innerHTML = GLOBAL_WRAPPER_DATA.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+  }
+
+  /**
+   * Fetches triggers from memory and updates the dropdown in the Template Editor.
+   */
+  function syncTriggerDropdown() {
+    var select = document.getElementById('edt-tpl-trigger');
+    if (!select) return;
+    select.innerHTML = GLOBAL_SYSTEM_TRIGGERS.map(t => `<option value="${t}">${t}</option>`).join('');
   }
 
   /* ========================================================================
