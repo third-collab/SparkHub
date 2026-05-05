@@ -1,4 +1,13 @@
-// --- SETTINGS & SYSTEM REGISTRY EXPORTS ---
+/**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Settings.gs
+ * VERSION: 1.6 (Utility Integration - Generic Upload)
+ * SYNC STATUS: Fully Synchronized with SettingsData.html & Utils.gs
+ */
+
+// ========================================================================
+// 1. REGISTRY EXPORTS
+// ========================================================================
 function System_getTriggers() {
   return ["System:INSTALL"];
 }
@@ -11,18 +20,29 @@ function Settings_getPlaceholders() {
   return ["systemName", "systemLogoUrl", "environment", "adminEmail"];
 }
 
+// ========================================================================
+// 2. CORE PROCESSORS
+// ========================================================================
 /**
- * [SPARKHUB INTEGRITY HEADER: START]
- * FILE: Settings.gs
- * VERSION: 1.6 (Utility Integration - Generic Upload)
- * SYNC STATUS: Fully Synchronized with SettingsData.html & Utils.gs
+ * Uploads the custom system logo to Drive utilizing the Generic Upload Engine.
  */
+function uploadSystemLogo(base64, filename) {
+  try {
+    // 1. Navigate/Create the specific Assets path
+    var assetsFolder = getSystemSubfolder("System Assets");
+    var sFolder = getOrCreateFolder(assetsFolder, "Settings");
+    var iFolder = getOrCreateFolder(sFolder, "Images");
+    
+    // 2. Utilize the Generic Utility
+    return uploadBase64File(base64, filename, iFolder);
+  } catch (e) { 
+    return { error: "Logo Sync Error: " + e.message };
+  }
+}
 
-/**
- * Settings Module - Backend
- * Standardized under SparkHub Architecture Blueprint.
- */
-
+// ========================================================================
+// 3. READ / GET FUNCTIONS
+// ========================================================================
 /**
  * Retrieves global environment, branding, storage, and registry settings.
  */
@@ -70,45 +90,9 @@ function getSystemSettings() {
   }
 }
 
-/**
- * Validates a Google Sheet ID structure.
- */
-function validateDatabase(id) {
-  try {
-    var ss = SpreadsheetApp.openById(id);
-    if (!ss.getSheetByName("Users") || !ss.getSheetByName("Templates")) throw new Error("Missing Core Sheets.");
-    return true;
-  } catch (e) { throw new Error("Database Validation Failed: " + e.message); }
-}
-
-function validateLogsDatabase(id) {
-  try {
-    var ss = SpreadsheetApp.openById(id);
-    if (!ss.getSheetByName("System Logs")) throw new Error("Missing System Logs Sheet.");
-    return true;
-  } catch (e) { throw new Error("Logs Database Validation Failed: " + e.message); }
-}
-
-/**
- * Uploads the custom system logo to Drive utilizing the Generic Upload Engine.
- */
-function uploadSystemLogo(base64, filename) {
-  try {
-    // 1. Navigate/Create the specific Assets path
-    var assetsFolder = getSystemSubfolder("System Assets");
-    var sFolder = getOrCreateFolder(assetsFolder, "Settings");
-    var iFolder = getOrCreateFolder(sFolder, "Images");
-    
-    // 2. Utilize the Generic Utility
-    return uploadBase64File(base64, filename, iFolder);
-  } catch (e) { 
-    return { error: "Logo Sync Error: " + e.message }; 
-  }
-}
-
-/**
- * Saves environment overrides globally.
- */
+// ========================================================================
+// 4. WRITE / SAVE FUNCTIONS
+// ========================================================================
 /**
  * Saves environment overrides globally.
  */
@@ -141,11 +125,32 @@ function saveSystemSettings(settings) {
     if (settings.systemLogoId) props.setProperty('SYSTEM_LOGO_ID', settings.systemLogoId);
 
     SystemEvent.emit("Settings", "UPDATE", "System Configuration", "WARN", "Global Settings", "Core system architecture, identity, or theme settings were modified.");
-    
     return "Success! Settings updated.";
   } catch (e) { 
-    return "Error: " + e.message; 
+    return "Error: " + e.message;
   }
+}
+
+// ========================================================================
+// 5. INTERNAL HELPERS
+// ========================================================================
+/**
+ * Validates a Google Sheet ID structure.
+ */
+function validateDatabase(id) {
+  try {
+    var ss = SpreadsheetApp.openById(id);
+    if (!ss.getSheetByName("Users") || !ss.getSheetByName("Templates")) throw new Error("Missing Core Sheets.");
+    return true;
+  } catch (e) { throw new Error("Database Validation Failed: " + e.message); }
+}
+
+function validateLogsDatabase(id) {
+  try {
+    var ss = SpreadsheetApp.openById(id);
+    if (!ss.getSheetByName("System Logs")) throw new Error("Missing System Logs Sheet.");
+    return true;
+  } catch (e) { throw new Error("Logs Database Validation Failed: " + e.message); }
 }
 
 /**

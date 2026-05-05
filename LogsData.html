@@ -80,13 +80,22 @@
 </div>
 
 <script>
+  /* ========================================================================
+     1. GLOBAL STATE
+     ======================================================================== */
   var GLOBAL_LOGS_DATA = [];
 
+  /* ========================================================================
+     2. BOOTSTRAPPERS
+     ======================================================================== */
   function initLogsModule() {
     switchView('logsListView');
     loadLogsTable();
   }
 
+  /* ========================================================================
+     3. DATA LOADERS
+     ======================================================================== */
   function loadLogsTable() {
     google.script.run.withSuccessHandler(function(logs) {
       GLOBAL_LOGS_DATA = logs || [];
@@ -94,6 +103,9 @@
     }).getLogsList();
   }
 
+  /* ========================================================================
+     4. DATA MANIPULATION
+     ======================================================================== */
   function applyLogFilters() {
     var search = document.getElementById('log-filter-search').value.toLowerCase();
     var checkedMods = Array.from(document.querySelectorAll('.log-filter-mod-cb:checked')).map(cb => cb.value);
@@ -107,6 +119,15 @@
     renderLogTableRows(filtered);
   }
 
+  function resetLogFilters() {
+    document.getElementById('log-filter-search').value = '';
+    document.querySelectorAll('.log-filter-mod-cb').forEach(cb => cb.checked = true);
+    applyLogFilters();
+  }
+
+  /* ========================================================================
+     5. RENDERERS
+     ======================================================================== */
   function renderLogTableRows(logs) {
     var tbody = document.getElementById('logTableBody');
     tbody.innerHTML = '';
@@ -128,9 +149,18 @@
     });
   }
 
-  function resetLogFilters() {
-    document.getElementById('log-filter-search').value = '';
-    document.querySelectorAll('.log-filter-mod-cb').forEach(cb => cb.checked = true);
-    applyLogFilters();
-  }
+  /* ========================================================================
+     6. VIEW ROUTERS & FORM OPENERS
+     ======================================================================== */
+  // N/A
+
+  /* ========================================================================
+     7. SUBMIT HANDLERS
+     ======================================================================== */
+  // N/A
+
+  /* ========================================================================
+     8. UI HELPERS
+     ======================================================================== */
+  // N/A
 </script>

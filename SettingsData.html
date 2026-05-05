@@ -160,6 +160,14 @@
 </div>
 
 <script>
+  /* ========================================================================
+     1. GLOBAL STATE
+     ======================================================================== */
+  // No global state required for the Settings Module currently.
+
+  /* ========================================================================
+     2. BOOTSTRAPPERS
+     ======================================================================== */
   function initSettingsModule() {
     switchView('readOnlySettingsView');
     injectSettingsFragments();
@@ -197,28 +205,9 @@
     });
   }
 
-  function navigateClientTab(prefix, tabId) {
-    var target = document.getElementById(prefix + '-' + tabId);
-    if (!target) return;
-    var container = target.closest('.container');
-    container.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    target.style.display = 'block';
-    var btn = document.getElementById('btn-' + prefix + '-' + tabId);
-    if (btn) btn.classList.add('active');
-  }
-
-  function syncColorInput(source, targetId) {
-    var target = document.getElementById(targetId);
-    if (target) {
-      target.value = source.value.toUpperCase();
-      if (source.type === 'text') {
-        var picker = document.getElementById(targetId + '-pick');
-        if (picker) picker.value = source.value;
-      }
-    }
-  }
-
+  /* ========================================================================
+     3. DATA LOADERS
+     ======================================================================== */
   function loadSettings() {
     toggleSettingsOverlay('ro-settings-overlay', true, 'Syncing Registry...');
     google.script.run.withSuccessHandler(function(data) {
@@ -256,6 +245,39 @@
     }).getSystemSettings();
   }
 
+  /* ========================================================================
+     4. DATA MANIPULATION
+     ======================================================================== */
+  // Settings are directly bound to inputs, no array manipulation required.
+
+  /* ========================================================================
+     5. RENDERERS
+     ======================================================================== */
+  function renderRegistryList(containerId, registryString, type) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var items = (registryString || "").split(',').filter(i => i && i.trim() !== "");
+    if (items.length === 0) {
+      container.innerHTML = `<p style="font-size: 11px; color: #94a3b8; font-style: italic;">No ${type} discovered.</p>`;
+      return;
+    }
+    container.innerHTML = items.map(item => `<span class="registry-tag">${item.trim()}</span>`).join('');
+  }
+
+  /* ========================================================================
+     6. VIEW ROUTERS & FORM OPENERS
+     ======================================================================== */
+  function navigateClientTab(prefix, tabId) {
+    var target = document.getElementById(prefix + '-' + tabId);
+    if (!target) return;
+    var container = target.closest('.container');
+    container.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    target.style.display = 'block';
+    var btn = document.getElementById('btn-' + prefix + '-' + tabId);
+    if (btn) btn.classList.add('active');
+  }
+
   function openEditSettingsForm() {
     switchView('editSettingsView');
     navigateClientTab('set-edt', 'core');
@@ -289,17 +311,9 @@
     }).getSystemSettings();
   }
 
-  function renderRegistryList(containerId, registryString, type) {
-    var container = document.getElementById(containerId);
-    if (!container) return;
-    var items = (registryString || "").split(',').filter(i => i && i.trim() !== "");
-    if (items.length === 0) {
-      container.innerHTML = `<p style="font-size: 11px; color: #94a3b8; font-style: italic;">No ${type} discovered.</p>`;
-      return;
-    }
-    container.innerHTML = items.map(item => `<span class="registry-tag">${item.trim()}</span>`).join('');
-  }
-
+  /* ========================================================================
+     7. SUBMIT HANDLERS
+     ======================================================================== */
   function handleModuleInstall() {
     var name = document.getElementById('ins-mod-name').value;
     if (!name) return;
@@ -346,6 +360,20 @@
         if (res.includes("Success")) { loadSettings(); switchView('readOnlySettingsView'); }
         else alert(res);
       }).saveSystemSettings(p);
+    }
+  }
+
+  /* ========================================================================
+     8. UI HELPERS
+     ======================================================================== */
+  function syncColorInput(source, targetId) {
+    var target = document.getElementById(targetId);
+    if (target) {
+      target.value = source.value.toUpperCase();
+      if (source.type === 'text') {
+        var picker = document.getElementById(targetId + '-pick');
+        if (picker) picker.value = source.value;
+      }
     }
   }
 

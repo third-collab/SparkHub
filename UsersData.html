@@ -408,149 +408,26 @@
 </div>
 
 <script>
+  /* ========================================================================
+     1. GLOBAL STATE
+     ======================================================================== */
   var GLOBAL_USER_DATA = [];
   var GLOBAL_ROLES_DATA = [];
   var CURRENT_USER_SORT_COLUMN = 'username';
   var CURRENT_USER_SORT_DESC = false;
-  
-  // NEW LOGIC: Roles Sorting State
   var CURRENT_ROLE_SORT_COLUMN = 'name';
   var CURRENT_ROLE_SORT_DESC = false;
 
-  function handleRoleSort(column) {
-    if (CURRENT_ROLE_SORT_COLUMN === column) { CURRENT_ROLE_SORT_DESC = !CURRENT_ROLE_SORT_DESC; } 
-    else { CURRENT_ROLE_SORT_COLUMN = column; CURRENT_ROLE_SORT_DESC = false; }
-    applyRoleFilters();
-  }
-
-  // ----------------------------------------------------------------
-  // STATELESS SESSION ENGINE (Local Storage)
-  // ----------------------------------------------------------------
-  function checkLocalSession() {
-    // 1. If Google SSO identified them directly, purge local cache and proceed
-    if (CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== '') {
-      localStorage.removeItem('sparkhub_session');
-      return true; 
-    }
-
-    // 2. If anonymous, check Local Storage for an active token
-    var savedSession = localStorage.getItem('sparkhub_session');
-    if (savedSession) {
-      try {
-        var sessionData = JSON.parse(savedSession);
-        CURRENT_USER_ROLE = sessionData.role;
-        CURRENT_USERNAME = sessionData.username;
-        CURRENT_USER_FIRSTNAME = sessionData.firstName || sessionData.username; // Hydrate
-        CURRENT_USER_PERMISSIONS = JSON.parse(sessionData.permissions);
-        DASHBOARD_LAYOUT = sessionData.dashboardLayout || "DEFAULT"; // NEW LINE
-        return true; 
-      } catch(e) {}
-    }
-    return false; // User needs to log in
-  }
-
-  function handleLocalLogin(e) {
-    e.preventDefault();
-    var btn = document.getElementById('login-submit-btn');
-    var msg = document.getElementById('login-msg');
-    btn.innerText = "Verifying..."; btn.disabled = true; msg.innerText = "";
-
-    var loginId = document.getElementById('login-id').value;
-    var pass = document.getElementById('login-pass').value;
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res.success) {
-          // Cache session in browser
-          var sessionPayload = { username: res.username, firstName: res.firstName, role: res.role, permissions: res.permissions, dashboardLayout: res.dashboardLayout }; // NEW LINE
-          localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
-
-          // Hydrate JS Globals
-          CURRENT_USERNAME = res.username;
-          CURRENT_USER_FIRSTNAME = res.firstName;
-          CURRENT_USER_ROLE = res.role;
-          CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
-          DASHBOARD_LAYOUT = res.dashboardLayout || "DEFAULT"; // NEW LINE
-          
-          document.getElementById('loginScreen').style.display = 'none';
-          
-          // NEW: Clean up the form in the background so it's ready for the next logout
-          btn.innerText = "Sign In"; 
-          btn.disabled = false;
-          document.getElementById('loginForm').reset();
-          
-          bootApplication();
-        } else {
-          btn.innerText = "Sign In"; btn.disabled = false;
-          msg.innerText = res.message;
-        }
-      })
-      .withFailureHandler(function(error) {
-        // THIS CATCHES SERVER CRASHES AND MISSING FUNCTIONS
-        btn.innerText = "Sign In"; btn.disabled = false;
-        msg.innerText = "Backend Error: " + error.message;
-      })
-      .verifyUserCredentials(loginId, pass);
-  }
-
   /* ========================================================================
-     1. INITIALIZATION & DYNAMIC RBAC SEEDING
+     2. BOOTSTRAPPERS
      ======================================================================== */
-  
-  function toggleUserSubView(view) {
-    var usersView = document.getElementById('users-sub-view');
-    var rolesView = document.getElementById('roles-sub-view');
-    var actBtns = document.getElementById('user-action-btns');
-    
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    
-    if (view === 'users') {
-      usersView.style.display = 'block'; rolesView.style.display = 'none';
-      document.getElementById('btn-tab-users').classList.add('active');
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>`;
-    } else {
-      usersView.style.display = 'none'; rolesView.style.display = 'block';
-      document.getElementById('btn-tab-roles').classList.add('active');
-      // FIX: Changed data-perm-category from 'Core System' to 'Access & Users'
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Access & Users" data-perm-action="Manage Roles">+ Create Role</button>`;
-      loadRolesTable();
-    }
-    if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
-  }
-
   function initUsersModule() {
     switchView('usersListView');
-    // Fetch Roles first to build the dynamic checkboxes and dropdowns!
     google.script.run.withSuccessHandler(function(roles) {
       GLOBAL_ROLES_DATA = roles || [];
       populateDynamicRoleUI();
-      loadUsersTable(); // Load users after roles are ready
+      loadUsersTable(); 
     }).getRolesList();
-  }
-
-  function populateDynamicRoleUI() {
-    // 1. Populate the filter dropdown
-    var filterDrop = document.getElementById('user-role-drop');
-    var addRoleDrop = document.getElementById('add-user-role');
-    var edtRoleDrop = document.getElementById('edt-user-role');
-    
-    filterDrop.innerHTML = '';
-    addRoleDrop.innerHTML = '';
-    edtRoleDrop.innerHTML = '';
-
-    GLOBAL_ROLES_DATA.forEach(function(r) {
-      if(r.status === 'Active') {
-        filterDrop.innerHTML += `<label><input type="checkbox" class="user-filter-role-cb" value="${r.name}" checked onchange="applyUserFilters()"> ${r.name}</label>`;
-        addRoleDrop.innerHTML += `<option value="${r.name}">${r.name}</option>`;
-        edtRoleDrop.innerHTML += `<option value="${r.name}">${r.name}</option>`;
-      }
-    });
-  }
-
-  // The Magic Plugin Matrix: Automatically reveals new permissions!
-  function getSystemPermissionMatrix() {
-    // This is now a simple bridge to get data during UI initialization
-    return google.script.run.getDynamicPermissionMatrix();
   }
 
   function initUserBarPlugin() {
@@ -564,30 +441,21 @@
       var popRole = document.getElementById('user-popup-role');
       if (popRole) popRole.innerText = CURRENT_USER_ROLE;
 
-      // Handle Auth Mode Logout Button
       var logoutBtn = document.getElementById('user-popup-logout-btn');
       if (logoutBtn && typeof SYSTEM_AUTH_MODE !== 'undefined' && SYSTEM_AUTH_MODE === 'Local') {
         logoutBtn.style.display = 'block';
         logoutBtn.onclick = function() {
-          // 1. Clear the local storage token
           localStorage.removeItem('sparkhub_session');
-          
-          // 2. Prevent the iframe blanking bug
           document.getElementById('loginScreen').style.display = 'flex';
           document.getElementById('user-popup').style.display = 'none';
           
-          // 3. Reset the form, messages, AND button state
           var loginForm = document.getElementById('loginForm');
           if (loginForm) loginForm.reset();
           var msg = document.getElementById('login-msg');
           if (msg) msg.innerText = '';
           
-          // NEW: Reset the button back to its default state
           var loginBtn = document.getElementById('login-submit-btn');
-          if (loginBtn) { 
-            loginBtn.innerText = "Sign In"; 
-            loginBtn.disabled = false; 
-          }
+          if (loginBtn) { loginBtn.innerText = "Sign In"; loginBtn.disabled = false; }
           
           CURRENT_USER_ROLE = 'Guest';
           CURRENT_USER_PERMISSIONS = {};
@@ -596,113 +464,49 @@
     }
   }
 
-  /* ========================================================================
-     PERSONAL PROFILE MANAGEMENT (Decoupled from Directory)
-     ======================================================================== */
-
-  function openMyProfile() {
-    // Hide popup and open the dedicated profile view
-    document.getElementById('user-popup').style.display = 'none';
-    switchView('myProfileView');
-    toggleUserOverlay('my-profile-overlay', true, 'Loading Your Profile...');
-
-    google.script.run
-      .withSuccessHandler(function(data) {
-        toggleUserOverlay('my-profile-overlay', false);
-        
-        if (data.error) { alert(data.error); return; }
-        
-        // Populate the dedicated My Profile UI
-        document.getElementById('my-profile-fullname').innerText = data.firstName + " " + data.lastName;
-        document.getElementById('my-profile-username').innerText = "@" + data.username;
-        document.getElementById('my-profile-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
-        
-        document.getElementById('my-profile-first').innerText = data.firstName;
-        document.getElementById('my-profile-last').innerText = data.lastName;
-        document.getElementById('my-profile-email').innerText = data.email;
-        document.getElementById('my-profile-lastlogin').innerText = data.lastLogin || "Never logged in";
-
-        // Add these two lines inside the success handler of openMyProfile()
-        document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
-      })
-      .withFailureHandler(function(err) {
-        // Expose any silent backend errors
-        toggleUserOverlay('my-profile-overlay', false);
-        alert("Backend Error: " + err.message);
-      })
-      .getUserProfileByUsername(CURRENT_USERNAME);
+  function checkLocalSession() {
+    if (CURRENT_USER_ROLE !== 'Guest' && CURRENT_USER_ROLE !== 'Inactive' && CURRENT_USER_ROLE !== '') {
+      localStorage.removeItem('sparkhub_session');
+      return true; 
+    }
+    var savedSession = localStorage.getItem('sparkhub_session');
+    if (savedSession) {
+      try {
+        var sessionData = JSON.parse(savedSession);
+        CURRENT_USER_ROLE = sessionData.role;
+        CURRENT_USERNAME = sessionData.username;
+        CURRENT_USER_FIRSTNAME = sessionData.firstName || sessionData.username;
+        CURRENT_USER_PERMISSIONS = JSON.parse(sessionData.permissions);
+        DASHBOARD_LAYOUT = sessionData.dashboardLayout || "DEFAULT";
+        return true; 
+      } catch(e) {}
+    }
+    return false;
   }
 
-  function openEditMyProfile() {
-    switchView('editMyProfileView');
-    document.getElementById('editMyProfileForm').reset();
-    var msg = document.getElementById('edt-my-msg');
-    if (msg) msg.innerHTML = '';
+  function getSystemPermissionMatrix() {
+    return google.script.run.getDynamicPermissionMatrix();
+  }
+
+  function populateDynamicRoleUI() {
+    var filterDrop = document.getElementById('user-role-drop');
+    var addRoleDrop = document.getElementById('add-user-role');
+    var edtRoleDrop = document.getElementById('edt-user-role');
     
-    toggleUserOverlay('edit-my-profile-overlay', true, 'Fetching Data...');
+    filterDrop.innerHTML = ''; addRoleDrop.innerHTML = ''; edtRoleDrop.innerHTML = '';
 
-    google.script.run
-      .withSuccessHandler(function(data) {
-        toggleUserOverlay('edit-my-profile-overlay', false);
-        
-        if (data.error) { alert(data.error); return; }
-        
-        // Populate the specific Edit My Profile fields
-        document.getElementById('edt-my-first').value = data.firstName || "";
-        document.getElementById('edt-my-last').value = data.lastName || "";
-        document.getElementById('edt-my-username').value = data.username || "";
-        document.getElementById('edt-my-email').value = data.email || "";
-      })
-      .withFailureHandler(function(err) {
-        toggleUserOverlay('edit-my-profile-overlay', false);
-        alert("Backend Error: " + err.message);
-      })
-      .getUserProfileByUsername(CURRENT_USERNAME);
-  }
-
-  function handleEditMyProfileSubmit(e) {
-    if(e) e.preventDefault();
-    toggleUserOverlay('edit-my-profile-overlay', true, 'Saving Profile...');
-    var btn = document.getElementById('edt-my-submit');
-    btn.disabled = true;
-
-    var profileData = {
-      username: document.getElementById('edt-my-username').value,
-      firstName: document.getElementById('edt-my-first').value,
-      lastName: document.getElementById('edt-my-last').value,
-      email: document.getElementById('edt-my-email').value,
-      password: document.getElementById('edt-my-password').value
-    };
-
-    google.script.run.withSuccessHandler(function(res) {
-      toggleUserOverlay('edit-my-profile-overlay', false);
-      var msg = document.getElementById('edt-my-msg');
-      btn.disabled = false;
-      
-      if (res.success) {
-        // Automatically update the global variable and UserBar Pill
-        CURRENT_USER_FIRSTNAME = res.firstName;
-        initUserBarPlugin();
-        
-        // If they are logged in locally, update LocalStorage so it persists on refresh
-        var savedSession = localStorage.getItem('sparkhub_session');
-        if (savedSession) {
-           var sessionData = JSON.parse(savedSession);
-           sessionData.firstName = res.firstName;
-           localStorage.setItem('sparkhub_session', JSON.stringify(sessionData));
-        }
-        
-        openMyProfile(); // Redirect back to read-only profile
-      } else { 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+    GLOBAL_ROLES_DATA.forEach(function(r) {
+      if(r.status === 'Active') {
+        filterDrop.innerHTML += `<label><input type="checkbox" class="user-filter-role-cb" value="${r.name}" checked onchange="applyUserFilters()"> ${r.name}</label>`;
+        addRoleDrop.innerHTML += `<option value="${r.name}">${r.name}</option>`;
+        edtRoleDrop.innerHTML += `<option value="${r.name}">${r.name}</option>`;
       }
-    }).updateMyProfileRecord(profileData);
+    });
   }
 
   /* ========================================================================
-     2. USERS DIRECTORY
+     3. DATA LOADERS
      ======================================================================== */
-
   function loadUsersTable() {
     google.script.run.withSuccessHandler(function(users) {
       GLOBAL_USER_DATA = users || [];
@@ -710,26 +514,22 @@
     }).getUsersList();
   }
 
+  function loadRolesTable() {
+    toggleUserOverlay('role-list-overlay', true);
+    google.script.run.withSuccessHandler(function(roles) {
+      toggleUserOverlay('role-list-overlay', false);
+      GLOBAL_ROLES_DATA = roles || [];
+      applyRoleFilters(); 
+      populateDynamicRoleUI(); 
+    }).getRolesList();
+  }
+
+  /* ========================================================================
+     4. DATA MANIPULATION
+     ======================================================================== */
   function handleUserSort(column) {
     if (CURRENT_USER_SORT_COLUMN === column) { CURRENT_USER_SORT_DESC = !CURRENT_USER_SORT_DESC; } 
     else { CURRENT_USER_SORT_COLUMN = column; CURRENT_USER_SORT_DESC = false; }
-    applyUserFilters();
-  }
-
-  function resetUserFilters() {
-    var searchBox = document.getElementById('user-filter-search');
-    if (searchBox) searchBox.value = '';
-    
-    // FIX: Strictly default Status back to 'Active' only
-    document.querySelectorAll('.user-filter-status-cb').forEach(cb => {
-      cb.checked = (cb.value === 'Active');
-    });
-
-    // Reset Roles so all are checked
-    document.querySelectorAll('.user-filter-role-cb').forEach(cb => {
-      cb.checked = true;
-    });
-    
     applyUserFilters();
   }
 
@@ -765,6 +565,43 @@
     renderUserTableRows(filtered);
   }
 
+  function resetUserFilters() {
+    var searchBox = document.getElementById('user-filter-search');
+    if (searchBox) searchBox.value = '';
+    document.querySelectorAll('.user-filter-status-cb').forEach(cb => cb.checked = (cb.value === 'Active'));
+    document.querySelectorAll('.user-filter-role-cb').forEach(cb => cb.checked = true);
+    applyUserFilters();
+  }
+
+  function handleRoleSort(column) {
+    if (CURRENT_ROLE_SORT_COLUMN === column) { CURRENT_ROLE_SORT_DESC = !CURRENT_ROLE_SORT_DESC; } 
+    else { CURRENT_ROLE_SORT_COLUMN = column; CURRENT_ROLE_SORT_DESC = false; }
+    applyRoleFilters();
+  }
+
+  function applyRoleFilters() {
+    var search = document.getElementById('role-filter-search').value.toLowerCase();
+    var checkedStatuses = Array.from(document.querySelectorAll('.role-filter-status-cb:checked')).map(cb => cb.value);
+
+    var filtered = GLOBAL_ROLES_DATA.filter(function(r) {
+      var matchS = (r.name + (r.description || "")).toLowerCase().includes(search);
+      var matchSt = checkedStatuses.length === 0 || checkedStatuses.includes(r.status);
+      return matchS && matchSt;
+    });
+
+    renderRoleTableRows(filtered);
+  }
+
+  function resetRoleFilters() {
+    var searchBox = document.getElementById('role-filter-search');
+    if (searchBox) searchBox.value = '';
+    document.querySelectorAll('.role-filter-status-cb').forEach(cb => cb.checked = (cb.value === 'Active'));
+    applyRoleFilters();
+  }
+
+  /* ========================================================================
+     5. RENDERERS
+     ======================================================================== */
   function renderUserTableRows(users) {
     var tbody = document.getElementById('userTableBody');
     if (!tbody) return;
@@ -793,45 +630,92 @@
     });
   }
 
-  function toggleUserOverlay(id, show, text) {
-    var overlay = document.getElementById(id);
-    if (!overlay) return;
-    overlay.style.display = show ? 'flex' : 'none';
-    if (text) { var txtEl = overlay.querySelector('span'); if (txtEl) txtEl.innerText = text; }
+  function renderRoleTableRows(rolesData) {
+    var tbody = document.getElementById('roleTableBody');
+    tbody.innerHTML = '';
+    if (!rolesData || rolesData.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px;">No roles match your criteria.</td></tr>'; return; }
+    
+    var sortedRoles = [...rolesData].sort(function(a, b) {
+      var valA = String(a[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase(); var valB = String(b[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
+      if (valA < valB) return CURRENT_ROLE_SORT_DESC ? 1 : -1; if (valA > valB) return CURRENT_ROLE_SORT_DESC ? -1 : 1; return 0;
+    });
+
+    document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('rsort-')) icon.innerHTML = ''; });
+    var iconEl = document.getElementById('rsort-' + CURRENT_ROLE_SORT_COLUMN); if (iconEl) iconEl.innerHTML = CURRENT_ROLE_SORT_DESC ? '▼' : '▲';
+
+    sortedRoles.forEach(function(r) {
+      var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      
+      var editRoleHtml = hasPermission('Access & Users', 'Manage Roles')
+        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex}, 'list'); event.stopPropagation();">Edit Role</button></td>` : `<td></td>`;
+
+      var tr = document.createElement('tr');
+      tr.style.cursor = "pointer";
+      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyRole(r.rowIndex); };
+      
+      tr.innerHTML = `<td><strong>${r.name}</strong></td><td>${r.description || "-"}</td><td><span class="badge ${sClass}">${r.status}</span></td>${editRoleHtml}`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, containerId, isReadOnly) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    
+    var priorityOrder = ["Core System", "Access & Users", "Templates", "System Logs"];
+    var allCategories = Object.keys(matrix).sort(function(a, b) {
+      var idxA = priorityOrder.indexOf(a); var idxB = priorityOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1; if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    if (isSystemAdmin) {
+       container.innerHTML = '<div style="padding:15px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:20px; font-size:13px; color:#1e3a8a;"><strong>System Administrator</strong> roles have unrestricted access. Individual permissions cannot be edited.</div>';
+    }
+
+    allCategories.forEach(function(category) {
+      var html = `<div class="perm-group"><div class="perm-group-title">${category}</div><div class="perm-group-items">`;
+      matrix[category].forEach(function(perm) {
+        var isChecked = (isSystemAdmin || (savedPerms[category] && savedPerms[category].includes(perm))) ? "checked" : "";
+        var isDisabled = (isSystemAdmin || isReadOnly) ? "disabled" : "";
+        html += `<label class="perm-cb-label"><input type="checkbox" class="role-perm-cb" data-category="${category}" value="${perm}" ${isChecked} ${isDisabled}> ${perm}</label>`;
+      });
+      html += `</div></div>`;
+      container.innerHTML += html;
+    });
+  }
+
+  /* ========================================================================
+     6. VIEW ROUTERS & FORM OPENERS
+     ======================================================================== */
+  function toggleUserSubView(view) {
+    var usersView = document.getElementById('users-sub-view');
+    var rolesView = document.getElementById('roles-sub-view');
+    var actBtns = document.getElementById('user-action-btns');
+    
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    if (view === 'users') {
+      usersView.style.display = 'block'; rolesView.style.display = 'none';
+      document.getElementById('btn-tab-users').classList.add('active');
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>`;
+    } else {
+      usersView.style.display = 'none'; rolesView.style.display = 'block';
+      document.getElementById('btn-tab-roles').classList.add('active');
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Access & Users" data-perm-action="Manage Roles">+ Create Role</button>`;
+      loadRolesTable();
+    }
+    if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
   }
 
   function openAddUserForm() {
     document.getElementById('addUserForm').reset();
     var msg = document.getElementById('add-user-msg');
-    if (msg) msg.innerHTML = ''; // Fixed ID clear
+    if (msg) msg.innerHTML = ''; 
     toggleUserOverlay('add-user-overlay', false);
     switchView('addUserView');
-  }
-
-  function handleAddUserSubmit(e) {
-    if(e) e.preventDefault();
-    toggleUserOverlay('add-user-overlay', true, 'Creating Profile...');
-    var btn = document.getElementById('add-user-submit');
-    btn.disabled = true;
-
-    var userData = {
-      username: document.getElementById('add-user-username').value, role: document.getElementById('add-user-role').value,
-      email: document.getElementById('add-user-email').value, password: document.getElementById('add-user-password').value,
-      firstName: document.getElementById('add-user-first').value, lastName: document.getElementById('add-user-last').value, status: document.getElementById('add-user-status').value || "Active"
-    };
-
-    google.script.run.withSuccessHandler(function(res) {
-      toggleUserOverlay('add-user-overlay', false);
-      var msg = document.getElementById('add-user-msg');
-      if (res.success) {
-        btn.disabled = false;
-        loadUsersTable();
-        openReadOnlyUser(res.rowIndex); // Instant Redirect
-      } else { 
-        btn.disabled = false; 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
-      }
-    }).createUserRecord(userData);
   }
 
   function openEditUserForm(rowIndex, source) {
@@ -893,34 +777,6 @@
     }).getUserById(rowIndex);
   }
 
-  function handleEditUserSubmit(e) {
-    if(e) e.preventDefault();
-    toggleUserOverlay('edit-user-overlay', true, 'Saving Changes...');
-    var btn = document.getElementById('edt-user-submit');
-    btn.disabled = true;
-    var source = document.getElementById('edt-user-source').value;
-
-    var userData = {
-      rowIndex: document.getElementById('edt-user-rowIndex').value, username: document.getElementById('edt-user-username').value,
-      role: document.getElementById('edt-user-role').value, email: document.getElementById('edt-user-email').value,
-      password: document.getElementById('edt-user-password').value, firstName: document.getElementById('edt-user-first').value,
-      lastName: document.getElementById('edt-user-last').value, status: document.getElementById('edt-user-status').value || "Active"
-    };
-
-    google.script.run.withSuccessHandler(function(res) {
-      toggleUserOverlay('edit-user-overlay', false);
-      var msg = document.getElementById('edt-user-msg');
-      if (res.success) {
-        btn.disabled = false; 
-        loadUsersTable(); 
-        if (source === 'view') { openReadOnlyUser(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('users'); }
-      } else { 
-        btn.disabled = false; 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
-      }
-    }).updateUserRecord(userData);
-  }
-
   function openReadOnlyUser(rowIndex) {
     switchView('readOnlyUserView');
     document.getElementById('ro-user-fullname').innerText = "Loading profile...";
@@ -941,7 +797,6 @@
       document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
       document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
       
-      // NEW: Log Timestamps
       document.getElementById('ro-user-created').innerText = data.timestamp || "Not recorded";
       document.getElementById('ro-user-updated').innerText = data.lastUpdated || "Not recorded";
       
@@ -949,132 +804,56 @@
     }).getUserById(rowIndex);
   }
 
-  /* ========================================================================
-     3. ROLES MANAGER
-     ======================================================================== */
+  function openMyProfile() {
+    document.getElementById('user-popup').style.display = 'none';
+    switchView('myProfileView');
+    toggleUserOverlay('my-profile-overlay', true, 'Loading Your Profile...');
 
-  function loadRolesTable() {
-    toggleUserOverlay('role-list-overlay', true);
-    google.script.run.withSuccessHandler(function(roles) {
-      toggleUserOverlay('role-list-overlay', false);
-      GLOBAL_ROLES_DATA = roles || [];
-      applyRoleFilters(); // Filters out Inactive roles by default
-      populateDynamicRoleUI(); 
-    }).getRolesList();
+    google.script.run
+      .withSuccessHandler(function(data) {
+        toggleUserOverlay('my-profile-overlay', false);
+        if (data.error) { alert(data.error); return; }
+        
+        document.getElementById('my-profile-fullname').innerText = data.firstName + " " + data.lastName;
+        document.getElementById('my-profile-username').innerText = "@" + data.username;
+        document.getElementById('my-profile-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
+        
+        document.getElementById('my-profile-first').innerText = data.firstName;
+        document.getElementById('my-profile-last').innerText = data.lastName;
+        document.getElementById('my-profile-email').innerText = data.email;
+        document.getElementById('my-profile-lastlogin').innerText = data.lastLogin || "Never logged in";
+        document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
+      })
+      .withFailureHandler(function(err) {
+        toggleUserOverlay('my-profile-overlay', false);
+        alert("Backend Error: " + err.message);
+      })
+      .getUserProfileByUsername(CURRENT_USERNAME);
   }
 
-  function applyRoleFilters() {
-    var search = document.getElementById('role-filter-search').value.toLowerCase();
-    var checkedStatuses = Array.from(document.querySelectorAll('.role-filter-status-cb:checked')).map(cb => cb.value);
-
-    var filtered = GLOBAL_ROLES_DATA.filter(function(r) {
-      var matchS = (r.name + (r.description || "")).toLowerCase().includes(search);
-      var matchSt = checkedStatuses.length === 0 || checkedStatuses.includes(r.status);
-      return matchS && matchSt;
-    });
-
-    renderRoleTableRows(filtered);
-  }
-
-  function resetRoleFilters() {
-    var searchBox = document.getElementById('role-filter-search');
-    if (searchBox) searchBox.value = '';
+  function openEditMyProfile() {
+    switchView('editMyProfileView');
+    document.getElementById('editMyProfileForm').reset();
+    var msg = document.getElementById('edt-my-msg');
+    if (msg) msg.innerHTML = '';
     
-    // Strictly default back to 'Active' only
-    document.querySelectorAll('.role-filter-status-cb').forEach(cb => {
-      cb.checked = (cb.value === 'Active');
-    });
-    
-    applyRoleFilters();
-  }
+    toggleUserOverlay('edit-my-profile-overlay', true, 'Fetching Data...');
 
-  function renderRoleTableRows(rolesData) {
-    var tbody = document.getElementById('roleTableBody');
-    tbody.innerHTML = '';
-    if (!rolesData || rolesData.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px;">No roles match your criteria.</td></tr>'; return; }
-    
-    var sortedRoles = [...rolesData].sort(function(a, b) {
-      var valA = String(a[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase(); var valB = String(b[CURRENT_ROLE_SORT_COLUMN] || "").toLowerCase();
-      if (valA < valB) return CURRENT_ROLE_SORT_DESC ? 1 : -1; if (valA > valB) return CURRENT_ROLE_SORT_DESC ? -1 : 1; return 0;
-    });
-
-    document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('rsort-')) icon.innerHTML = ''; });
-    var iconEl = document.getElementById('rsort-' + CURRENT_ROLE_SORT_COLUMN); if (iconEl) iconEl.innerHTML = CURRENT_ROLE_SORT_DESC ? '▼' : '▲';
-
-    sortedRoles.forEach(function(r) {
-      var sClass = r.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      
-      var editRoleHtml = hasPermission('Access & Users', 'Manage Roles')
-        ? `<td><button class="btn-edit" onclick="openEditRoleForm(${r.rowIndex}, 'list'); event.stopPropagation();">Edit Role</button></td>` : `<td></td>`;
-
-      var tr = document.createElement('tr');
-      tr.style.cursor = "pointer";
-      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyRole(r.rowIndex); };
-      
-      tr.innerHTML = `<td><strong>${r.name}</strong></td><td>${r.description || "-"}</td><td><span class="badge ${sClass}">${r.status}</span></td>${editRoleHtml}`;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function openReadOnlyRole(rowIndex) {
-    switchView('readOnlyRoleView');
-    document.getElementById('ro-role-name').innerText = "Loading attributes...";
-    toggleUserOverlay('ro-role-overlay', true, 'Pulling Role Matrix...');
-
-    google.script.run.withSuccessHandler(function(data) {
-      document.getElementById('ro-role-name').innerText = data.name;
-      document.getElementById('ro-role-desc').innerText = data.description || "No description provided.";
-      document.getElementById('ro-role-id').innerText = data.id;
-      document.getElementById('ro-role-created').innerText = data.createdOn || "Not recorded";
-      document.getElementById('ro-role-updated').innerText = data.lastUpdated || "Not recorded";
-      
-      var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      document.getElementById('ro-role-status').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
-
-      document.getElementById('ro-role-edit-btn').onclick = () => openEditRoleForm(data.rowIndex, 'view');
-      
-      var isSystemAdmin = (data.name === 'Administrator');
-      var savedPerms = {};
-      try { savedPerms = JSON.parse(data.permissions || "{}"); } catch(e){}
-
-      google.script.run.withSuccessHandler(function(matrix) {
-         toggleUserOverlay('ro-role-overlay', false);
-         renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, 'ro-permission-matrix-container', true);
-      }).getDynamicPermissionMatrix();
-      
-    }).getRoleById(rowIndex);
-  }
-
-  // Ensure renderPermissionMatrix accepts the new matrix parameter
-  // Replace these functions inside the <script> block of UsersData.html
-
-  function renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, containerId, isReadOnly) {
-    var container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = '';
-    
-    var priorityOrder = ["Core System", "Access & Users", "Templates", "System Logs"];
-    var allCategories = Object.keys(matrix).sort(function(a, b) {
-      var idxA = priorityOrder.indexOf(a); var idxB = priorityOrder.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1; if (idxB !== -1) return 1;
-      return a.localeCompare(b);
-    });
-
-    if (isSystemAdmin) {
-       container.innerHTML = '<div style="padding:15px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:20px; font-size:13px; color:#1e3a8a;"><strong>System Administrator</strong> roles have unrestricted access. Individual permissions cannot be edited.</div>';
-    }
-
-    allCategories.forEach(function(category) {
-      var html = `<div class="perm-group"><div class="perm-group-title">${category}</div><div class="perm-group-items">`;
-      matrix[category].forEach(function(perm) {
-        var isChecked = (isSystemAdmin || (savedPerms[category] && savedPerms[category].includes(perm))) ? "checked" : "";
-        var isDisabled = (isSystemAdmin || isReadOnly) ? "disabled" : "";
-        html += `<label class="perm-cb-label"><input type="checkbox" class="role-perm-cb" data-category="${category}" value="${perm}" ${isChecked} ${isDisabled}> ${perm}</label>`;
-      });
-      html += `</div></div>`;
-      container.innerHTML += html;
-    });
+    google.script.run
+      .withSuccessHandler(function(data) {
+        toggleUserOverlay('edit-my-profile-overlay', false);
+        if (data.error) { alert(data.error); return; }
+        
+        document.getElementById('edt-my-first').value = data.firstName || "";
+        document.getElementById('edt-my-last').value = data.lastName || "";
+        document.getElementById('edt-my-username').value = data.username || "";
+        document.getElementById('edt-my-email').value = data.email || "";
+      })
+      .withFailureHandler(function(err) {
+        toggleUserOverlay('edit-my-profile-overlay', false);
+        alert("Backend Error: " + err.message);
+      })
+      .getUserProfileByUsername(CURRENT_USERNAME);
   }
 
   function openAddRoleForm() {
@@ -1082,12 +861,12 @@
     document.getElementById('roleForm').reset();
     document.getElementById('edt-role-rowIndex').value = '';
     document.getElementById('role-form-title').innerText = "Create New Role";
-    document.getElementById('edt-role-name').readOnly = false; // Ensure name is editable
+    document.getElementById('edt-role-name').readOnly = false; 
     
     toggleUserOverlay('role-edit-overlay', true, "Loading Matrix...");
     google.script.run.withSuccessHandler(function(matrix) {
        toggleUserOverlay('role-edit-overlay', false);
-       renderPermissionMatrix({}, matrix, false);
+       renderPermissionMatrix({}, matrix, false, 'permission-matrix-container', false);
     }).getDynamicPermissionMatrix();
   }
 
@@ -1127,6 +906,169 @@
        toggleUserOverlay('role-edit-overlay', false);
        renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, 'permission-matrix-container', false);
     }).getDynamicPermissionMatrix();
+  }
+
+  function openReadOnlyRole(rowIndex) {
+    switchView('readOnlyRoleView');
+    document.getElementById('ro-role-name').innerText = "Loading attributes...";
+    toggleUserOverlay('ro-role-overlay', true, 'Pulling Role Matrix...');
+
+    google.script.run.withSuccessHandler(function(data) {
+      document.getElementById('ro-role-name').innerText = data.name;
+      document.getElementById('ro-role-desc').innerText = data.description || "No description provided.";
+      document.getElementById('ro-role-id').innerText = data.id;
+      document.getElementById('ro-role-created').innerText = data.createdOn || "Not recorded";
+      document.getElementById('ro-role-updated').innerText = data.lastUpdated || "Not recorded";
+      
+      var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      document.getElementById('ro-role-status').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
+
+      document.getElementById('ro-role-edit-btn').onclick = () => openEditRoleForm(data.rowIndex, 'view');
+      
+      var isSystemAdmin = (data.name === 'Administrator');
+      var savedPerms = {};
+      try { savedPerms = JSON.parse(data.permissions || "{}"); } catch(e){}
+
+      google.script.run.withSuccessHandler(function(matrix) {
+         toggleUserOverlay('ro-role-overlay', false);
+         renderPermissionMatrix(savedPerms, matrix, isSystemAdmin, 'ro-permission-matrix-container', true);
+      }).getDynamicPermissionMatrix();
+      
+    }).getRoleById(rowIndex);
+  }
+
+  /* ========================================================================
+     7. SUBMIT HANDLERS
+     ======================================================================== */
+  function handleLocalLogin(e) {
+    e.preventDefault();
+    var btn = document.getElementById('login-submit-btn');
+    var msg = document.getElementById('login-msg');
+    btn.innerText = "Verifying..."; btn.disabled = true; msg.innerText = "";
+
+    var loginId = document.getElementById('login-id').value;
+    var pass = document.getElementById('login-pass').value;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          var sessionPayload = { username: res.username, firstName: res.firstName, role: res.role, permissions: res.permissions, dashboardLayout: res.dashboardLayout };
+          localStorage.setItem('sparkhub_session', JSON.stringify(sessionPayload));
+
+          CURRENT_USERNAME = res.username;
+          CURRENT_USER_FIRSTNAME = res.firstName;
+          CURRENT_USER_ROLE = res.role;
+          CURRENT_USER_PERMISSIONS = JSON.parse(res.permissions);
+          DASHBOARD_LAYOUT = res.dashboardLayout || "DEFAULT";
+          
+          document.getElementById('loginScreen').style.display = 'none';
+          
+          btn.innerText = "Sign In"; 
+          btn.disabled = false;
+          document.getElementById('loginForm').reset();
+          
+          bootApplication();
+        } else {
+          btn.innerText = "Sign In"; btn.disabled = false;
+          msg.innerText = res.message;
+        }
+      })
+      .withFailureHandler(function(error) {
+        btn.innerText = "Sign In"; btn.disabled = false;
+        msg.innerText = "Backend Error: " + error.message;
+      })
+      .verifyUserCredentials(loginId, pass);
+  }
+
+  function handleAddUserSubmit(e) {
+    if(e) e.preventDefault();
+    toggleUserOverlay('add-user-overlay', true, 'Creating Profile...');
+    var btn = document.getElementById('add-user-submit');
+    btn.disabled = true;
+
+    var userData = {
+      username: document.getElementById('add-user-username').value, role: document.getElementById('add-user-role').value,
+      email: document.getElementById('add-user-email').value, password: document.getElementById('add-user-password').value,
+      firstName: document.getElementById('add-user-first').value, lastName: document.getElementById('add-user-last').value, status: document.getElementById('add-user-status').value || "Active"
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('add-user-overlay', false);
+      var msg = document.getElementById('add-user-msg');
+      if (res.success) {
+        btn.disabled = false;
+        loadUsersTable();
+        openReadOnlyUser(res.rowIndex);
+      } else { 
+        btn.disabled = false; 
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
+      }
+    }).createUserRecord(userData);
+  }
+
+  function handleEditUserSubmit(e) {
+    if(e) e.preventDefault();
+    toggleUserOverlay('edit-user-overlay', true, 'Saving Changes...');
+    var btn = document.getElementById('edt-user-submit');
+    btn.disabled = true;
+    var source = document.getElementById('edt-user-source').value;
+
+    var userData = {
+      rowIndex: document.getElementById('edt-user-rowIndex').value, username: document.getElementById('edt-user-username').value,
+      role: document.getElementById('edt-user-role').value, email: document.getElementById('edt-user-email').value,
+      password: document.getElementById('edt-user-password').value, firstName: document.getElementById('edt-user-first').value,
+      lastName: document.getElementById('edt-user-last').value, status: document.getElementById('edt-user-status').value || "Active"
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('edit-user-overlay', false);
+      var msg = document.getElementById('edt-user-msg');
+      if (res.success) {
+        btn.disabled = false; 
+        loadUsersTable(); 
+        if (source === 'view') { openReadOnlyUser(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('users'); }
+      } else { 
+        btn.disabled = false; 
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
+      }
+    }).updateUserRecord(userData);
+  }
+
+  function handleEditMyProfileSubmit(e) {
+    if(e) e.preventDefault();
+    toggleUserOverlay('edit-my-profile-overlay', true, 'Saving Profile...');
+    var btn = document.getElementById('edt-my-submit');
+    btn.disabled = true;
+
+    var profileData = {
+      username: document.getElementById('edt-my-username').value,
+      firstName: document.getElementById('edt-my-first').value,
+      lastName: document.getElementById('edt-my-last').value,
+      email: document.getElementById('edt-my-email').value,
+      password: document.getElementById('edt-my-password').value
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      toggleUserOverlay('edit-my-profile-overlay', false);
+      var msg = document.getElementById('edt-my-msg');
+      btn.disabled = false;
+      
+      if (res.success) {
+        CURRENT_USER_FIRSTNAME = res.firstName;
+        initUserBarPlugin();
+        
+        var savedSession = localStorage.getItem('sparkhub_session');
+        if (savedSession) {
+           var sessionData = JSON.parse(savedSession);
+           sessionData.firstName = res.firstName;
+           localStorage.setItem('sparkhub_session', JSON.stringify(sessionData));
+        }
+        
+        openMyProfile(); 
+      } else { 
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+      }
+    }).updateMyProfileRecord(profileData);
   }
 
   function handleRoleSubmit(e) {
@@ -1180,25 +1122,18 @@
 
     google.script.run.withSuccessHandler(function(res) {
       if (res.success) {
-        // 1. Strip the token from the parent URL using Google's native History API
-        // This explicitly tells the parent window to clear its query parameters
         google.script.history.replace(null, {}, null);
-        
-        // Also clear the global token variable to prevent soft-reload loops
         RESET_TOKEN = "";
         
-        // 2. Hide the reset screen and show the login screen right away
         document.getElementById('resetScreen').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
         
-        // 3. Show the success message on the login screen
         var loginMsg = document.getElementById('login-msg');
         if (loginMsg) {
           loginMsg.style.color = "green";
           loginMsg.innerText = "Password updated successfully! Please sign in.";
         }
         
-        // 4. Reset the background form
         document.getElementById('resetForm').reset();
         btn.innerText = "Update Password"; 
         btn.disabled = false;
@@ -1208,5 +1143,15 @@
         msg.innerText = res.message;
       }
     }).processPasswordReset(RESET_TOKEN, newPass);
+  }
+
+  /* ========================================================================
+     8. UI HELPERS
+     ======================================================================== */
+  function toggleUserOverlay(id, show, text) {
+    var overlay = document.getElementById(id);
+    if (!overlay) return;
+    overlay.style.display = show ? 'flex' : 'none';
+    if (text) { var txtEl = overlay.querySelector('span'); if (txtEl) txtEl.innerText = text; }
   }
 </script>

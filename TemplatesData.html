@@ -386,30 +386,52 @@
 
 <script>
   /* ========================================================================
-     1. GLOBAL STATE & COMPONENT SYNC
+     1. GLOBAL STATE
      ======================================================================== */
   var GLOBAL_TEMPLATE_DATA = [];
-  var GLOBAL_SYSTEM_TRIGGERS = []; // NEW: Holds dynamic registry
+  var GLOBAL_WRAPPER_DATA = [];
+  var GLOBAL_SYSTEM_TRIGGERS = []; 
   var CURRENT_TPL_SORT_COLUMN = 'name';
   var CURRENT_TPL_SORT_DESC = false;
+  var CURRENT_WRAP_SORT_COLUMN = 'name';
+  var CURRENT_WRAP_SORT_DESC = false;
   var tplQuill;
 
+  /* ========================================================================
+     2. BOOTSTRAPPERS
+     ======================================================================== */
   function initTemplatesModule() {
     switchView('templatesListView');
     loadTemplatesTable();
   }
 
-  /**
-   * Action Verb: loadTemplatesTable()
-   */
+  function initTplEditor() {
+    if (!tplQuill && document.getElementById('tpl-quill-editor')) {
+      tplQuill = new Quill('#tpl-quill-editor', { 
+        theme: 'snow', 
+        placeholder: 'Design your message using HTML or Rich Text. Use {{placeholders}} to merge registry data...',
+        modules: {
+          toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            ['link', 'image', 'clean']
+          ]
+        }
+      });
+    }
+  }
+
+  /* ========================================================================
+     3. DATA LOADERS
+     ======================================================================== */
   function loadTemplatesTable(callback) {
     toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Templates...');
     google.script.run.withSuccessHandler(function(wrappers) {
       GLOBAL_WRAPPER_DATA = wrappers || [];
       google.script.run.withSuccessHandler(function(templates) {
         GLOBAL_TEMPLATE_DATA = templates || [];
-        
-        // NEW: Fetch dynamic triggers from the backend registry
         google.script.run.withSuccessHandler(function(triggers) {
            GLOBAL_SYSTEM_TRIGGERS = triggers || [];
            populateTemplateFilters();
@@ -417,11 +439,31 @@
            toggleTemplateOverlay('tpl-list-overlay', false);
            if (callback) callback();
         }).getDynamicTriggerRegistry();
-        
       }).getTemplatesList();
     }).getWrappersList();
   }
 
+  function loadWrappersTable(callback) {
+    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
+    google.script.run.withSuccessHandler(function(wrappers) {
+      toggleTemplateOverlay('tpl-list-overlay', false);
+      GLOBAL_WRAPPER_DATA = wrappers || [];
+      applyWrapperFilters();
+      if (callback) callback();
+    }).getWrappersList();
+  }
+
+  function loadPlaceholderSuggestions() {
+    var container = document.getElementById('placeholder-container');
+    if (container.innerHTML !== "") return;
+    google.script.run.withSuccessHandler(function(placeholders) {
+      container.innerHTML = placeholders.map(p => `<span class="placeholder-tag" onclick="copyPlaceholder('{{${p}}}')">{{${p}}}</span>`).join('');
+    }).getPlaceholderSuggestions();
+  }
+
+  /* ========================================================================
+     4. DATA MANIPULATION
+     ======================================================================== */
   function populateTemplateFilters() {
     var mods = new Set(), cats = new Set(), stats = new Set(), wraps = new Set();
     GLOBAL_TEMPLATE_DATA.forEach(t => { 
@@ -438,6 +480,12 @@
     build('tpl-cat-drop', cats, 'tpl-filter-cat-cb');
     build('tpl-stat-drop', stats, 'tpl-filter-stat-cb');
     build('tpl-wrap-drop', wraps, 'tpl-filter-wrap-cb');
+  }
+
+  function handleTemplateSort(col) {
+    if (CURRENT_TPL_SORT_COLUMN === col) CURRENT_TPL_SORT_DESC = !CURRENT_TPL_SORT_DESC;
+    else { CURRENT_TPL_SORT_COLUMN = col; CURRENT_TPL_SORT_DESC = false; }
+    applyTemplateFilters();
   }
 
   function applyTemplateFilters() {
@@ -467,7 +515,66 @@
     renderTemplateTableRows(filtered);
   }
 
-  // Find renderTemplateTableRows(data) and update the table HTML creation:
+  function resetTemplateFilters() {
+    var searchBox = document.getElementById('tpl-filter-search');
+    if (searchBox) searchBox.value = '';
+    document.querySelectorAll('.tpl-filter-mod-cb, .tpl-filter-cat-cb, .tpl-filter-stat-cb, .tpl-filter-wrap-cb').forEach(cb => cb.checked = true);
+    applyTemplateFilters();
+  }
+
+  function handleWrapperSort(col) {
+    if (CURRENT_WRAP_SORT_COLUMN === col) { CURRENT_WRAP_SORT_DESC = !CURRENT_WRAP_SORT_DESC; }
+    else { CURRENT_WRAP_SORT_COLUMN = col; CURRENT_WRAP_SORT_DESC = false; }
+    applyWrapperFilters();
+  }
+
+  function applyWrapperFilters() {
+    var search = document.getElementById('wrap-filter-search').value.toLowerCase();
+    var checkedStats = Array.from(document.querySelectorAll('.wrap-filter-stat-cb:checked')).map(cb => cb.value);
+
+    var filtered = GLOBAL_WRAPPER_DATA.filter(function(w) {
+      var matchS = (w.name + (w.description || "")).toLowerCase().includes(search);
+      var matchSt = checkedStats.length === 0 || checkedStats.includes(w.status);
+      return matchS && matchSt;
+    });
+
+    filtered.sort(function(a, b) {
+      var vA = String(a[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
+      var vB = String(b[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
+      if (vA < vB) return CURRENT_WRAP_SORT_DESC ? 1 : -1;
+      if (vA > vB) return CURRENT_WRAP_SORT_DESC ? -1 : 1;
+      return 0;
+    });
+
+    document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('wsort-')) icon.innerHTML = ''; });
+    var iconEl = document.getElementById('wsort-' + CURRENT_WRAP_SORT_COLUMN);
+    if (iconEl) iconEl.innerHTML = CURRENT_WRAP_SORT_DESC ? '▼' : '▲';
+
+    renderWrapperTableRows(filtered);
+  }
+
+  function resetWrapperFilters() {
+    var searchBox = document.getElementById('wrap-filter-search');
+    if (searchBox) searchBox.value = '';
+    document.querySelectorAll('.wrap-filter-stat-cb').forEach(cb => { cb.checked = (cb.value === 'Active'); });
+    applyWrapperFilters();
+  }
+
+  function syncWrapperDropdown() {
+    var select = document.getElementById('edt-tpl-wrapper');
+    if (!select) return;
+    select.innerHTML = GLOBAL_WRAPPER_DATA.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+  }
+
+  function syncTriggerDropdown() {
+    var select = document.getElementById('edt-tpl-trigger');
+    if (!select) return;
+    select.innerHTML = GLOBAL_SYSTEM_TRIGGERS.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
+  /* ========================================================================
+     5. RENDERERS
+     ======================================================================== */
   function renderTemplateTableRows(data) {
     var tbody = document.getElementById('templateTableBody');
     if (!tbody) return;
@@ -497,59 +604,33 @@
     });
   }
 
-  function resetTemplateFilters() {
-    var searchBox = document.getElementById('tpl-filter-search');
-    if (searchBox) searchBox.value = '';
-    // FIX: Included '.tpl-filter-wrap-cb' in the reset list
-    document.querySelectorAll('.tpl-filter-mod-cb, .tpl-filter-cat-cb, .tpl-filter-stat-cb, .tpl-filter-wrap-cb').forEach(cb => cb.checked = true);
-    applyTemplateFilters();
-  }
-
-  function toggleTemplateOverlay(id, show, text) {
-    var overlay = document.getElementById(id);
-    if (overlay) { overlay.style.display = show ? 'flex' : 'none'; if (text) { var t = overlay.querySelector('span'); if(t) t.innerText = text; } }
-  }
-
-  function handleTemplateSort(col) {
-    if (CURRENT_TPL_SORT_COLUMN === col) CURRENT_TPL_SORT_DESC = !CURRENT_TPL_SORT_DESC;
-    else { CURRENT_TPL_SORT_COLUMN = col; CURRENT_TPL_SORT_DESC = false; }
-    applyTemplateFilters();
+  function renderWrapperTableRows(wrappers) {
+    var tbody = document.getElementById('wrapperTableBody');
+    tbody.innerHTML = '';
+    if (wrappers.length === 0) { 
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No layouts match criteria.</td></tr>'; 
+      return; 
+    }
+    
+    wrappers.forEach(w => {
+      var tr = document.createElement('tr');
+      tr.style.cursor = "pointer";
+      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyWrapper(w.rowIndex); };
+      
+      var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      tr.innerHTML = `
+        <td><strong>${w.name}</strong></td>
+        <td>${w.description || "<span style='color:#94a3b8; font-style:italic;'>No description</span>"}</td>
+        <td><span class="badge ${pill}">${w.status}</span></td>
+        <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex}, 'list'); event.stopPropagation();">Edit Code</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
   /* ========================================================================
-     2. FORM HANDLERS (CRUD + Technical Anchor Audit)
+     6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
-
-  function openAddTemplateForm() {
-    syncWrapperDropdown();
-    syncTriggerDropdown(); // NEW: Maps registry to form
-    resetAccordions('editTemplateView');
-    switchView('editTemplateView');
-    document.getElementById('editTemplateForm').reset();
-    document.getElementById('edt-tpl-rowIndex').value = "";
-    document.getElementById('edt-tpl-id').value = "";
-    
-    // UI Label Reset & Back Button
-    var backBtn = document.getElementById('btn-back-edit-tpl');
-    if (backBtn) { backBtn.innerHTML = '&#8592; Back to Library'; backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('lib'); }; }
-    document.getElementById('tpl-form-title').innerText = "Add Template";
-    document.getElementById('edt-tpl-submit-btn').innerText = "Add Template";
-    
-    // NEW: Hide Status Field and Default to Active
-    document.getElementById('tpl-status-group').style.display = 'none';
-    document.getElementById('edt-tpl-status').value = 'Active';
-    
-    var wrapSelect = document.getElementById('edt-tpl-wrapper');
-    if(wrapSelect) { wrapSelect.style.border = ''; wrapSelect.title = ''; }
-    
-    if (tplQuill) tplQuill.setText(''); 
-    initTplEditor();
-    loadPlaceholderSuggestions();
-  }
-
-  /**
-   * Toggles between Template List and Wrapper List
-   */
   function toggleTemplateSubView(view) {
     var lib = document.getElementById('template-sub-view');
     var wraps = document.getElementById('wrapper-sub-view');
@@ -570,7 +651,31 @@
     }
   }
 
-  // Add this to your existing openEditTemplateForm
+  function openAddTemplateForm() {
+    syncWrapperDropdown();
+    syncTriggerDropdown(); 
+    resetAccordions('editTemplateView');
+    switchView('editTemplateView');
+    document.getElementById('editTemplateForm').reset();
+    document.getElementById('edt-tpl-rowIndex').value = "";
+    document.getElementById('edt-tpl-id').value = "";
+    
+    var backBtn = document.getElementById('btn-back-edit-tpl');
+    if (backBtn) { backBtn.innerHTML = '&#8592; Back to Library'; backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('lib'); }; }
+    document.getElementById('tpl-form-title').innerText = "Add Template";
+    document.getElementById('edt-tpl-submit-btn').innerText = "Add Template";
+    
+    document.getElementById('tpl-status-group').style.display = 'none';
+    document.getElementById('edt-tpl-status').value = 'Active';
+    
+    var wrapSelect = document.getElementById('edt-tpl-wrapper');
+    if(wrapSelect) { wrapSelect.style.border = ''; wrapSelect.title = ''; }
+    
+    if (tplQuill) tplQuill.setText(''); 
+    initTplEditor();
+    loadPlaceholderSuggestions();
+  }
+
   function openEditTemplateForm(rowIndex, source) {
     syncWrapperDropdown();
     syncTriggerDropdown(); 
@@ -582,7 +687,6 @@
     document.getElementById('editTemplateForm').reset();
     if(tplQuill) tplQuill.setText('');
     
-    // Dynamic Back Button Routing
     var backBtn = document.getElementById('btn-back-edit-tpl');
     if (backBtn) {
       if (source === 'view') {
@@ -598,7 +702,6 @@
     document.getElementById('edt-tpl-submit-btn').innerText = "Save Template";
     document.getElementById('tpl-status-group').style.display = 'flex';
     
-    // --- PURGE GHOST DATA ---
     document.getElementById('edt-tpl-name').value = "Loading...";
     document.getElementById('edt-tpl-cat').value = "";
     document.getElementById('edt-tpl-description').value = "";
@@ -635,116 +738,65 @@
     }).getTemplateById(rowIndex);
   }
 
-  function handleTemplateSubmit(e) {
-    if(e) e.preventDefault();
-    toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');
+  function openReadOnlyTemplate(rowIndex) {
+    switchView('readOnlyTemplateView');
     
-    var payload = {
-      rowIndex: document.getElementById('edt-tpl-rowIndex').value,
-      id: document.getElementById('edt-tpl-id').value,
-      name: document.getElementById('edt-tpl-name').value,
-      category: document.getElementById('edt-tpl-cat').value,
-      description: document.getElementById('edt-tpl-description').value,
-      trigger: document.getElementById('edt-tpl-trigger').value,
-      wrapper: document.getElementById('edt-tpl-wrapper').value,
-      status: document.getElementById('edt-tpl-status').value,
-      subject: document.getElementById('edt-tpl-subject').value,
-      body: tplQuill ? tplQuill.root.innerHTML : ""
-    };
-
-    google.script.run.withSuccessHandler(function(res) {
-      if (res.success) { 
-        loadTemplatesTable(function() {
-           toggleTemplateOverlay('edit-template-overlay', false);
-           openReadOnlyTemplate(res.rowIndex); 
-        });
-      } else {
-        toggleTemplateOverlay('edit-template-overlay', false);
-        alert(res.error || res);
-      }
-    }).saveTemplateRecord(payload);
-  }
-
-
-  var GLOBAL_WRAPPER_DATA = [];
-  var CURRENT_WRAP_SORT_COLUMN = 'name';
-  var CURRENT_WRAP_SORT_DESC = false;
-
-  function loadWrappersTable(callback) {
-    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
-    google.script.run.withSuccessHandler(function(wrappers) {
-      toggleTemplateOverlay('tpl-list-overlay', false);
-      GLOBAL_WRAPPER_DATA = wrappers || [];
-      applyWrapperFilters();
-      if (callback) callback();
-    }).getWrappersList();
-  }
-
-  function handleWrapperSort(col) {
-    if (CURRENT_WRAP_SORT_COLUMN === col) { CURRENT_WRAP_SORT_DESC = !CURRENT_WRAP_SORT_DESC; }
-    else { CURRENT_WRAP_SORT_COLUMN = col; CURRENT_WRAP_SORT_DESC = false; }
-    applyWrapperFilters();
-  }
-
-  function applyWrapperFilters() {
-    var search = document.getElementById('wrap-filter-search').value.toLowerCase();
-    var checkedStats = Array.from(document.querySelectorAll('.wrap-filter-stat-cb:checked')).map(cb => cb.value);
-
-    var filtered = GLOBAL_WRAPPER_DATA.filter(function(w) {
-      var matchS = (w.name + (w.description || "")).toLowerCase().includes(search);
-      var matchSt = checkedStats.length === 0 || checkedStats.includes(w.status);
-      return matchS && matchSt;
-    });
-
-    filtered.sort(function(a, b) {
-      var vA = String(a[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
-      var vB = String(b[CURRENT_WRAP_SORT_COLUMN] || "").toLowerCase();
-      if (vA < vB) return CURRENT_WRAP_SORT_DESC ? 1 : -1;
-      if (vA > vB) return CURRENT_WRAP_SORT_DESC ? -1 : 1;
-      return 0;
-    });
-
-    document.querySelectorAll('.sort-icon').forEach(icon => { if(icon.id.startsWith('wsort-')) icon.innerHTML = ''; });
-    var iconEl = document.getElementById('wsort-' + CURRENT_WRAP_SORT_COLUMN);
-    if (iconEl) iconEl.innerHTML = CURRENT_WRAP_SORT_DESC ? '▼' : '▲';
-
-    renderWrapperTableRows(filtered);
-  }
-
-  function renderWrapperTableRows(wrappers) {
-    var tbody = document.getElementById('wrapperTableBody');
-    tbody.innerHTML = '';
-    if (wrappers.length === 0) { 
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No layouts match criteria.</td></tr>'; 
-      return; 
-    }
+    document.getElementById('ro-tpl-name').innerText = "Loading template...";
+    document.getElementById('ro-tpl-subline').innerText = "Loading attributes...";
+    document.getElementById('ro-tpl-subject').innerText = "Loading...";
+    document.getElementById('ro-tpl-desc').innerText = "Loading...";
+    document.getElementById('ro-tpl-module').innerHTML = "";
+    document.getElementById('ro-tpl-wrapper').innerText = "Loading...";
+    document.getElementById('ro-tpl-status').innerHTML = "";
+    document.getElementById('ro-tpl-created').innerText = "Loading...";
+    document.getElementById('ro-tpl-updated').innerText = "Loading...";
+    document.getElementById('tpl-preview-frame').srcdoc = "<html><body style='font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:90vh; color:#94a3b8;'><div>Rendering Branded Hub Preview...</div></body></html>";
     
-    wrappers.forEach(w => {
-      var tr = document.createElement('tr');
-      tr.style.cursor = "pointer";
-      tr.onclick = (e) => { if(!e.target.closest('button')) openReadOnlyWrapper(w.rowIndex); };
+    toggleTemplateOverlay('ro-template-overlay', true);
+
+    google.script.run.withSuccessHandler(function(data) {
+      document.getElementById('ro-tpl-name').innerText = data.name;
+      document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
       
-      var pill = w.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      tr.innerHTML = `
-        <td><strong>${w.name}</strong></td>
-        <td>${w.description || "<span style='color:#94a3b8; font-style:italic;'>No description</span>"}</td>
-        <td><span class="badge ${pill}">${w.status}</span></td>
-        <td style="text-align:right;"><button class="btn-edit" onclick="openEditWrapperForm(${w.rowIndex}, 'list'); event.stopPropagation();">Edit Code</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
+      document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
+      document.getElementById('ro-tpl-desc').innerText = data.description || "No description provided";
+      document.getElementById('ro-tpl-module').innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569;">${data.module}</span>`;
+      document.getElementById('ro-tpl-wrapper').innerText = data.wrapper || "Internal Communication";
+      
+      var pillClass = data.status === 'Active' ? 'badge-active' : 'badge-onboarding';
+      document.getElementById('ro-tpl-status').innerHTML = `<span class="badge ${pillClass}">${data.status}</span>`;
+
+      document.getElementById('ro-tpl-created').innerText = data.timestamp || "Not recorded";
+      document.getElementById('ro-tpl-updated').innerText = data.lastUpdated || "Not recorded";
+
+      document.getElementById('ro-tpl-edit-btn').onclick = () => openEditTemplateForm(data.rowIndex, 'view');
+      document.getElementById('ro-tpl-test-btn').onclick = () => openTestEmailModal(data.rowIndex);
+      
+      google.script.run.withSuccessHandler(function(html) {
+        toggleTemplateOverlay('ro-template-overlay', false);
+        document.getElementById('tpl-preview-frame').srcdoc = html;
+      }).getRenderedTemplatePreview(data.rowIndex);
+      
+    }).getTemplateById(rowIndex);
   }
 
-  function resetWrapperFilters() {
-    var searchBox = document.getElementById('wrap-filter-search');
-    if (searchBox) searchBox.value = '';
+  function openAddWrapperForm() {
+    switchView('editWrapperView');
+    document.getElementById('editWrapperForm').reset();
+    document.getElementById('edt-wrap-rowIndex').value = "";
+    document.getElementById('edt-wrap-id').value = "";
+    document.getElementById('wrap-form-title').innerText = "Create Layout";
     
-    // FIX: Strictly default back to 'Active' only
-    document.querySelectorAll('.wrap-filter-stat-cb').forEach(cb => {
-      cb.checked = (cb.value === 'Active');
-    });
+    var backBtn = document.getElementById('btn-back-edit-wrap');
+    if (backBtn) { backBtn.innerHTML = '&#8592; Back to Layouts'; backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('wraps'); }; }
     
-    applyWrapperFilters();
+    document.getElementById('wrap-status-group').style.display = 'none';
+    document.getElementById('edt-wrap-status').value = 'Active';
+    
+    var statusDrop = document.getElementById('edt-wrap-status');
+    if (statusDrop) statusDrop.disabled = false;
+    var warnText = document.getElementById('wrap-status-warning');
+    if (warnText) warnText.innerText = "";
   }
 
   function openEditWrapperForm(rowIndex, source) {
@@ -752,7 +804,6 @@
     document.getElementById('editWrapperForm').reset();
     document.getElementById('wrap-form-title').innerText = "Edit Layout";
     
-    // Dynamic Back Button Routing
     var backBtn = document.getElementById('btn-back-edit-wrap');
     if (backBtn) {
       if (source === 'view') {
@@ -764,11 +815,9 @@
       }
     }
     
-    // --- PURGE GHOST DATA ---
     document.getElementById('edt-wrap-name').value = "";
     document.getElementById('edt-wrap-desc').value = "";
     document.getElementById('edt-wrap-html').value = "";
-    
     document.getElementById('wrap-status-group').style.display = 'flex';
 
     var w = GLOBAL_WRAPPER_DATA.find(x => x.rowIndex === rowIndex);
@@ -804,7 +853,6 @@
   function openReadOnlyWrapper(rowIndex) {
     switchView('readOnlyWrapperView');
     
-    // --- PURGE GHOST DATA ---
     document.getElementById('ro-wrap-name').innerText = "Loading layout...";
     document.getElementById('ro-wrap-desc').innerText = "";
     document.getElementById('ro-wrap-status').innerHTML = "";
@@ -858,25 +906,52 @@
     document.getElementById('quick-preview-frame').srcdoc = fullHtml;
     document.getElementById('quickPreviewModal').style.display = 'flex';
   }
-  
-  function openAddWrapperForm() {
-    switchView('editWrapperView');
-    document.getElementById('editWrapperForm').reset();
-    document.getElementById('edt-wrap-rowIndex').value = "";
-    document.getElementById('edt-wrap-id').value = "";
-    document.getElementById('wrap-form-title').innerText = "Create Layout";
+
+  function openTestEmailModal(rowIndex) {
+    if (!rowIndex) { alert("Please save the template as a record before dispatching a test email."); return; }
     
-    var backBtn = document.getElementById('btn-back-edit-wrap');
-    if (backBtn) { backBtn.innerHTML = '&#8592; Back to Layouts'; backBtn.onclick = function() { switchView('templatesListView'); toggleTemplateSubView('wraps'); }; }
+    document.getElementById('test-email-row-index').value = rowIndex;
+    document.getElementById('test-email-address').value = "";
+    document.getElementById('test-email-msg').innerText = "";
     
-    // NEW: Hide Status Field and Default to Active
-    document.getElementById('wrap-status-group').style.display = 'none';
-    document.getElementById('edt-wrap-status').value = 'Active';
+    var btn = document.getElementById('btn-send-test-modal');
+    btn.innerText = "Dispatch Test Email";
+    btn.disabled = false;
     
-    var statusDrop = document.getElementById('edt-wrap-status');
-    if (statusDrop) statusDrop.disabled = false;
-    var warnText = document.getElementById('wrap-status-warning');
-    if (warnText) warnText.innerText = "";
+    document.getElementById('testEmailModal').style.display = 'flex';
+  }
+
+  /* ========================================================================
+     7. SUBMIT HANDLERS
+     ======================================================================== */
+  function handleTemplateSubmit(e) {
+    if(e) e.preventDefault();
+    toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');
+    
+    var payload = {
+      rowIndex: document.getElementById('edt-tpl-rowIndex').value,
+      id: document.getElementById('edt-tpl-id').value,
+      name: document.getElementById('edt-tpl-name').value,
+      category: document.getElementById('edt-tpl-cat').value,
+      description: document.getElementById('edt-tpl-description').value,
+      trigger: document.getElementById('edt-tpl-trigger').value,
+      wrapper: document.getElementById('edt-tpl-wrapper').value,
+      status: document.getElementById('edt-tpl-status').value,
+      subject: document.getElementById('edt-tpl-subject').value,
+      body: tplQuill ? tplQuill.root.innerHTML : ""
+    };
+
+    google.script.run.withSuccessHandler(function(res) {
+      if (res.success) { 
+        loadTemplatesTable(function() {
+           toggleTemplateOverlay('edit-template-overlay', false);
+           openReadOnlyTemplate(res.rowIndex); 
+        });
+      } else {
+        toggleTemplateOverlay('edit-template-overlay', false);
+        alert(res.error || res);
+      }
+    }).saveTemplateRecord(payload);
   }
 
   function handleWrapperSubmit(e) {
@@ -905,120 +980,6 @@
     }).saveWrapperRecord(payload);
   }
 
-  /**
-   * Fetches wrappers and updates the dropdown in the Template Editor.
-   */
-  function syncWrapperDropdown() {
-    var select = document.getElementById('edt-tpl-wrapper');
-    if (!select) return;
-    select.innerHTML = GLOBAL_WRAPPER_DATA.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
-  }
-
-  /**
-   * Fetches triggers from memory and updates the dropdown in the Template Editor.
-   */
-  function syncTriggerDropdown() {
-    var select = document.getElementById('edt-tpl-trigger');
-    if (!select) return;
-    select.innerHTML = GLOBAL_SYSTEM_TRIGGERS.map(t => `<option value="${t}">${t}</option>`).join('');
-  }
-
-  /* ========================================================================
-     3. RICH TEXT & PREVIEW ENGINE (Technical Anchor Restored)
-     ======================================================================== */
-
-  function initTplEditor() {
-    if (!tplQuill && document.getElementById('tpl-quill-editor')) {
-      tplQuill = new Quill('#tpl-quill-editor', { 
-        theme: 'snow', 
-        placeholder: 'Design your message using HTML or Rich Text. Use {{placeholders}} to merge registry data...',
-        modules: {
-          toolbar: [
-            [{ 'header': [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            ['link', 'image', 'clean']
-          ]
-        }
-      });
-    }
-  }
-
-  function loadPlaceholderSuggestions() {
-    var container = document.getElementById('placeholder-container');
-    if (container.innerHTML !== "") return;
-    google.script.run.withSuccessHandler(function(placeholders) {
-      container.innerHTML = placeholders.map(p => `<span class="placeholder-tag" onclick="copyPlaceholder('{{${p}}}')">{{${p}}}</span>`).join('');
-    }).getPlaceholderSuggestions();
-  }
-
-  function copyPlaceholder(text) {
-    var el = document.createElement('textarea'); el.value = text; document.body.appendChild(el);
-    el.select(); document.execCommand('copy'); document.body.removeChild(el);
-    // Visual Feedback
-    var btn = event.target; var original = btn.innerText; btn.innerText = "Copied!"; btn.style.background = "#15803d"; btn.style.color = "white";
-    setTimeout(() => { btn.innerText = original; btn.style.background = ""; btn.style.color = ""; }, 1000);
-  }
-
-  function openReadOnlyTemplate(rowIndex) {
-    switchView('readOnlyTemplateView');
-    
-    // --- PURGE GHOST DATA ---
-    document.getElementById('ro-tpl-name').innerText = "Loading template...";
-    document.getElementById('ro-tpl-subline').innerText = "Loading attributes...";
-    document.getElementById('ro-tpl-subject').innerText = "Loading...";
-    document.getElementById('ro-tpl-desc').innerText = "Loading...";
-    document.getElementById('ro-tpl-module').innerHTML = "";
-    document.getElementById('ro-tpl-wrapper').innerText = "Loading...";
-    document.getElementById('ro-tpl-status').innerHTML = "";
-    document.getElementById('ro-tpl-created').innerText = "Loading...";
-    document.getElementById('ro-tpl-updated').innerText = "Loading...";
-    document.getElementById('tpl-preview-frame').srcdoc = "<html><body style='font-family:sans-serif; display:flex; align-items:center; justify-content:center; height:90vh; color:#94a3b8;'><div>Rendering Branded Hub Preview...</div></body></html>";
-    
-    toggleTemplateOverlay('ro-template-overlay', true);
-
-    google.script.run.withSuccessHandler(function(data) {
-      document.getElementById('ro-tpl-name').innerText = data.name;
-      document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
-      
-      document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
-      document.getElementById('ro-tpl-desc').innerText = data.description || "No description provided";
-      document.getElementById('ro-tpl-module').innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569;">${data.module}</span>`;
-      document.getElementById('ro-tpl-wrapper').innerText = data.wrapper || "Internal Communication";
-      
-      var pillClass = data.status === 'Active' ? 'badge-active' : 'badge-onboarding';
-      document.getElementById('ro-tpl-status').innerHTML = `<span class="badge ${pillClass}">${data.status}</span>`;
-
-      // Assign Timestamps
-      document.getElementById('ro-tpl-created').innerText = data.timestamp || "Not recorded";
-      document.getElementById('ro-tpl-updated').innerText = data.lastUpdated || "Not recorded";
-
-      document.getElementById('ro-tpl-edit-btn').onclick = () => openEditTemplateForm(data.rowIndex, 'view');
-      document.getElementById('ro-tpl-test-btn').onclick = () => openTestEmailModal(data.rowIndex);
-      
-      google.script.run.withSuccessHandler(function(html) {
-        toggleTemplateOverlay('ro-template-overlay', false);
-        document.getElementById('tpl-preview-frame').srcdoc = html;
-      }).getRenderedTemplatePreview(data.rowIndex);
-      
-    }).getTemplateById(rowIndex);
-  }
-
-  function openTestEmailModal(rowIndex) {
-    if (!rowIndex) { alert("Please save the template as a record before dispatching a test email."); return; }
-    
-    document.getElementById('test-email-row-index').value = rowIndex;
-    document.getElementById('test-email-address').value = "";
-    document.getElementById('test-email-msg').innerText = "";
-    
-    var btn = document.getElementById('btn-send-test-modal');
-    btn.innerText = "Dispatch Test Email";
-    btn.disabled = false;
-    
-    document.getElementById('testEmailModal').style.display = 'flex';
-  }
-
   function submitTestEmail() {
     var rowIndex = document.getElementById('test-email-row-index').value;
     var email = document.getElementById('test-email-address').value;
@@ -1035,7 +996,21 @@
     }).sendTestEmailAction(rowIndex, email);
   }
 
-  /* --- MISSING ACCORDION HANDLERS (Fixes Add/Edit Buttons) --- */
+  /* ========================================================================
+     8. UI HELPERS
+     ======================================================================== */
+  function toggleTemplateOverlay(id, show, text) {
+    var overlay = document.getElementById(id);
+    if (overlay) { overlay.style.display = show ? 'flex' : 'none'; if (text) { var t = overlay.querySelector('span'); if(t) t.innerText = text; } }
+  }
+
+  function copyPlaceholder(text) {
+    var el = document.createElement('textarea'); el.value = text; document.body.appendChild(el);
+    el.select(); document.execCommand('copy'); document.body.removeChild(el);
+    var btn = event.target; var original = btn.innerText; btn.innerText = "Copied!"; btn.style.background = "#15803d"; btn.style.color = "white";
+    setTimeout(() => { btn.innerText = original; btn.style.background = ""; btn.style.color = ""; }, 1000);
+  }
+
   function toggleAccordion(btn) {
     btn.classList.toggle("active");
     var panel = btn.nextElementSibling;

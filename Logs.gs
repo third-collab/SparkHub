@@ -1,4 +1,13 @@
-// --- LOGS MODULE REGISTRY EXPORTS ---
+/**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Logs.gs
+ * VERSION: 1.1
+ * SYNC STATUS: Fully Synchronized with LogsData.html
+ */
+
+// ========================================================================
+// 1. REGISTRY EXPORTS
+// ========================================================================
 function Logs_getTriggers() {
   return ["Logs:EXPORT", "Logs:PURGE"];
 }
@@ -7,10 +16,9 @@ function Logs_getPlaceholders() {
   return ["logTimestamp", "logModule", "logAction", "logActor", "logEntity", "logDetails"];
 }
 
-/**
- * Logs Module - Backend
- * Core module for system audit trails and event monitoring.
- */
+// ========================================================================
+// 2. CORE PROCESSORS
+// ========================================================================
 var Logs = {
   handleSystemEvent: function(payload) {
     try {
@@ -19,27 +27,25 @@ var Logs = {
       if (!sheet) return;
 
       var env = PropertiesService.getScriptProperties().getProperty('ENVIRONMENT') || "Sandbox";
-      
       sheet.appendRow([
         payload.timestamp,
         payload.module,
         payload.type,
         payload.name,
-        payload.severity, // FIX: Now dynamically pulls INFO, WARN, or ERROR
+        payload.severity, 
         payload.user,
         payload.entity,
         payload.details,
         env
       ]);
-      
       SpreadsheetApp.flush();
     } catch (e) { console.error("Logs Handler Error: " + e.message); }
   }
 };
 
-/**
- * UI Data Provider
- */
+// ========================================================================
+// 3. READ / GET FUNCTIONS
+// ========================================================================
 function getLogsList() {
   try {
     var sheet = getLogsDb().getSheetByName("System Logs");
@@ -60,7 +66,6 @@ function getLogsList() {
         env: row[8]
       };
     });
-    
     // Reverse the array so the frontend dashboard still displays the newest logs at the top
     return formattedLogs.reverse();
   } catch (e) { return []; }
@@ -75,9 +80,19 @@ function getEventTimestampFromLogs(module, type, entity) {
     for (var i = data.length - 1; i > 0; i--) {
       // Module is Col B (1), Type is Col C (2), Entity is Col G (6)
       if (data[i][1] === module && data[i][2] === type && data[i][6] === entity) {
-        return data[i][0]; // Return the Timestamp
+        return data[i][0];
       }
     }
     return "Not recorded";
   } catch(e) { return "Unknown"; }
 }
+
+// ========================================================================
+// 4. WRITE / SAVE FUNCTIONS
+// ========================================================================
+// Currently handled by CORE PROCESSORS (handleSystemEvent)
+
+// ========================================================================
+// 5. INTERNAL HELPERS
+// ========================================================================
+// No internal helpers currently needed for Logs
