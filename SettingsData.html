@@ -32,7 +32,7 @@
     <div id="ro-settings-overlay" class="settings-loading-overlay"><div class="spinner-core"></div><span>Synchronizing Config...</span></div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
        <h2 style="margin:0; color: var(--brand-dark);">System Configuration</h2>
-       <button class="btn-primary perm-protected" onclick="openEditSettings()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit System Settings</button>
+       <button class="btn-primary perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit System Settings</button>
     </div>
     
     <div id="ro-settings-nav" class="tab-nav">
@@ -256,7 +256,7 @@
     }).getSystemSettings();
   }
 
-  function openEditSettings() {
+  function openEditSettingsForm() {
     switchView('editSettingsView');
     navigateClientTab('set-edt', 'core');
     toggleSettingsOverlay('edt-settings-overlay', true, 'Opening Logic Shell...');

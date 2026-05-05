@@ -91,7 +91,7 @@
 </style>
 
 <template class="module-card-template" data-category="core" data-perm-category="Templates" data-perm-action="View Templates">
-  <div class="card" id="card-templates" onclick="switchView('templatesListView'); loadTemplatesTable();">
+  <div class="card" id="card-templates" onclick="initTemplatesModule();">
     <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
     <h3>Templates</h3>
     <p>Manage email and system templates.</p>
@@ -130,13 +130,13 @@
 
   <div id="wrapper-sub-view" style="display:none;">
     <div class="filter-wrapper">
-       <input type="text" id="wrap-filter-search" class="filter-input" placeholder="Search layouts..." onkeyup="applyWrapperSort()">
+       <input type="text" id="wrap-filter-search" class="filter-input" placeholder="Search layouts..." onkeyup="applyWrapperFilters()">
        <button class="btn-filter-toggle" onclick="toggleFilter('wrap-adv')">Filters</button>
        <div id="wrap-adv" class="filter-advanced">
          <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('wrap-stat-drop')">Status ▼</button>
            <div class="dropdown-content" id="wrap-stat-drop">
-             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Active" checked onchange="applyWrapperSort()"> Active</label>
-             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Inactive" onchange="applyWrapperSort()"> Inactive</label>
+             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Active" checked onchange="applyWrapperFilters()"> Active</label>
+             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Inactive" onchange="applyWrapperFilters()"> Inactive</label>
            </div>
          </div>
          <button type="button" class="btn-reset-filters" onclick="resetWrapperFilters()">Reset</button>
@@ -393,6 +393,11 @@
   var CURRENT_TPL_SORT_COLUMN = 'name';
   var CURRENT_TPL_SORT_DESC = false;
   var tplQuill;
+
+  function initTemplatesModule() {
+    switchView('templatesListView');
+    loadTemplatesTable();
+  }
 
   /**
    * Action Verb: loadTemplatesTable()
@@ -657,7 +662,7 @@
         toggleTemplateOverlay('edit-template-overlay', false);
         alert(res.error || res);
       }
-    }).updateTemplateRecord(payload);
+    }).saveTemplateRecord(payload);
   }
 
 
@@ -670,7 +675,7 @@
     google.script.run.withSuccessHandler(function(wrappers) {
       toggleTemplateOverlay('tpl-list-overlay', false);
       GLOBAL_WRAPPER_DATA = wrappers || [];
-      applyWrapperSort();
+      applyWrapperFilters();
       if (callback) callback();
     }).getWrappersList();
   }
@@ -678,10 +683,10 @@
   function handleWrapperSort(col) {
     if (CURRENT_WRAP_SORT_COLUMN === col) { CURRENT_WRAP_SORT_DESC = !CURRENT_WRAP_SORT_DESC; }
     else { CURRENT_WRAP_SORT_COLUMN = col; CURRENT_WRAP_SORT_DESC = false; }
-    applyWrapperSort();
+    applyWrapperFilters();
   }
 
-  function applyWrapperSort() {
+  function applyWrapperFilters() {
     var search = document.getElementById('wrap-filter-search').value.toLowerCase();
     var checkedStats = Array.from(document.querySelectorAll('.wrap-filter-stat-cb:checked')).map(cb => cb.value);
 
@@ -739,7 +744,7 @@
       cb.checked = (cb.value === 'Active');
     });
     
-    applyWrapperSort();
+    applyWrapperFilters();
   }
 
   function openEditWrapperForm(rowIndex, source) {
@@ -897,7 +902,7 @@
         toggleTemplateOverlay('edit-wrap-overlay', false);
         alert(res.error || res);
       }
-    }).updateWrapperRecord(payload);
+    }).saveWrapperRecord(payload);
   }
 
   /**

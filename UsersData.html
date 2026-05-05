@@ -513,7 +513,7 @@
       document.getElementById('btn-tab-roles').classList.add('active');
       // FIX: Changed data-perm-category from 'Core System' to 'Access & Users'
       actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Access & Users" data-perm-action="Manage Roles">+ Create Role</button>`;
-      openRolesList();
+      loadRolesTable();
     }
     if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
   }
@@ -831,7 +831,7 @@
         btn.disabled = false; 
         if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
       }
-    }).processNewUser(userData);
+    }).createUserRecord(userData);
   }
 
   function openEditUserForm(rowIndex, source) {
@@ -953,7 +953,7 @@
      3. ROLES MANAGER
      ======================================================================== */
 
-  function openRolesList() {
+  function loadRolesTable() {
     toggleUserOverlay('role-list-overlay', true);
     google.script.run.withSuccessHandler(function(roles) {
       toggleUserOverlay('role-list-overlay', false);
@@ -973,7 +973,7 @@
       return matchS && matchSt;
     });
 
-    renderRolesTable(filtered);
+    renderRoleTableRows(filtered);
   }
 
   function resetRoleFilters() {
@@ -988,7 +988,7 @@
     applyRoleFilters();
   }
 
-  function renderRolesTable(rolesData) {
+  function renderRoleTableRows(rolesData) {
     var tbody = document.getElementById('roleTableBody');
     tbody.innerHTML = '';
     if (!rolesData || rolesData.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px;">No roles match your criteria.</td></tr>'; return; }
@@ -1150,7 +1150,7 @@
     google.script.run.withSuccessHandler(function(res) {
       toggleUserOverlay('role-edit-overlay', false);
       if(res.success) { 
-        openRolesList(); 
+        loadRolesTable(); 
         if (source === 'view' || !payload.rowIndex) { openReadOnlyRole(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('roles'); }
       } else { alert(res.error || res); }
     }).saveRoleRecord(payload);

@@ -59,7 +59,7 @@ function getTemplateById(rowIndex) {
   } catch (e) { return { error: e.message }; }
 }
 
-function updateTemplateRecord(data) {
+function saveTemplateRecord(data) {
   try {
     var sheet = getMainDb().getSheetByName("Templates");
     var autoModule = data.trigger ? data.trigger.split(':')[0] : "System";
@@ -173,7 +173,7 @@ function getWrapperById(rowIndex) {
   } catch (e) { return { error: e.message }; }
 }
 
-function updateWrapperRecord(data) {
+function saveWrapperRecord(data) {
   try {
     var sheet = ensureWrappersSheet();
     var values = [

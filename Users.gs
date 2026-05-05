@@ -19,7 +19,7 @@ function Users_getPlaceholders() {
  * Standardized under SparkHub Architecture Blueprint.
  * Handles: Staff profiles, permissions, RBAC, and directory management.
  */
-function processNewUser(obj) {
+function createUserRecord(obj) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var hashedPw = hashPassword(obj.password);
