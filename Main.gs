@@ -1,4 +1,11 @@
 /**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Main.gs
+ * VERSION: 1.9 (True Modular Injection + Core Logic Restoration)
+ * SYNC STATUS: Fully Synchronized with Index.html & Core Modules
+ */
+
+/**
  * Main Initialization Module (Router)
  * Standardized under SparkHub Architecture Blueprint.
  * * CORE RESPONSIBILITIES:
@@ -17,8 +24,6 @@ function doGet(e) {
   template.isInstalled = isInstalled;
   template.userEmail = userEmail;
   template.systemName = settings.systemName;
-
-  // NEW: Capture URL parameters to support Password Resets
   template.resetToken = (e && e.parameter && e.parameter.token) ? e.parameter.token : "";
   
   // DYNAMIC UI REGISTRY
@@ -40,19 +45,16 @@ function doGet(e) {
   template.themeDark = settings.themeDark;
   template.themeBg = settings.themeBg;
   template.themeHover = settings.themeHover;
-  
   template.authMode = settings.authMode;
 
-  // CRITICAL FIX: Bypasses Google's SSO checks if the system is enforcing Local Auth.
-  // CRITICAL FIX: Bypasses Google's SSO checks if the system is enforcing Local Auth.
   var role = 'Guest';
-  var layout = 'DEFAULT'; // NEW LINE
+  var layout = 'DEFAULT'; 
   if (isInstalled) {
     if (settings.authMode === 'Local') {
       role = 'Guest';
     } else {
       role = (userEmail === '' ? 'Guest' : getUserRole());
-      if (role !== 'Guest' && role !== 'Inactive') layout = getResolvedDashboardLayout(userEmail, role); // NEW LINE
+      if (role !== 'Guest' && role !== 'Inactive') layout = getResolvedDashboardLayout(userEmail, role);
     }
   } else {
     role = 'Administrator';
@@ -61,7 +63,7 @@ function doGet(e) {
   if (role === 'Inactive') return serveAccessDeniedScreen(settings);
 
   template.userRole = role;
-  template.dashboardLayout = layout; // NEW LINE
+  template.dashboardLayout = layout;
   template.username = (role === 'Guest') ? '' : getLoggedInUsername();
   template.userFirstName = (role === 'Guest' || !isInstalled) ? '' : getLoggedInUserFirstName();
   template.userPermissions = (role === 'Guest' || !isInstalled) ? '{"ALL":["ALL"]}' : getUserPermissions(role);
@@ -77,7 +79,6 @@ function doGet(e) {
  */
 function serveAccessDeniedScreen(s) {
   var displayLogo = s.systemLogoId ? s.systemLogoUrl : s.appFallbackLogo;
-  
   var errorHtml = `
     <!DOCTYPE html>
     <html>
@@ -99,7 +100,6 @@ function serveAccessDeniedScreen(s) {
     </body>
     </html>
   `;
-  
   return HtmlService.createHtmlOutput(errorHtml)
       .setTitle(s.systemName + ' - Access Denied')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

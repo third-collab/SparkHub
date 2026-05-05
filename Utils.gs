@@ -130,7 +130,7 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     // Trigger is Col G (Index 6), Status is Col K (Index 10), Wrapper is Col J (Index 9)
     // CRITICAL: Block email dispatch if the assigned wrapper is inactive
     if (tData[i][6] === triggerHandle && tData[i][10] === "Active" && isWrapperActive(tData[i][9])) {
-      matchedTemplates.push(tData[i]); 
+      matchedTemplates.push(tData[i]);
     }
   }
 
@@ -138,7 +138,6 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
 
   for (var t = 0; t < matchedTemplates.length; t++) {
     var templateRow = matchedTemplates[t];
-    
     var finalToEmail = toEmail;
     var finalSubject = templateRow[7];
     var finalHtmlBody = templateRow[8];
@@ -151,7 +150,6 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     }
     
     var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
-
     for (var key in dataMap) {
       var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
       finalSubject = finalSubject.replace(regex, dataMap[key] || "");
@@ -174,11 +172,9 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
   }
 }
 
-function sendTestEmailAction(rowIndex, testEmail) {
+function sendTestEmail(rowIndex, testEmail) {
   try {
-    // Fetch 11 columns
     var rowData = getMainDb().getSheetByName("Templates").getRange(rowIndex, 1, 1, 11).getValues()[0];
-    // NEW INDICES: Wrapper is 9, Body is 8, Subject is 7
     var fullHtml = getWrapperContent(rowData[9]).replace("{{USER_MESSAGE_CONTENT}}", rowData[8]);
     var finalHtml = fullHtml.replace("{{username}}", "jdoe").replace("{{systemName}}", getSystemSettings().systemName);
     
@@ -186,6 +182,10 @@ function sendTestEmailAction(rowIndex, testEmail) {
     return "Test email sent to " + testEmail;
   } catch (e) { return "Error: " + e.message; }
 }
+
+/* ========================================================================
+   4. SECURITY & DATA FORMATTING
+   ======================================================================== */
 
 /**
  * Securely hashes passwords using SHA-256 for database storage.
@@ -211,3 +211,7 @@ function hashPassword(password) {
 function isValidDate(d) {
   return d instanceof Date && !isNaN(d);
 }
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */

@@ -139,6 +139,16 @@ function getWrapperById(rowIndex) {
   } catch (e) { return { error: e.message }; }
 }
 
+function getWrapperContent(wrapperName) {
+  try {
+    var data = ensureWrappersSheet().getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][2] === wrapperName && data[i][5] === "Active") return data[i][4];
+    }
+    return "{{USER_MESSAGE_CONTENT}}";
+  } catch (e) { return "{{USER_MESSAGE_CONTENT}}"; }
+}
+
 // ========================================================================
 // 4. WRITE / SAVE FUNCTIONS
 // ========================================================================
@@ -160,6 +170,8 @@ function saveTemplateRecord(data) {
       var oldStatus = sheet.getRange(targetRow, 11).getValue();
       sheet.getRange(targetRow, 1, 1, 11).setValues([values]);
       SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template content or logic updated.");
+      
+      // Granular Activation Logging
       if (oldStatus !== data.status) {
         var actionVerb = data.status === "Active" ? "activated" : "deactivated";
         SystemEvent.emit("Templates", "UPDATE", "Template Status Changed", "WARN", data.name, "Template was manually " + actionVerb + ".");
@@ -187,6 +199,8 @@ function saveWrapperRecord(data) {
       var oldStatus = sheet.getRange(targetRow, 6).getValue();
       sheet.getRange(targetRow, 1, 1, 6).setValues([values]);
       SystemEvent.emit("Templates:Wrappers", "UPDATE", "Edit Wrapper", "INFO", data.name, "Wrapper layout HTML or settings updated.");
+      
+      // Granular Activation Logging
       if (oldStatus !== data.status) {
         var actionVerb = data.status === "Active" ? "activated" : "deactivated";
         SystemEvent.emit("Templates:Wrappers", "UPDATE", "Wrapper Status Changed", "WARN", data.name, "Wrapper layout was manually " + actionVerb + ".");
@@ -219,16 +233,6 @@ function ensureWrappersSheet() {
     sheet.appendRow([new Date(), "W-USER", "User Communications", "Dedicated layout for user access and security emails", userHtml, "Active"]);
   }
   return sheet;
-}
-
-function getWrapperContent(wrapperName) {
-  try {
-    var data = ensureWrappersSheet().getDataRange().getValues();
-    for (var i = 1; i < data.length; i++) {
-      if (data[i][2] === wrapperName && data[i][5] === "Active") return data[i][4];
-    }
-    return "{{USER_MESSAGE_CONTENT}}";
-  } catch (e) { return "{{USER_MESSAGE_CONTENT}}"; }
 }
 
 /**

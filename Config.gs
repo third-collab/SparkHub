@@ -1,6 +1,13 @@
 /**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Config.gs
+ * VERSION: 1.1
+ * SYNC STATUS: Fully Synchronized with Settings.gs
+ */
+
+/**
  * Configuration Module - Backend
- * Standardized under MR Hub Architecture Blueprint.
+ * Standardized under SparkHub Architecture Blueprint.
  * Dynamically retrieves Database IDs from Script Properties.
  */
 
@@ -13,7 +20,6 @@
 function getMainDb() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('DATABASE_ID');
-  
   if (!id) {
     throw new Error("Configuration Error: Main Database ID is missing. Please run the System Installation or configure the ID in Settings.");
   }
@@ -42,3 +48,7 @@ function getLogsDb() {
     throw new Error("System Error: Unable to open Logs Database.");
   }
 }
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */

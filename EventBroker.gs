@@ -1,14 +1,16 @@
 /**
- * Event Broker - Core Orchestrator
- * Automatically routes system events to interested modules.
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: EventBroker.gs
+ * VERSION: 1.2
+ * SYNC STATUS: Fully Synchronized with Core Modules & Templates.gs
  */
+
 /**
  * Event Broker - Core Orchestrator
  * Automatically routes system events to interested modules.
  */
 var SystemEvent = (function() {
   
-  // UPGRADED: Added 'extraData' to pass dynamic template placeholders
   function emit(module, type, name, severity, entity, details, recipientEmail, extraData) {
     var payload = {
       module: module, 
@@ -19,7 +21,7 @@ var SystemEvent = (function() {
       entity: entity, 
       details: details,
       recipientEmail: recipientEmail || "",
-      extraData: extraData || {}, // Carries variables like {{resetLink}}
+      extraData: extraData || {}, 
       timestamp: new Date(), 
       user: getLoggedInUsername()
     };
@@ -50,3 +52,7 @@ var SystemEvent = (function() {
 
   return { emit: emit };
 })();
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */

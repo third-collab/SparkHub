@@ -95,7 +95,7 @@ function sendPasswordResetEmail(email) {
 
     if (!userExists) return "If that email is in our system, a reset link has been sent.";
     var token = Utilities.getUuid();
-    var expiry = new Date(new Date().getTime() + 15 * 60000); // 15 mins
+    var expiry = new Date(new Date().getTime() + 15 * 60000); 
     var tokenSheet = ensureTokensSheet();
     tokenSheet.appendRow([token, email, expiry]);
     var resetLink = ScriptApp.getService().getUrl() + "?token=" + token;

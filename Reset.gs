@@ -1,4 +1,11 @@
 /**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Reset.gs
+ * VERSION: 1.1
+ * SYNC STATUS: Standalone Utility
+ */
+
+/**
  * Utility function to clear all system properties during testing,
  * while securely preserving the master webhook secret.
  * Run this manually from the Apps Script editor between test installs.
@@ -18,3 +25,7 @@ function resetTestingEnvironment() {
 
   console.log("Environment reset complete. Wiped " + deletedCount + " properties. WEBHOOK_SECRET was safely preserved.");
 }
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */

@@ -50,7 +50,7 @@ function getLogsList() {
   try {
     var sheet = getLogsDb().getSheetByName("System Logs");
     var data = sheet.getDataRange().getDisplayValues();
-    data.shift(); // Remove headers
+    data.shift(); 
     
     var formattedLogs = data.map(function(row, i) {
       return {
@@ -66,7 +66,6 @@ function getLogsList() {
         env: row[8]
       };
     });
-    // Reverse the array so the frontend dashboard still displays the newest logs at the top
     return formattedLogs.reverse();
   } catch (e) { return []; }
 }
@@ -76,9 +75,7 @@ function getEventTimestampFromLogs(module, type, entity) {
     var sheet = getLogsDb().getSheetByName("System Logs");
     if (!sheet) return "Not recorded";
     var data = sheet.getDataRange().getDisplayValues();
-    // Loop backwards to find the most recent matching record
     for (var i = data.length - 1; i > 0; i--) {
-      // Module is Col B (1), Type is Col C (2), Entity is Col G (6)
       if (data[i][1] === module && data[i][2] === type && data[i][6] === entity) {
         return data[i][0];
       }
@@ -96,3 +93,7 @@ function getEventTimestampFromLogs(module, type, entity) {
 // 5. INTERNAL HELPERS
 // ========================================================================
 // No internal helpers currently needed for Logs
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */

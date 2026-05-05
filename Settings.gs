@@ -28,12 +28,9 @@ function Settings_getPlaceholders() {
  */
 function uploadSystemLogo(base64, filename) {
   try {
-    // 1. Navigate/Create the specific Assets path
     var assetsFolder = getSystemSubfolder("System Assets");
     var sFolder = getOrCreateFolder(assetsFolder, "Settings");
     var iFolder = getOrCreateFolder(sFolder, "Images");
-    
-    // 2. Utilize the Generic Utility
     return uploadBase64File(base64, filename, iFolder);
   } catch (e) { 
     return { error: "Logo Sync Error: " + e.message };
@@ -66,7 +63,7 @@ function getSystemSettings() {
 
     return {
       environment: props.getProperty('ENVIRONMENT') || 'Sandbox',
-      authMode: props.getProperty('AUTH_MODE') || 'SSO', // <-- NEW LINE
+      authMode: props.getProperty('AUTH_MODE') || 'SSO', 
       adminEmail: props.getProperty('ADMIN_EMAIL') || '',
       systemName: props.getProperty('SYSTEM_NAME') || 'SparkHub',
       systemLogoUrl: logoUrl,
@@ -76,7 +73,7 @@ function getSystemSettings() {
       rootFolderId: props.getProperty('ROOT_FOLDER_ID') || '',
       mainDbId: props.getProperty('DATABASE_ID') || '',
       logsDbId: props.getProperty('LOGS_DATABASE_ID') || '',
-      hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'), // <-- NEW: Boolean check
+      hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'), 
       installedModules: props.getProperty('INSTALLED_MODULES') || '',
       installedPlugins: props.getProperty('INSTALLED_PLUGINS') || '',
       themePrimary: getSafeProp('THEME_PRIMARY', '#666DF2'), 
@@ -100,11 +97,9 @@ function saveSystemSettings(settings) {
   try {
     var props = PropertiesService.getScriptProperties();
     
-    // Validate databases if IDs are being changed
     if (settings.mainDbId) validateDatabase(settings.mainDbId);
     if (settings.logsDbId) validateLogsDatabase(settings.logsDbId);
     
-    // Core Infrastructure & Identity
     if (settings.environment) props.setProperty('ENVIRONMENT', settings.environment);
     if (settings.authMode) props.setProperty('AUTH_MODE', settings.authMode);
     if (settings.adminEmail) props.setProperty('ADMIN_EMAIL', settings.adminEmail);
@@ -114,14 +109,13 @@ function saveSystemSettings(settings) {
     if (settings.logsDbId) props.setProperty('LOGS_DATABASE_ID', settings.logsDbId);
     if (settings.fallbackLogoUrl) props.setProperty('EMAIL_FALLBACK_LOGO', settings.fallbackLogoUrl);
     
-    // THEME ENGINE SYNC: Explicitly save all 5 color tokens
+    // Theme Engine Sync
     if (settings.themePrimary) props.setProperty('THEME_PRIMARY', settings.themePrimary);
     if (settings.themeAccent) props.setProperty('THEME_ACCENT', settings.themeAccent);
     if (settings.themeDark) props.setProperty('THEME_DARK', settings.themeDark);
     if (settings.themeHover) props.setProperty('THEME_HOVER', settings.themeHover);
     if (settings.themeBg) props.setProperty('THEME_BG', settings.themeBg);
     
-    // Assets
     if (settings.systemLogoId) props.setProperty('SYSTEM_LOGO_ID', settings.systemLogoId);
 
     SystemEvent.emit("Settings", "UPDATE", "System Configuration", "WARN", "Global Settings", "Core system architecture, identity, or theme settings were modified.");

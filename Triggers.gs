@@ -1,4 +1,11 @@
 /**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Triggers.gs
+ * VERSION: 1.1
+ * SYNC STATUS: Fully Synchronized with Installation.gs
+ */
+
+/**
  * Triggers Module
  * Orchestrates automated system cron jobs.
  */
@@ -20,7 +27,6 @@ function setupSystemTriggers() {
     .everyDays(1)
     .atHour(1) 
     .create();
-    
   console.log("Daily triggers initialized!");
 }
 
@@ -43,7 +49,7 @@ function executeDailyCronJobs() {
  */
 function sendDailyPing() {
   var props = PropertiesService.getScriptProperties();
-  var webhookUrl = "https://script.google.com/macros/s/AKfycbyderUFTDgJjjSb4ML2xpXzRnfKp_yBLkYlpaKdZcWZLowtmiutt-QZsg7OMq0enBJljw/exec"; // Same URL as Installation.gs
+  var webhookUrl = "https://script.google.com/macros/s/AKfycbyderUFTDgJjjSb4ML2xpXzRnfKp_yBLkYlpaKdZcWZLowtmiutt-QZsg7OMq0enBJljw/exec";
   
   var masterSecret = props.getProperty('WEBHOOK_SECRET');
   var clientId = props.getProperty('CLIENT_ID');
@@ -51,7 +57,7 @@ function sendDailyPing() {
   
   // If the system hasn't been fully configured, abort the ping.
   if (!webhookUrl || !masterSecret || !clientId || !instanceSecret) return;
-
+  
   var payload = {
     action: "ping",
     secretKey: masterSecret,
@@ -59,7 +65,7 @@ function sendDailyPing() {
     instanceSecret: instanceSecret,
     timestamp: new Date().toISOString()
   };
-
+  
   try {
     UrlFetchApp.fetch(webhookUrl, {
       method: 'post',
@@ -72,3 +78,7 @@ function sendDailyPing() {
     console.warn("Daily ping failed to send: " + e.message);
   }
 }
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */
