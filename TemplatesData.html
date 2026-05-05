@@ -1,93 +1,15 @@
 <!-- 
   [SPARKHUB INTEGRITY HEADER: START]
   FILE: TemplatesData.html
-  VERSION: 1.2 (10-Column Logic Parity + Internal Description Restoration)
-  SYNC STATUS: Fully Synchronized with Templates.gs & EmailEngine.gs
 -->
-
-<!-- 
-  Templates Management Module - Frontend
-  Standardized under SparkHub Architecture Blueprint.
-  
-  CORE RESPONSIBILITIES:
-  - System-wide Email and Communication Management.
-  - Live Template Previewing with dynamic wrapper injection.
-  - Test Email dispatch for quality assurance.
-  - Rich Text Editing (Quill) for communication bodies.
--->
-
 <style>
-  /* --- Module-Specific Styles --- */
-  .template-loading-overlay {
-    display: none;
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.85);
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-    border-radius: var(--border-radius-large);
-    flex-direction: column;
-    gap: 15px;
-    backdrop-filter: blur(2px);
-  }
-  
-  #templatesListView .table-container,
-  #editTemplateView .form-wrapper,
-  #readOnlyTemplateView .form-wrapper { 
-    position: relative; 
-    min-height: 500px;
-  }
-
-  .preview-frame-container {
-    background: #f1f5f9;
-    padding: 20px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    margin-top: 20px;
-    min-height: 400px;
-  }
-
-  .preview-iframe {
-    width: 100%;
-    height: 600px;
-    background: white;
-    border: none;
-    border-radius: 4px;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .placeholder-tag {
-    display: inline-block;
-    background: #e2e8f0;
-    color: #475569;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    margin-right: 8px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border: 1px solid #cbd5e1;
-  }
-  .placeholder-tag:hover { 
-    background: var(--brand-primary); 
-    color: white; 
-    border-color: var(--brand-primary);
-    transform: translateY(-1px);
-  }
-
-  /* Status specific styles for template list */
-  .tpl-trigger-code {
-    background: #f1f5f9;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 11px;
-    color: var(--brand-primary);
-    font-weight: 600;
-  }
+  .template-loading-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.85); z-index: 1000; justify-content: center; align-items: center; border-radius: var(--border-radius-large); flex-direction: column; gap: 15px; backdrop-filter: blur(2px); }
+  #templatesListView .table-container, #editTemplateView .form-wrapper, #readOnlyTemplateView .form-wrapper { position: relative; min-height: 500px; }
+  .preview-frame-container { background: #f1f5f9; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 20px; min-height: 400px; }
+  .preview-iframe { width: 100%; height: 600px; background: white; border: none; border-radius: 4px; box-shadow: var(--shadow-sm); }
+  .placeholder-tag { display: inline-block; background: #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; border: 1px solid #cbd5e1; }
+  .placeholder-tag:hover { background: var(--brand-primary); color: white; border-color: var(--brand-primary); transform: translateY(-1px); }
+  .tpl-trigger-code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; color: var(--brand-primary); font-weight: 600; }
 </style>
 
 <template class="module-card-template" data-category="core" data-perm-category="Templates" data-perm-action="View Templates">
@@ -110,7 +32,33 @@
   <p style="margin-top: 20px; color: #64748b; font-style: italic;">Placeholder for future template configuration.</p>
 </template>
 
-<!-- List View: Master Template Directory -->
+<div id="quickPreviewModal" class="system-overlay" style="display:none;">
+  <div class="overlay-card" style="max-width: 800px; width: 100%; padding: 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+      <h3 style="margin:0;">Live Preview</h3>
+      <button class="btn-dash-back" style="margin:0;" onclick="document.getElementById('quickPreviewModal').style.display='none'">Close X</button>
+    </div>
+    <iframe id="quick-preview-frame" class="preview-iframe" style="height: 500px;"></iframe>
+  </div>
+</div>
+
+<div id="testEmailModal" class="system-overlay" style="display:none; z-index: 10005;">
+  <div class="overlay-card" style="max-width: 450px; padding: 30px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+      <h3 style="margin:0; font-size: 18px;">Send Test Preview</h3>
+      <button class="btn-dash-back" style="margin:0; font-size:12px;" onclick="document.getElementById('testEmailModal').style.display='none'">Close X</button>
+    </div>
+    <p style="text-align: left; font-size: 13px; margin-bottom: 25px;">Enter the recipient email address to dispatch a branded test of this template.</p>
+    <div class="form-group" style="text-align: left; margin-bottom: 25px;">
+      <label>Recipient Email *</label>
+      <input type="email" id="test-email-address" class="form-control" required>
+    </div>
+    <input type="hidden" id="test-email-row-index">
+    <button class="btn-primary" id="btn-send-test-modal" style="width: 100%; padding: 12px;" onclick="submitTestEmail()">Dispatch Test Email</button>
+    <div id="test-email-msg" style="margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
+  </div>
+</div>
+
 <div id="templatesListView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
   
@@ -125,35 +73,6 @@
     </div>
     <div id="tpl-action-btns">
        <button class="btn-primary perm-protected" onclick="openAddTemplateForm()" data-perm-category="Templates" data-perm-action="Manage Templates">+ Create Template</button>
-    </div>
-  </div>
-
-  <div id="wrapper-sub-view" style="display:none;">
-    <div class="filter-wrapper">
-       <input type="text" id="wrap-filter-search" class="filter-input" placeholder="Search layouts..." onkeyup="applyWrapperFilters()">
-       <button class="btn-filter-toggle" onclick="toggleFilter('wrap-adv')">Filters</button>
-       <div id="wrap-adv" class="filter-advanced">
-         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('wrap-stat-drop')">Status ▼</button>
-           <div class="dropdown-content" id="wrap-stat-drop">
-             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Active" checked onchange="applyWrapperFilters()"> Active</label>
-             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Inactive" onchange="applyWrapperFilters()"> Inactive</label>
-           </div>
-         </div>
-         <button type="button" class="btn-reset-filters" onclick="resetWrapperFilters()">Reset</button>
-       </div>
-    </div>
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th class="sortable" onclick="handleWrapperSort('name')">Wrapper Name <span id="wsort-name" class="sort-icon"></span></th>
-            <th>Description</th>
-            <th class="sortable" onclick="handleWrapperSort('status')">Status <span id="wsort-status" class="sort-icon"></span></th>
-            <th style="text-align:right;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="wrapperTableBody"></tbody>
-      </table>
     </div>
   </div>
 
@@ -188,10 +107,74 @@
       </table>
     </div>
   </div>
+
+  <div id="wrapper-sub-view" style="display:none;">
+    <div class="filter-wrapper">
+       <input type="text" id="wrap-filter-search" class="filter-input" placeholder="Search layouts..." onkeyup="applyWrapperFilters()">
+       <button class="btn-filter-toggle" onclick="toggleFilter('wrap-adv')">Filters</button>
+       <div id="wrap-adv" class="filter-advanced">
+         <div class="custom-dropdown"><button class="dropdown-btn" onclick="toggleDropdown('wrap-stat-drop')">Status ▼</button>
+           <div class="dropdown-content" id="wrap-stat-drop">
+             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Active" checked onchange="applyWrapperFilters()"> Active</label>
+             <label><input type="checkbox" class="wrap-filter-stat-cb" value="Inactive" onchange="applyWrapperFilters()"> Inactive</label>
+           </div>
+         </div>
+         <button type="button" class="btn-reset-filters" onclick="resetWrapperFilters()">Reset</button>
+       </div>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="handleWrapperSort('name')">Wrapper Name <span id="wsort-name" class="sort-icon"></span></th>
+            <th>Description</th>
+            <th class="sortable" onclick="handleWrapperSort('status')">Status <span id="wsort-status" class="sort-icon"></span></th>
+            <th style="text-align:right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="wrapperTableBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
-<!-- Edit Template Form (Full 10-Column Logic restoration) -->
+<div id="readOnlyTemplateView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
+  <div class="form-wrapper">
+    <div id="ro-template-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Rendering Live Preview...</span></div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
+       <div>
+          <h2 id="ro-tpl-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
+          <p id="ro-tpl-subline" style="margin:8px 0 0 0; color:#64748b; font-size:14px; font-weight: 500;"></p>
+       </div>
+       <div style="display: flex; gap: 10px;">
+          <button id="ro-tpl-test-btn" class="btn-reset-filters" style="padding: 10px 24px;">Send Test Email</button>
+          <button id="ro-tpl-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Template</button>
+       </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 25px; font-size: 14px;">
+       <div>
+         <p><strong>Subject Line:</strong> <span id="ro-tpl-subject"></span></p>
+         <p><strong>Description:</strong> <span id="ro-tpl-desc"></span></p>
+         <p><strong>Created On:</strong> <span id="ro-tpl-created" style="color: #64748b; font-size:13px;"></span></p>
+       </div>
+       <div>
+         <p><strong>System Module:</strong> <span id="ro-tpl-module"></span></p>
+         <p><strong>Layout Wrapper:</strong> <span id="ro-tpl-wrapper"></span></p>
+         <p><strong>Status:</strong> <span id="ro-tpl-status"></span></p>
+         <p><strong>Last Updated:</strong> <span id="ro-tpl-updated" style="color: #64748b; font-size:13px;"></span></p>
+       </div>
+    </div>
+
+    <div class="preview-frame-container">
+       <div style="margin-bottom: 10px; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Branded Environment Preview:</div>
+       <iframe id="tpl-preview-frame" class="preview-iframe"></iframe>
+    </div>
+  </div>
+</div>
+
 <div id="editTemplateView" class="container" style="display: none;">
   <button id="btn-back-edit-tpl" class="btn-dash-back">&#8592; Back to Library</button>
   <div class="form-wrapper">
@@ -256,40 +239,29 @@
   </div>
 </div>
 
-<!-- Read Only Preview (Dashboard Extension) -->
-<div id="readOnlyTemplateView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
+<div id="readOnlyWrapperView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('templatesListView'); toggleTemplateSubView('wraps');">&#8592; Back to Layouts</button>
   <div class="form-wrapper">
-    <div id="ro-template-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Rendering Live Preview...</span></div>
+    <div id="ro-wrap-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Loading Layout...</span></div>
     
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
        <div>
-          <h2 id="ro-tpl-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
-          <p id="ro-tpl-subline" style="margin:8px 0 0 0; color:#64748b; font-size:14px; font-weight: 500;"></p>
+          <h2 id="ro-wrap-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
+          <p id="ro-wrap-desc" style="margin:8px 0 0 0; color:#64748b; font-size:14px;"></p>
+          <div id="ro-wrap-status" style="margin-top: 8px;"></div>
        </div>
-       <div style="display: flex; gap: 10px;">
-          <button id="ro-tpl-test-btn" class="btn-reset-filters" style="padding: 10px 24px;">Send Test Email</button>
-          <button id="ro-tpl-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Template</button>
-       </div>
+       <button id="ro-wrap-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Layout</button>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 25px; font-size: 14px;">
-       <div>
-         <p><strong>Subject Line:</strong> <span id="ro-tpl-subject"></span></p>
-         <p><strong>Description:</strong> <span id="ro-tpl-desc"></span></p>
-         <p><strong>Created On:</strong> <span id="ro-tpl-created" style="color: #64748b; font-size:13px;"></span></p>
-       </div>
-       <div>
-         <p><strong>System Module:</strong> <span id="ro-tpl-module"></span></p>
-         <p><strong>Layout Wrapper:</strong> <span id="ro-tpl-wrapper"></span></p>
-         <p><strong>Status:</strong> <span id="ro-tpl-status"></span></p>
-         <p><strong>Last Updated:</strong> <span id="ro-tpl-updated" style="color: #64748b; font-size:13px;"></span></p>
-       </div>
+    <div style="display: flex; gap: 40px; margin-bottom: 25px; font-size: 13px; color: #475569;">
+       <p style="margin:0;"><strong>Layout ID:</strong> <span id="ro-wrap-id"></span></p>
+       <p style="margin:0;"><strong>Created On:</strong> <span id="ro-wrap-created"></span></p>
+       <p style="margin:0;"><strong>Last Updated:</strong> <span id="ro-wrap-updated"></span></p>
     </div>
 
     <div class="preview-frame-container">
        <div style="margin-bottom: 10px; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Branded Environment Preview:</div>
-       <iframe id="tpl-preview-frame" class="preview-iframe"></iframe>
+       <iframe id="wrap-preview-frame" class="preview-iframe"></iframe>
     </div>
   </div>
 </div>
@@ -327,60 +299,6 @@
         <button type="submit" class="btn-primary" style="padding: 12px 40px;">Save Global Layout</button>
       </div>
     </form>
-  </div>
-</div>
-
-<div id="readOnlyWrapperView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('templatesListView'); toggleTemplateSubView('wraps');">&#8592; Back to Layouts</button>
-  <div class="form-wrapper">
-    <div id="ro-wrap-overlay" class="template-loading-overlay"><div class="spinner-core"></div><span>Loading Layout...</span></div>
-    
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
-       <div>
-          <h2 id="ro-wrap-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
-          <p id="ro-wrap-desc" style="margin:8px 0 0 0; color:#64748b; font-size:14px;"></p>
-          <div id="ro-wrap-status" style="margin-top: 8px;"></div>
-       </div>
-       <button id="ro-wrap-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Layout</button>
-    </div>
-
-    <div style="display: flex; gap: 40px; margin-bottom: 25px; font-size: 13px; color: #475569;">
-       <p style="margin:0;"><strong>Layout ID:</strong> <span id="ro-wrap-id"></span></p>
-       <p style="margin:0;"><strong>Created On:</strong> <span id="ro-wrap-created"></span></p>
-       <p style="margin:0;"><strong>Last Updated:</strong> <span id="ro-wrap-updated"></span></p>
-    </div>
-
-    <div class="preview-frame-container">
-       <div style="margin-bottom: 10px; font-size: 12px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Branded Environment Preview:</div>
-       <iframe id="wrap-preview-frame" class="preview-iframe"></iframe>
-    </div>
-  </div>
-</div>
-
-<div id="quickPreviewModal" class="system-overlay" style="display:none;">
-  <div class="overlay-card" style="max-width: 800px; width: 100%; padding: 20px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-      <h3 style="margin:0;">Live Preview</h3>
-      <button class="btn-dash-back" style="margin:0;" onclick="document.getElementById('quickPreviewModal').style.display='none'">Close X</button>
-    </div>
-    <iframe id="quick-preview-frame" class="preview-iframe" style="height: 500px;"></iframe>
-  </div>
-</div>
-
-<div id="testEmailModal" class="system-overlay" style="display:none; z-index: 10005;">
-  <div class="overlay-card" style="max-width: 450px; padding: 30px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-      <h3 style="margin:0; font-size: 18px;">Send Test Preview</h3>
-      <button class="btn-dash-back" style="margin:0; font-size:12px;" onclick="document.getElementById('testEmailModal').style.display='none'">Close X</button>
-    </div>
-    <p style="text-align: left; font-size: 13px; margin-bottom: 25px;">Enter the recipient email address to dispatch a branded test of this template.</p>
-    <div class="form-group" style="text-align: left; margin-bottom: 25px;">
-      <label>Recipient Email *</label>
-      <input type="email" id="test-email-address" class="form-control" required>
-    </div>
-    <input type="hidden" id="test-email-row-index">
-    <button class="btn-primary" id="btn-send-test-modal" style="width: 100%; padding: 12px;" onclick="submitTestEmail()">Dispatch Test Email</button>
-    <div id="test-email-msg" style="margin-top: 15px; font-weight: 600; font-size: 13px;"></div>
   </div>
 </div>
 
