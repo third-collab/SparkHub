@@ -142,10 +142,14 @@ function setupCoreDatabase(rootFolder) {
 function seedCoreAssets(ss) {
   var now = new Date();
   var wrapSheet = ss.getSheetByName("Wrappers");
+  
   if (wrapSheet.getLastRow() === 1) {
-    var intHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #F1C40F;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">MegaRhino</h1></div><div style="padding: 30px; color: #444; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification.</div></div></div>`;
-    var extHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #eee;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #ddd; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="MegaRhino Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"><h2 style="color: #333; margin: 0;">MegaRhino</h2></div><div style="color: #555; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 15px;">Sent from the MegaRhino Team.</div></div></div>`;
-    var userHtml = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"><div style="padding: 30px; text-align: center; border-bottom: 1px solid #f1f5f9;"><img src="cid:logo" alt="Logo" style="max-width: 120px; height: auto;"></div><div style="padding: 30px; color: #334155; line-height: 1.6; font-size: 15px;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; background-color: #f8fafc; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">Security & Access Notification</div></div></div>`;
+    // 100% White-labeled, generic system wrappers using default SparkHub baseline colors
+    var intHtml = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #0f172a; padding: 25px; text-align: center; border-bottom: 4px solid #666DF2;"><img src="cid:logo" alt="System Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="padding: 30px; color: #334155; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #e2e8f0; background-color: #f8fafc; text-align: center; font-size: 11px; color: #64748b;">This is an automated system notification.</div></div></div>`;
+    
+    var extHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #e2e8f0;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="System Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="color: #334155; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">Sent securely from our Workspace.</div></div></div>`;
+    
+    var userHtml = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"><div style="padding: 30px; text-align: center; border-bottom: 1px solid #f1f5f9;"><img src="cid:logo" alt="System Logo" style="max-width: 120px; height: auto;"></div><div style="padding: 30px; color: #334155; line-height: 1.6; font-size: 15px;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; background-color: #f8fafc; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">Security & Access Notification</div></div></div>`;
     
     wrapSheet.appendRow([now, "W-INTERNAL", "Internal Communication", "Standard internal messaging", intHtml, "Active"]);
     wrapSheet.appendRow([now, "W-EXTERNAL", "External Communication", "Client-facing messaging", extHtml, "Active"]);
@@ -158,25 +162,29 @@ function seedCoreAssets(ss) {
   
   var tplSheet = ss.getSheetByName("Templates");
   if (tplSheet.getLastRow() === 1) {
-    var installHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Installation Successful</h2><p>SparkHub has been fully deployed and is ready for use.</p></div>`;
-    var welcomeHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to SparkHub</h2><p>Hello {{username}},</p><p>Your account is ready. You can now access your workspace using your system credentials.</p></div>`;
+    // White-labeled templates without MegaRhino branding
+    var installHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Installation Successful</h2><p>The system has been fully deployed and is ready for use.</p></div>`;
     
-    tplSheet.appendRow([now, "TPL-INSTALL", "System Installed", "System", "Admin alert", "System:INSTALL", "Installation Successful", installHtml, "Active", "Internal Hub"]);
-    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Security", "Access email", "Users:CREATE", "Welcome to SparkHub", welcomeHtml, "Active", "Internal Hub"]);
+    var welcomeHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to your Workspace</h2><p>Hello {{username}},</p><p>Your account is ready. You can now access your workspace using your system credentials.</p></div>`;
     
+    tplSheet.appendRow([now, "TPL-INSTALL", "System Installed", "System", "Admin alert", "System:INSTALL", "Installation Successful", installHtml, "Active", "Internal Communication"]);
+    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Security", "Access email", "Users:CREATE", "Welcome to the Workspace", welcomeHtml, "Active", "Internal Communication"]);
+
     // Role Creation Alert Template
     var roleHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>New System Role</h2><p>The system role <strong>{{username}}</strong> has been successfully established.</p><p>Details: {{details}}</p></div>`;
-    tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Security", "Role creation alert", "Roles:CREATE", "New System Role: {{username}}", roleHtml, "Active", "Internal Hub"]);
+    
+    tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Security", "Role creation alert", "Roles:CREATE", "New System Role: {{username}}", roleHtml, "Active", "Internal Communication"]);
     
     SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "User Welcome", "User welcome template seeded.");
     SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "Role Created", "Role creation notification template seeded.");
-    
+
     // Password Control Flow Templates
-    var resetHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Reset Request</h2><p>Hi {{userFirst}},</p><p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p><a href='{{resetLink}}' style='display:inline-block; padding: 10px 20px; background: #c40004; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a></div>`;
+    var resetHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Reset Request</h2><p>Hi {{userFirst}},</p><p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p><a href='{{resetLink}}' style='display:inline-block; padding: 10px 20px; background: #666DF2; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a></div>`;
+    
     var updatedHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Updated</h2><p>Hi {{userFirst}},</p><p>This is a confirmation that your system password has been successfully updated. If you did not make this change, please contact your administrator immediately.</p></div>`;
     
-    tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Security", "Forgot password link", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "Active", "External Client"]);
-    tplSheet.appendRow([now, "TPL-PWD-UPDATE", "Password Updated", "Security", "Password change confirmation", "Users:PASSWORD_UPDATED", "Security Alert: Password Updated", updatedHtml, "Active", "External Client"]);
+    tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Security", "Forgot password link", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "Active", "External Communication"]);
+    tplSheet.appendRow([now, "TPL-PWD-UPDATE", "Password Updated", "Security", "Password change confirmation", "Users:PASSWORD_UPDATED", "Security Alert: Password Updated", updatedHtml, "Active", "External Communication"]);
     
     SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "Password Reset Link", "Password reset request template seeded.");
     SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "Password Updated", "Password updated confirmation template seeded.");
