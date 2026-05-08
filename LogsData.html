@@ -56,11 +56,7 @@
       <div class="custom-dropdown">
         <button class="dropdown-btn" onclick="toggleDropdown('log-module-drop')">Module ▼</button>
         <div class="dropdown-content" id="log-module-drop">
-          <label><input type="checkbox" class="log-filter-mod-cb" value="Users" checked onchange="applyLogFilters()"> Users</label>
-          <label><input type="checkbox" class="log-filter-mod-cb" value="Templates" checked onchange="applyLogFilters()"> Templates</label>
-          <label><input type="checkbox" class="log-filter-mod-cb" value="Settings" checked onchange="applyLogFilters()"> Settings</label>
-          <label><input type="checkbox" class="log-filter-mod-cb" value="System" checked onchange="applyLogFilters()"> System</label>
-        </div>
+          </div>
       </div>
       <button type="button" class="btn-reset-filters" onclick="resetLogFilters()">Reset</button>
     </div>
@@ -103,8 +99,28 @@
      3. DATA LOADERS
      ======================================================================== */
   function loadLogsTable() {
+    var tbody = document.getElementById('logTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">Synchronizing Logs...</td></tr>';
+    
     google.script.run.withSuccessHandler(function(logs) {
       GLOBAL_LOGS_DATA = logs || [];
+      
+      // Dynamically extract all unique modules from the database
+      var modDrop = document.getElementById('log-module-drop');
+      if (modDrop && modDrop.innerHTML.trim() === "") {
+        var uniqueMods = [];
+        GLOBAL_LOGS_DATA.forEach(function(l) {
+          if (l.module && uniqueMods.indexOf(l.module) === -1) uniqueMods.push(l.module);
+        });
+        
+        // Build the checkboxes automatically and set them to checked
+        var html = '';
+        uniqueMods.sort().forEach(function(m) {
+          html += '<label><input type="checkbox" class="log-filter-mod-cb" value="' + m + '" checked onchange="applyLogFilters()"> ' + m + '</label>';
+        });
+        modDrop.innerHTML = html;
+      }
+      
       applyLogFilters();
     }).getLogsList();
   }

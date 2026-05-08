@@ -315,12 +315,30 @@
     var name = document.getElementById('ins-mod-name').value;
     if (!name) return;
     toggleSettingsOverlay('ro-settings-overlay', true, 'Provisioning Module...');
-    google.script.run.withSuccessHandler(function(res) {
-      toggleSettingsOverlay('ro-settings-overlay', false);
-      alert(res);
-      document.getElementById('ins-mod-name').value = '';
-      loadSettings();
-    }).performModuleInstallation(name);
+    
+    google.script.run
+      .withFailureHandler(function(error) {
+        toggleSettingsOverlay('ro-settings-overlay', false);
+        showSystemModal("Installation Failed", error.message);
+      })
+      .withSuccessHandler(function(res) {
+        toggleSettingsOverlay('ro-settings-overlay', false);
+        
+        if (res.includes("Success")) {
+          showSystemModal("Module Installed", res + "\n\nThe ecosystem will now automatically restart to apply architectural changes.");
+          
+          // Securely fetch the app URL and trigger a hard refresh
+          google.script.run.withSuccessHandler(function(url) {
+             setTimeout(function() { window.top.location.href = url; }, 2500);
+          }).getAppUrl();
+          
+        } else {
+          // If it's just a notice (e.g. "Module already installed")
+          showSystemModal("System Notice", res);
+          document.getElementById('ins-mod-name').value = '';
+        }
+      })
+      .performModuleInstallation(name);
   }
 
   function handleSettingsSubmit(e) {
@@ -355,7 +373,7 @@
       google.script.run.withSuccessHandler(function(res) {
         toggleSettingsOverlay('edt-settings-overlay', false);
         if (res.includes("Success")) { loadSettings(); switchView('readOnlySettingsView'); }
-        else alert(res);
+        else showSystemModal('Configuration Error', res);
       }).saveSystemSettings(p);
     }
   }

@@ -814,7 +814,7 @@
     google.script.run
       .withSuccessHandler(function(data) {
         toggleUserOverlay('my-profile-overlay', false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { showSystemModal("Error Opening Your Profile", data.error); sreturn; }
         
         document.getElementById('my-profile-fullname').innerText = data.firstName + " " + data.lastName;
         document.getElementById('my-profile-username').innerText = "@" + data.username;
@@ -828,7 +828,7 @@
       })
       .withFailureHandler(function(err) {
         toggleUserOverlay('my-profile-overlay', false);
-        alert("Backend Error: " + err.message);
+        showSystemModal("Backend Error", err.message);
       })
       .getUserProfileByUsername(CURRENT_USERNAME);
   }
@@ -844,7 +844,7 @@
     google.script.run
       .withSuccessHandler(function(data) {
         toggleUserOverlay('edit-my-profile-overlay', false);
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { showSystemModal("Backend Error", data.error); return; }
         
         document.getElementById('edt-my-first').value = data.firstName || "";
         document.getElementById('edt-my-last').value = data.lastName || "";
@@ -853,7 +853,7 @@
       })
       .withFailureHandler(function(err) {
         toggleUserOverlay('edit-my-profile-overlay', false);
-        alert("Backend Error: " + err.message);
+        showSystemModal("Backend Error", err.message);
       })
       .getUserProfileByUsername(CURRENT_USERNAME);
   }
@@ -1003,7 +1003,7 @@
         openReadOnlyUser(res.rowIndex);
       } else { 
         btn.disabled = false; 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { showSystemModal("Error Creating User", res.error || res); }
       }
     }).createUserRecord(userData);
   }
@@ -1031,7 +1031,7 @@
         if (source === 'view') { openReadOnlyUser(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('users'); }
       } else { 
         btn.disabled = false; 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { alert(res.error || res); }
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res.error || res; } else { showSystemModal("Error Updating User", res.error || res); }
       }
     }).updateUserRecord(userData);
   }
@@ -1068,7 +1068,7 @@
         
         openMyProfile(); 
       } else { 
-        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { alert(res); }
+        if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { showSystemModal("Error Updating You Profile", res.error) }
       }
     }).updateMyProfileRecord(profileData);
   }
@@ -1096,7 +1096,7 @@
       if(res.success) { 
         loadRolesTable(); 
         if (source === 'view' || !payload.rowIndex) { openReadOnlyRole(res.rowIndex); } else { switchView('usersListView'); toggleUserSubView('roles'); }
-      } else { alert(res.error || res); }
+      } else { showSystemModal("Error Updating Role", res.error || res); }
     }).saveRoleRecord(payload);
   }
   

@@ -631,7 +631,7 @@
 
     google.script.run.withSuccessHandler(function(data) {
       toggleTemplateOverlay('edit-template-overlay', false);
-      if (data.error) { alert(data.error); return; }
+      if (data.error) { showSystemModal("Backend Error", data.error); return; }
       
       document.getElementById('edt-tpl-rowIndex').value = data.rowIndex;
       document.getElementById('edt-tpl-id').value = data.id || "";
@@ -828,7 +828,7 @@
   }
 
   function openTestEmailModal(rowIndex) {
-    if (!rowIndex) { alert("Please save the template as a record before dispatching a test email."); return; }
+    if (!rowIndex) { showSystemModal("System Error", "Please save the template as a record before dispatching a test email."); return; }
     
     document.getElementById('test-email-row-index').value = rowIndex;
     document.getElementById('test-email-address').value = "";
@@ -869,7 +869,7 @@
         });
       } else {
         toggleTemplateOverlay('edit-template-overlay', false);
-        alert(res.error || res);
+        showSystemModal("Backend Error", res.error || res);
       }
     }).saveTemplateRecord(payload);
   }
@@ -895,7 +895,7 @@
         });
       } else {
         toggleTemplateOverlay('edit-wrap-overlay', false);
-        alert(res.error || res);
+        showSystemModal("Backend Error", res.error || res);
       }
     }).saveWrapperRecord(payload);
   }

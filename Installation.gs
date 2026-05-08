@@ -14,6 +14,7 @@ function performUiInstallation(data) {
     if (data.sysName.trim().toLowerCase() === 'sparkhub') throw new Error("Restricted name.");
     var props = PropertiesService.getScriptProperties();
     var installerEmail = Session.getActiveUser().getEmail();
+    var adminUsername = installerEmail.split('@')[0];
 
     props.setProperty('ROOT_FOLDER_ID', data.rootId);
     props.setProperty('SYSTEM_NAME', data.sysName);
@@ -26,10 +27,15 @@ function performUiInstallation(data) {
 
     runInstallation();
     setupSystemTriggers();
-
-    SystemEvent.emit("System", "INSTALL", "System Installation", "WARN", "Core Architecture", "SparkHub core deployed.", installerEmail);
+    
+    // IMMUTABLE ANCHOR: Prevent concurrent write-locks from overwriting the User creation log
+    Utilities.sleep(1500);
+    
+    // Route the installation success via the Event Broker, passing the dynamic data
+    SystemEvent.emit("System", "INSTALL", "System Installation", "WARN", "Core Architecture", "SparkHub core deployed.", installerEmail, { sysName: data.sysName, adminUsername: adminUsername });
+    
     props.setProperty('ENVIRONMENT', 'Sandbox');
-
+    
     // IMMUTABLE ANCHOR: Master Webhook Reporting
     if (MASTER_WEBHOOK_URL) {
       var payload = { 
@@ -37,21 +43,6 @@ function performUiInstallation(data) {
         clientName: data.sysName, clientEmail: installerEmail, databaseId: props.getProperty('DATABASE_ID') 
       };
       UrlFetchApp.fetch(MASTER_WEBHOOK_URL, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
-    }
-    
-    // Installation Email Pipeline
-    try {
-      var sysLogo = "https://i.imgur.com/0iPmgVk.png";
-      var installHtml = `<div style="background-color: #f4f6f9; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #323232; padding: 25px; text-align: center; border-bottom: 4px solid #666DF2;"><img src="${sysLogo}" alt="SparkHub Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="padding: 30px; color: #444; line-height: 1.6;"><div style='font-family: sans-serif; padding: 20px;'><h2>Installation Successful</h2><p>SparkHub has been fully deployed and is ready for use as <strong>${data.sysName}</strong>.</p></div></div><div style="padding: 20px; border-top: 1px solid #eee; background-color: #fcfcfc; text-align: center; font-size: 11px; color: #888;">This is an automated system notification from SparkHub.</div></div></div>`;
-      MailApp.sendEmail({
-        to: installerEmail,
-        subject: "Installation Successful",
-        htmlBody: installHtml,
-        noReply: true,
-        name: "SparkHub Setup"
-      });
-    } catch(mailErr) {
-      console.warn("Failed to send installation email: " + mailErr.message);
     }
     
     return "Success|" + ScriptApp.getService().getUrl();
@@ -72,9 +63,11 @@ function runInstallation() {
 }
 
 function setupLogsDatabase(rootFolder) {
-  var ss = SpreadsheetApp.create("SparkHub Logs Database");
+  // Dynamically fetch the system name defined in the wizard
+  var sysName = PropertiesService.getScriptProperties().getProperty('SYSTEM_NAME') || "SparkHub";
+  var ss = SpreadsheetApp.create(sysName + " Logs Database");
+  
   var dbId = ss.getId();
-
   // 1. Immediate Save
   PropertiesService.getScriptProperties().setProperty('LOGS_DATABASE_ID', dbId);
 
@@ -96,9 +89,11 @@ function setupLogsDatabase(rootFolder) {
 }
 
 function setupCoreDatabase(rootFolder) {
-  var ss = SpreadsheetApp.create("SparkHub Database");
+  // Dynamically fetch the system name defined in the wizard
+  var sysName = PropertiesService.getScriptProperties().getProperty('SYSTEM_NAME') || "SparkHub";
+  var ss = SpreadsheetApp.create(sysName + " Database");
+  
   var dbId = ss.getId();
-
   // 1. Immediate Save
   PropertiesService.getScriptProperties().setProperty('DATABASE_ID', dbId);
 
@@ -118,7 +113,7 @@ function setupCoreDatabase(rootFolder) {
   // 3. Schema Initialization
   initializeSheet(verifiedDb, "Users", ["Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login", "Dashboard Config"]);
   initializeSheet(verifiedDb, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status", "Dashboard Config"]);
-  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Category", "Description", "Trigger", "Subject", "Body", "Status", "Wrapper"]);
+  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status"]);
   initializeSheet(verifiedDb, "Wrappers", ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"]);
 
   // 4. Admin Creation
@@ -132,19 +127,29 @@ function setupCoreDatabase(rootFolder) {
   seedCoreAssets(verifiedDb);
   
   SpreadsheetApp.flush();
-  
   SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail);
+  
+  // IMMUTABLE ANCHOR: Prevent Google Sheets concurrent write-locks from overwriting logs
+  Utilities.sleep(1500);
+
   SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail);
   
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
 }
 
+/**
+ * Seeds the core email wrappers and baseline system templates into the database 
+ * during the initial installation of the system.
+ * 
+ * @param {Spreadsheet} ss - The active Google Spreadsheet database object.
+ */
 function seedCoreAssets(ss) {
   var now = new Date();
   var wrapSheet = ss.getSheetByName("Wrappers");
   
-  if (wrapSheet.getLastRow() === 1) {
-    // 100% White-labeled, generic system wrappers using default SparkHub baseline colors
+  // Safely check if the sheet is empty or only contains headers (<= 1)
+  if (wrapSheet && wrapSheet.getLastRow() <= 1) {
+    // 100% White-labeled, generic system wrappers
     var intHtml = `<div style="background-color: #f8fafc; padding: 40px 20px; font-family: sans-serif;"><div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;"><div style="background-color: #0f172a; padding: 25px; text-align: center; border-bottom: 4px solid #666DF2;"><img src="cid:logo" alt="System Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="padding: 30px; color: #334155; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="padding: 20px; border-top: 1px solid #e2e8f0; background-color: #f8fafc; text-align: center; font-size: 11px; color: #64748b;">This is an automated system notification.</div></div></div>`;
     
     var extHtml = `<div style="background-color: #ffffff; padding: 40px 20px; font-family: Arial, sans-serif; border: 1px solid #e2e8f0;"><div style="max-width: 600px; margin: 0 auto;"><div style="padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; text-align: center;"><img src="cid:logo" alt="System Logo" style="max-width: 150px; height: auto; margin-bottom: 10px;"></div><div style="color: #334155; line-height: 1.6;">{{USER_MESSAGE_CONTENT}}</div><div style="margin-top: 40px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">Sent securely from our Workspace.</div></div></div>`;
@@ -154,40 +159,30 @@ function seedCoreAssets(ss) {
     wrapSheet.appendRow([now, "W-INTERNAL", "Internal Communication", "Standard internal messaging", intHtml, "Active"]);
     wrapSheet.appendRow([now, "W-EXTERNAL", "External Communication", "Client-facing messaging", extHtml, "Active"]);
     wrapSheet.appendRow([now, "W-USER", "User Communications", "Dedicated layout for user access and security emails", userHtml, "Active"]);
-    
-    SystemEvent.emit("Templates", "CREATE", "Seed Wrapper", "INFO", "Internal Communication", "Default internal wrapper seeded.");
-    SystemEvent.emit("Templates", "CREATE", "Seed Wrapper", "INFO", "External Communication", "Default external client wrapper seeded.");
-    SystemEvent.emit("Templates", "CREATE", "Seed Wrapper", "INFO", "User Communications", "Dedicated layout for user access and security emails seeded.");
   }
   
   var tplSheet = ss.getSheetByName("Templates");
-  if (tplSheet.getLastRow() === 1) {
-    // White-labeled templates without MegaRhino branding
-    var installHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Installation Successful</h2><p>The system has been fully deployed and is ready for use.</p></div>`;
-    
+  
+  // Safely check if the templates sheet is empty or only contains headers
+  // Safely check if the templates sheet is empty or only contains headers
+  if (tplSheet && tplSheet.getLastRow() <= 1) {
     var welcomeHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to your Workspace</h2><p>Hello {{username}},</p><p>Your account is ready. You can now access your workspace using your system credentials.</p></div>`;
     
-    tplSheet.appendRow([now, "TPL-INSTALL", "System Installed", "System", "Admin alert", "System:INSTALL", "Installation Successful", installHtml, "Active", "Internal Communication"]);
-    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Security", "Access email", "Users:CREATE", "Welcome to the Workspace", welcomeHtml, "Active", "Internal Communication"]);
-
-    // Role Creation Alert Template
     var roleHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>New System Role</h2><p>The system role <strong>{{username}}</strong> has been successfully established.</p><p>Details: {{details}}</p></div>`;
     
-    tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Security", "Role creation alert", "Roles:CREATE", "New System Role: {{username}}", roleHtml, "Active", "Internal Communication"]);
-    
-    SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "User Welcome", "User welcome template seeded.");
-    SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "Role Created", "Role creation notification template seeded.");
-
-    // Password Control Flow Templates
     var resetHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Reset Request</h2><p>Hi {{userFirst}},</p><p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p><a href='{{resetLink}}' style='display:inline-block; padding: 10px 20px; background: #666DF2; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a></div>`;
     
     var updatedHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Updated</h2><p>Hi {{userFirst}},</p><p>This is a confirmation that your system password has been successfully updated. If you did not make this change, please contact your administrator immediately.</p></div>`;
     
-    tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Security", "Forgot password link", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "Active", "External Communication"]);
-    tplSheet.appendRow([now, "TPL-PWD-UPDATE", "Password Updated", "Security", "Password change confirmation", "Users:PASSWORD_UPDATED", "Security Alert: Password Updated", updatedHtml, "Active", "External Communication"]);
+    // Append all core templates safely with the exact 11-column data structure
+    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Access email", "Security", "Users", "Users:CREATE", "Welcome to the Workspace", welcomeHtml, "Internal Communication", "Active"]);
     
-    SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "Password Reset Link", "Password reset request template seeded.");
-    SystemEvent.emit("Templates", "CREATE", "Seed Template", "INFO", "Password Updated", "Password updated confirmation template seeded.");
+    tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Role creation alert", "Security", "Users:Roles", "Users:Roles:CREATE", "New System Role: {{username}}", roleHtml, "Internal Communication", "Active"]);
+    
+    // Updated wrappers for Password Templates -> "User Communications"
+    tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Forgot password link", "Security", "Users", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "User Communications", "Active"]);
+    
+    tplSheet.appendRow([now, "TPL-PWD-UPDATE", "Password Updated", "Password change confirmation", "Security", "Users", "Users:PASSWORD_UPDATED", "Security Alert: Password Updated", updatedHtml, "User Communications", "Active"]);
   }
 }
 

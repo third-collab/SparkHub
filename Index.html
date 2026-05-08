@@ -92,6 +92,14 @@
     <div class="card-grid" id="grid-internal"></div>
   </div>
 
+  <div id="globalAlertModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(4px); z-index: 100000; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; transition: all 0.3s ease;">
+    <div style="background: white; padding: 35px; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 450px; width: 100%; text-align: center; border-top: 5px solid var(--brand-primary);">
+      <h2 id="globalAlertTitle" style="margin-top: 0; color: var(--brand-dark); font-size: 22px;"></h2>
+      <p id="globalAlertMsg" style="font-size: 15px; color: #475569; margin-bottom: 30px; white-space: pre-wrap; line-height: 1.6;"></p>
+      <button class="btn-primary" onclick="document.getElementById('globalAlertModal').style.display='none'" style="width: 100%; padding: 12px; font-weight: bold; border-radius: 8px;">Acknowledge</button>
+    </div>
+  </div>
+
   <? includeList.forEach(function(fileName) { ?>
     <? try { ?>
       <?!= include(fileName); ?>
@@ -287,6 +295,15 @@
 
       if (viewId === 'usersListView' && typeof loadUsersTable === "function") loadUsersTable();
       if (viewId === 'templatesListView' && typeof loadTemplatesTable === "function") loadTemplatesTable();
+    }
+    
+    function showSystemModal(title, message) {
+      var m = document.getElementById('globalAlertModal');
+      if (m) {
+        document.getElementById('globalAlertTitle').innerText = title;
+        document.getElementById('globalAlertMsg').innerText = message;
+        m.style.display = 'flex';
+      }
     }
 
     function toggleFilter(id) {

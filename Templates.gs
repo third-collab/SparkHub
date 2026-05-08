@@ -23,40 +23,75 @@ function getDynamicTriggerRegistry() {
   var triggers = [];
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
   
-  for (var key in globalScope) {
-    if (typeof key === 'string' && key.endsWith('_getTriggers') && typeof globalScope[key] === 'function') {
-      triggers = triggers.concat(globalScope[key]());
-    }
-  }
+  // 1. Whitelist the Immutable Core Modules
+  var activeModules = ["System", "Users", "Templates", "Settings", "Logs"];
   
+  // 2. Add officially installed External Modules
   var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
   if (installed) {
     installed.split(',').forEach(function(modName) {
       var mod = modName.trim();
-      var funcName = mod + "_getTriggers";
-      if (typeof globalScope[funcName] !== 'function') {
-        triggers.push(mod + ":CREATE");
-        triggers.push(mod + ":UPDATE");
+      if (mod && activeModules.indexOf(mod) === -1) {
+        activeModules.push(mod);
       }
     });
   }
+  
+  // 3. Only execute triggers for active modules
+  activeModules.forEach(function(modName) {
+    var funcName = modName + "_getTriggers";
+    if (typeof globalScope[funcName] === 'function') {
+      triggers = triggers.concat(globalScope[funcName]());
+    } else if (modName !== "System" && modName !== "Settings" && modName !== "Logs") {
+      // Fallback defaults if the custom registry function is missing
+      triggers.push(modName + ":CREATE");
+      triggers.push(modName + ":UPDATE");
+    }
+  });
+  
+  // 4. Manually include core sub-entities that might be deeply nested
+  triggers.push("Users:Roles:CREATE");
+  triggers.push("Users:Roles:UPDATE");
+  
+  // 5. IMMUTABLE ANCHOR: Hide hardcoded core templates from the UI dropdown
+  var hiddenTriggers = ["Logs:EXPORT", "Logs:PURGE", "Settings:UPDATE", "System:INSTALL", "System:MODULE_INSTALLED"];
+  triggers = triggers.filter(function(t) { return hiddenTriggers.indexOf(t) === -1; });
   
   return [...new Set(triggers)].sort();
 }
 
 function getPlaceholderSuggestions() {
-  var placeholders = ["details"];
+  var placeholders = ["details", "systemName"];
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
   
-  for (var key in globalScope) {
-    if (typeof key === 'string' && key.endsWith('_getPlaceholders') && typeof globalScope[key] === 'function') {
-      placeholders = placeholders.concat(globalScope[key]());
-    }
+  // 1. Whitelist the Immutable Core Modules
+  var activeModules = ["System", "Users", "Templates", "Settings", "Logs"];
+  
+  // 2. Add officially installed External Modules
+  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
+  if (installed) {
+    installed.split(',').forEach(function(modName) {
+      var mod = modName.trim();
+      if (mod && activeModules.indexOf(mod) === -1) {
+        activeModules.push(mod);
+      }
+    });
   }
+  
+  // 3. Only fetch placeholders for active modules
+  activeModules.forEach(function(modName) {
+    var funcName = modName + "_getPlaceholders";
+    if (typeof globalScope[funcName] === 'function') {
+      placeholders = placeholders.concat(globalScope[funcName]());
+    }
+  });
   
   return [...new Set(placeholders)].sort();
 }
 
+// ========================================================================
+// 2. CORE PROCESSORS
+// ========================================================================
 // ========================================================================
 // 2. CORE PROCESSORS
 // ========================================================================
@@ -66,11 +101,87 @@ var Templates = {
     var dataMap = payload.extraData || {};
     dataMap.username = payload.entity;
     dataMap.details = payload.details;
-    dataMap.systemName = getSystemSettings().systemName;
+    dataMap.systemName = getSystemSettings().systemName || "SparkHub";
     
-    sendTriggerEmail(payload.handle, payload.recipientEmail, dataMap);
+    var hardcodedTriggers = ["Logs:EXPORT", "Logs:PURGE", "Settings:UPDATE", "System:INSTALL", "System:MODULE_INSTALLED"];
+    
+    if (hardcodedTriggers.indexOf(payload.handle) > -1) {
+      sendHardcodedEmail(payload.handle, payload.recipientEmail, dataMap);
+    } else {
+      sendTriggerEmail(payload.handle, payload.recipientEmail, dataMap);
+    }
   }
 };
+
+/**
+ * Generates and dispatches immutable system emails bypassing the database registry.
+ * Forces the use of the "Internal Communication" wrapper.
+ */
+function sendHardcodedEmail(triggerHandle, toEmail, dataMap) {
+  var subject = "";
+  var htmlBody = "";
+  var wrapperName = "Internal Communication"; 
+
+  switch (triggerHandle) {
+    case "Logs:EXPORT":
+      subject = "System Logs Exported";
+      htmlBody = "<div style='font-family: sans-serif; padding: 20px;'><h2>Logs Exported</h2><p>The system logs have been successfully exported.</p><p>Details: {{details}}</p></div>";
+      break;
+    case "Logs:PURGE":
+      subject = "System Logs Purged";
+      htmlBody = "<div style='font-family: sans-serif; padding: 20px;'><h2>Logs Purged</h2><p>The system logs have been purged by an administrator.</p><p>Details: {{details}}</p></div>";
+      break;
+    case "Settings:UPDATE":
+      subject = "System Settings Updated";
+      htmlBody = "<div style='font-family: sans-serif; padding: 20px;'><h2>Settings Updated</h2><p>The global system configuration has been modified.</p><p>Details: {{details}}</p></div>";
+      break;
+    case "System:INSTALL":
+      subject = "Installation Successful";
+      htmlBody = "<div style='font-family: sans-serif; padding: 20px;'><h2>Installation Successful</h2><p>The system has been fully deployed and is ready for use as <strong>{{sysName}}</strong>.</p><hr><p><strong>Your Initial Credentials:</strong><br>Username: {{adminUsername}}<br>Role: Administrator</p></div>";
+      break;
+    case "System:MODULE_INSTALLED":
+      subject = "New System Feature Available: {{moduleName}}";
+      htmlBody = "<div style='font-family: sans-serif; padding: 20px;'><h2>System Upgrade Complete</h2><p>The <strong>{{moduleName}}</strong> module has been successfully installed into the core ecosystem.</p><p>Please refresh your dashboard to access the new features and logic.</p></div>";
+      break;
+    default:
+      return;
+  }
+
+  // Inject the raw HTML into the wrapper
+  var fullHtml = getWrapperContent(wrapperName).replace("{{USER_MESSAGE_CONTENT}}", htmlBody);
+  
+  // Replace variables
+  for (var key in dataMap) {
+      var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
+      subject = subject.replace(regex, dataMap[key] || "");
+      fullHtml = fullHtml.replace(regex, dataMap[key] || "");
+  }
+
+  var settings = getSystemSettings();
+  var finalToEmail = toEmail;
+  
+  // Sandbox environment interceptor
+  if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
+      finalToEmail = settings.adminEmail;
+      subject = "[Sandbox Mail] " + subject;
+      var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
+      sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
+      sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
+      fullHtml += sandboxWarning;
+  }
+
+  // Dispatch via core mail app, using the dynamic system name and attached logo
+  try {
+      MailApp.sendEmail({
+          to: finalToEmail, 
+          subject: subject, 
+          htmlBody: fullHtml, 
+          noReply: true, 
+          name: settings.systemName, 
+          inlineImages: { logo: getLogoBlob() }
+      });
+  } catch(e) { console.warn("Failed to send hardcoded email: " + e.message); }
+}
 
 function getRenderedTemplatePreview(rowIndex) {
   var rowData = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getValues()[0];
