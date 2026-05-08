@@ -127,12 +127,15 @@ function setupCoreDatabase(rootFolder) {
   seedCoreAssets(verifiedDb);
   
   SpreadsheetApp.flush();
-  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail);
+  
+  // Emit Role Creation with the necessary email payload
+  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail, { username: "Administrator", details: "Unrestricted system access." });
   
   // IMMUTABLE ANCHOR: Prevent Google Sheets concurrent write-locks from overwriting logs
-  Utilities.sleep(1500);
+  Utilities.sleep(1500); 
 
-  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail);
+  // Emit User Creation with the necessary email payload
+  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail, { username: adminUsername });
   
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
 }

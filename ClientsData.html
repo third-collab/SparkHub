@@ -244,6 +244,7 @@
   }
 
   /* DYNAMIC FORM BUILDER */
+  /* DYNAMIC FORM BUILDER */
   function openDynamicForm(mode, rowIndex = null) {
       document.getElementById('dynamicClientForm').reset(); ACTIVE_QUILLS = {};
       document.getElementById('dyn-mode').value = mode; document.getElementById('dyn-rowIndex').value = rowIndex || '';
@@ -264,9 +265,17 @@
           var html = `<button type="button" class="accordion ${idx===0?'active':''}" onclick="toggleAccordion(this)">${grp.label}</button><div class="panel" style="display: ${idx===0?'block':'none'}; padding-top:15px;">`;
           
           if (grp.id === 'grp_client') {
-              html += `<div class="form-row"><div class="form-group"><label>Company Name *</label><input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName||''}" required></div><div class="form-group"><label>Status</label><select id="dyn-core-status" class="form-control dyn-core"><option value="Onboarding" ${data.status==='Onboarding'?'selected':''}>Onboarding</option><option value="Active" ${data.status==='Active'?'selected':''}>Active</option></select></div></div>`;
-              html += `<div class="form-group"><label>Address</label><input type="text" id="dyn-core-address" class="form-control dyn-core" value="${data.address||''}"></div>`;
-              html += `<div class="form-row"><div class="form-group"><label>Company Phone</label><input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone||''}"></div><div class="form-group"><label>Website</label><input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website||''}"></div></div>`;
+              var statusHtml = mode === 'edit' ? `<div class="form-group"><label>Status</label><select id="dyn-core-status" class="form-control dyn-core"><option value="Onboarding" ${data.status==='Onboarding'?'selected':''}>Onboarding</option><option value="Active" ${data.status==='Active'?'selected':''}>Active</option></select></div>` : `<input type="hidden" id="dyn-core-status" value="Onboarding">`;
+              
+              if (mode === 'edit') {
+                  html += `<div class="form-row"><div class="form-group"><label>Company Name *</label><input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName||''}" required></div>${statusHtml}</div>`;
+              } else {
+                  html += `<div class="form-group" style="margin-bottom: 20px;"><label>Company Name *</label><input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName||''}" required></div>${statusHtml}`;
+              }
+              
+              html += `<div class="form-row" style="margin-bottom: 20px;"><div class="form-group" style="width: 100%;"><label>Address</label><input type="text" id="dyn-core-address" class="form-control dyn-core" value="${data.address||''}"></div></div>`;
+              html += `<div class="form-row"><div class="form-group"><label>Company Email</label><input type="email" id="dyn-core-companyEmail" class="form-control dyn-core" value="${data.companyEmail||''}"></div><div class="form-group"><label>Company Phone</label><input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone||''}"></div></div>`;
+              html += `<div class="form-row" style="margin-bottom: 20px;"><div class="form-group" style="width: 100%;"><label>Website</label><input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website||''}"></div></div>`;
           }
           if (grp.id === 'grp_contact') {
               html += `<div class="form-row"><div class="form-group"><label>First Name *</label><input type="text" id="dyn-core-pFirstName" class="form-control dyn-core" value="${data.pFirstName||''}" required></div><div class="form-group"><label>Last Name *</label><input type="text" id="dyn-core-pLastName" class="form-control dyn-core" value="${data.pLastName||''}" required></div></div>`;
@@ -277,10 +286,6 @@
               html += `<div class="form-row"><div class="form-group"><label>Term Unit</label><select id="dyn-core-termUnit" class="form-control dyn-core" onchange="handleTermUnitChange(this)"><option value="Days" ${data.termUnit==='Days'?'selected':''}>Days</option><option value="Weeks" ${data.termUnit==='Weeks'?'selected':''}>Weeks</option><option value="Months" ${data.termUnit==='Months'?'selected':''}>Months</option><option value="Years" ${data.termUnit==='Years'?'selected':''}>Years</option><option value="One-time" ${data.termUnit==='One-time'?'selected':''}>One-time</option></select></div><div class="form-group"><label>Term Count</label><input type="number" id="dyn-core-termCount" class="form-control dyn-core" value="${data.termCount||'1'}"></div></div>`;
               var sbox = GLOBAL_SERVICES.filter(s=>s.status==='Active').map(s => `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name)?'checked':''}> ${s.name}</label>`).join('');
               html += `<div class="form-group"><label>Services Included</label><div class="checkbox-group" id="dyn-core-services" style="display:flex; gap:15px;">${sbox||'No services defined'}</div></div>`;
-          }
-          if (grp.id === 'grp_add_contact') {
-              var contactSfDef = btoa(unescape(encodeURIComponent(JSON.stringify([{label: 'First Name', type: 'text'}, {label: 'Last Name', type: 'text'}, {label: 'Email', type: 'text'}]))));
-              html += `<div id="dyn-add-contacts-container"></div><button type="button" class="btn-add-row" onclick="addRepeaterRow('dyn-add-contacts-container', '${contactSfDef}')">+ Add Contact</button>`;
           }
 
           var cFields = CLIENTS_CONFIG.customFields.filter(f => f.groupId === grp.id);
@@ -300,23 +305,46 @@
           html += `</div>`; target.innerHTML += html;
       });
 
-      // Post-Render Init
       CLIENTS_CONFIG.customFields.filter(f=>f.type==='richtext').forEach(f => { ACTIVE_QUILLS[f.id] = new Quill('#editor-'+f.id, { theme: 'snow' }); });
-      
-      // Initialize One-Time logic state
       var tu = document.getElementById('dyn-core-termUnit'); if(tu) handleTermUnitChange(tu);
 
-      var defaultContactsDef = btoa(unescape(encodeURIComponent(JSON.stringify([{label: 'First Name', type: 'text'}, {label: 'Last Name', type: 'text'}, {label: 'Email', type: 'text'}]))));
       if(mode==='edit') {
-         try { var arrC = JSON.parse(data.addContacts||"[]"); if(arrC.length > 0) arrC.forEach(c => addRepeaterRow('dyn-add-contacts-container', defaultContactsDef, c)); else addRepeaterRow('dyn-add-contacts-container', defaultContactsDef); } catch(e){}
          CLIENTS_CONFIG.customFields.filter(f=>f.type==='json').forEach(f => { 
              var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
              try { var arrJ = JSON.parse(addl[f.id]||"[]"); if(arrJ.length > 0) arrJ.forEach(obj => addRepeaterRow('json-rep-'+f.id, encodedOptions, obj)); else addRepeaterRow('json-rep-'+f.id, encodedOptions); } catch(e) { addRepeaterRow('json-rep-'+f.id, encodedOptions); } 
          });
       } else { 
-         addRepeaterRow('dyn-add-contacts-container', defaultContactsDef); 
          CLIENTS_CONFIG.customFields.filter(f=>f.type==='json').forEach(f => { addRepeaterRow('json-rep-'+f.id, btoa(unescape(encodeURIComponent(f.options || "[]")))); });
       }
+  }
+
+  function handleDynamicSubmit(e) {
+      e.preventDefault(); var btn = document.getElementById('dyn-submit-btn'); btn.disabled = true; btn.innerText = "Processing...";
+      var mode = document.getElementById('dyn-mode').value;
+      
+      var payload = { 
+          rowIndex: document.getElementById('dyn-rowIndex').value, companyName: document.getElementById('dyn-core-companyName').value, 
+          address: document.getElementById('dyn-core-address').value, companyEmail: document.getElementById('dyn-core-companyEmail').value, companyPhone: document.getElementById('dyn-core-companyPhone').value, website: document.getElementById('dyn-core-website').value, 
+          pFirstName: document.getElementById('dyn-core-pFirstName').value, pLastName: document.getElementById('dyn-core-pLastName').value, pEmail: document.getElementById('dyn-core-pEmail').value, pPhone: document.getElementById('dyn-core-pPhone').value, 
+          startDate: document.getElementById('dyn-core-startDate').value, currentStartDate: document.getElementById('dyn-core-startDate').value, 
+          rate: document.getElementById('dyn-core-rate').value, termUnit: document.getElementById('dyn-core-termUnit').value, termCount: document.getElementById('dyn-core-termCount').value, 
+          status: document.getElementById('dyn-core-status').value 
+      };
+      payload.services = Array.from(document.querySelectorAll('.dyn-srv-cb:checked')).map(cb=>cb.value).join(', ');
+      
+      var addl = {};
+      document.querySelectorAll('.dyn-cf').forEach(el => {
+          var id = el.dataset.id; var type = el.dataset.type;
+          if (type === 'richtext') { addl[id] = ACTIVE_QUILLS[id].root.innerHTML; }
+          else if (type === 'json') { 
+              var arr = []; el.querySelectorAll('.dynamic-json-row').forEach(r => { var obj={}; r.querySelectorAll('.rep-input').forEach(i => obj[i.dataset.key] = i.value); arr.push(obj); });
+              addl[id] = JSON.stringify(arr);
+          } else { addl[id] = el.value; }
+      });
+      payload.addlFields = JSON.stringify(addl);
+
+      var action = mode === 'add' ? createClientRecord : updateClientRecord;
+      google.script.run.withSuccessHandler(res => { btn.disabled=false; btn.innerText="Save Profile"; if(res.success){ loadClientsTable(); switchView('clientListView'); if(typeof showSystemModal==='function') showSystemModal("Success", "Profile saved."); } else { if(typeof showSystemModal==='function') showSystemModal("Error", res.error); else alert(res.error); } })(payload);
   }
 
   function addRepeaterRow(containerId, encodedSfDef, existingObj = {}) {
@@ -337,38 +365,6 @@
       }).join('');
       row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(${subfields.length}, 1fr); gap:15px;">${inputs}</div>`;
       c.appendChild(row);
-  }
-
-  function handleDynamicSubmit(e) {
-      e.preventDefault(); var btn = document.getElementById('dyn-submit-btn'); btn.disabled = true; btn.innerText = "Processing...";
-      var mode = document.getElementById('dyn-mode').value;
-      
-      var payload = { 
-          rowIndex: document.getElementById('dyn-rowIndex').value, companyName: document.getElementById('dyn-core-companyName').value, 
-          address: document.getElementById('dyn-core-address').value, companyPhone: document.getElementById('dyn-core-companyPhone').value, website: document.getElementById('dyn-core-website').value, 
-          pFirstName: document.getElementById('dyn-core-pFirstName').value, pLastName: document.getElementById('dyn-core-pLastName').value, pEmail: document.getElementById('dyn-core-pEmail').value, pPhone: document.getElementById('dyn-core-pPhone').value, 
-          startDate: document.getElementById('dyn-core-startDate').value, currentStartDate: document.getElementById('dyn-core-startDate').value, 
-          rate: document.getElementById('dyn-core-rate').value, termUnit: document.getElementById('dyn-core-termUnit').value, termCount: document.getElementById('dyn-core-termCount').value, 
-          status: document.getElementById('dyn-core-status').value 
-      };
-      payload.services = Array.from(document.querySelectorAll('.dyn-srv-cb:checked')).map(cb=>cb.value).join(', ');
-      
-      var addC = []; document.querySelectorAll('#dyn-add-contacts-container .dynamic-json-row').forEach(r => { addC.push({ firstName: r.querySelector('[data-key="First_Name"]').value, lastName: r.querySelector('[data-key="Last_Name"]').value, email: r.querySelector('[data-key="Email"]').value }); });
-      payload.addContacts = JSON.stringify(addC);
-
-      var addl = {};
-      document.querySelectorAll('.dyn-cf').forEach(el => {
-          var id = el.dataset.id; var type = el.dataset.type;
-          if (type === 'richtext') { addl[id] = ACTIVE_QUILLS[id].root.innerHTML; }
-          else if (type === 'json') { 
-              var arr = []; el.querySelectorAll('.dynamic-json-row').forEach(r => { var obj={}; r.querySelectorAll('.rep-input').forEach(i => obj[i.dataset.key] = i.value); arr.push(obj); });
-              addl[id] = JSON.stringify(arr);
-          } else { addl[id] = el.value; }
-      });
-      payload.addlFields = JSON.stringify(addl);
-
-      var action = mode === 'add' ? createClientRecord : updateClientRecord;
-      google.script.run.withSuccessHandler(res => { btn.disabled=false; btn.innerText="Save Profile"; if(res.success){ loadClientsTable(); switchView('clientListView'); if(typeof showSystemModal==='function') showSystemModal("Success", "Profile saved."); } else { if(typeof showSystemModal==='function') showSystemModal("Error", res.error); else alert(res.error); } })(payload);
   }
 
   function openServiceForm(rowIndex = null) { document.getElementById('srvForm').reset(); document.getElementById('srv-rowIndex').value = rowIndex||''; if(rowIndex){ var s=GLOBAL_SERVICES.find(x=>x.rowIndex==rowIndex); if(s){ document.getElementById('srv-name').value=s.name; document.getElementById('srv-desc').value=s.description; document.getElementById('srv-status').value=s.status; } } document.getElementById('srvFormTitle').innerText = rowIndex ? "Edit Service Definition" : "Define New Service"; switchView('serviceFormView'); }

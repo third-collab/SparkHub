@@ -107,16 +107,21 @@
       
       // Dynamically extract all unique modules from the database
       var modDrop = document.getElementById('log-module-drop');
-      if (modDrop && modDrop.innerHTML.trim() === "") {
+      if (modDrop) {
+        // Track currently checked filters to preserve them across reloads
+        var currentlyChecked = Array.from(document.querySelectorAll('.log-filter-mod-cb:checked')).map(cb => cb.value);
+        var isFirstLoad = modDrop.innerHTML.trim() === "";
+
         var uniqueMods = [];
         GLOBAL_LOGS_DATA.forEach(function(l) {
           if (l.module && uniqueMods.indexOf(l.module) === -1) uniqueMods.push(l.module);
         });
         
-        // Build the checkboxes automatically and set them to checked
+        // Build the checkboxes automatically
         var html = '';
         uniqueMods.sort().forEach(function(m) {
-          html += '<label><input type="checkbox" class="log-filter-mod-cb" value="' + m + '" checked onchange="applyLogFilters()"> ' + m + '</label>';
+          var isChecked = isFirstLoad || currentlyChecked.includes(m) ? 'checked' : '';
+          html += '<label><input type="checkbox" class="log-filter-mod-cb" value="' + m + '" ' + isChecked + ' onchange="applyLogFilters()"> ' + m + '</label>';
         });
         modDrop.innerHTML = html;
       }

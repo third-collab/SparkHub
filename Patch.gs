@@ -65,6 +65,58 @@ function seedClientsCustomFields() {
     return "Error injecting custom fields: " + e.message;
   }
 }
+/**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Patch.gs
+ * VERSION: 1.1
+ * DESCRIPTION: One-time utility functions to migrate existing data structures to new version schemas.
+ */
+
+/**
+ * Patches the v4.1 Clients Database to the v4.2 Schema.
+ * Removes the hardcoded "Additional Contacts" column and updates the headers and JSON config.
+ */
+function patch_v4_2_clientsDatabase() {
+  try {
+    var id = PropertiesService.getScriptProperties().getProperty('CLIENTS_DB_ID');
+    if (!id) return "Clients database ID not found in properties.";
+    
+    var ss = SpreadsheetApp.openById(id);
+    var sheet = ss.getSheetByName("Clients");
+    if (!sheet) return "Clients sheet not found.";
+
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    
+    // Check if Additional Contacts is still sitting at column L (Index 11)
+    if (headers[11] === "Additional Contacts") {
+       sheet.deleteColumn(12);
+    }
+    
+    // Apply the new 26-column header structure
+    var newHeaders = [
+      "Timestamp", "Client ID", "Company Name", "Address", "Company Phone", "Website",
+      "Primary First Name", "Primary Last Name", "Primary Email", "Primary Phone", "Primary Position",
+      "Services", "Rate", "Original Start Date", "Current Start Date",
+      "Term Count", "Term Unit", "Original Exp Date", "Current Exp Date", "Original End Date",
+      "Latest End Date", "Operational Notes", "Remarks", "Additional Fields", "History", "Status" 
+    ];
+    sheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]).setFontWeight("bold").setBackground("#f1f5f9");
+    
+    // Update config to remove the Additional Contacts accordion group if it exists
+    var confStr = PropertiesService.getScriptProperties().getProperty('CLIENTS_MODULE_CONFIG');
+    if (confStr) {
+        var conf = JSON.parse(confStr);
+        if (conf && conf.accordionGroups) {
+            conf.accordionGroups = conf.accordionGroups.filter(function(g) { return g.id !== "grp_add_contact"; });
+            PropertiesService.getScriptProperties().setProperty('CLIENTS_MODULE_CONFIG', JSON.stringify(conf));
+        }
+    }
+    
+    return "Success: Clients database successfully patched to v4.2 schema.";
+  } catch(e) {
+    return "Migration Error: " + e.message;
+  }
+}
 
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]

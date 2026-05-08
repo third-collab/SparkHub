@@ -1,13 +1,7 @@
 /**
  * [SPARKHUB INTEGRITY HEADER: START]
  * FILE: Clients.gs
- * VERSION: 4.0 (Dynamic Accordions, JSON/RichText Fields, Compressed Schema)
- */
-
-/**
- * [SPARKHUB INTEGRITY HEADER: START]
- * FILE: Clients.gs
- * VERSION: 4.1 (Schema Updates: Company Phone, Rate, One-Time Logic)
+ * VERSION: 4.3 (Schema Alignment: Company Email, Term Reordering, 26 Columns)
  */
 
 function Clients_getTriggers() { return ["Clients:CREATE", "Clients:UPDATE", "Clients:STATUS_CHANGE", "Clients:ANNOUNCE_NEW"]; }
@@ -32,13 +26,12 @@ function setupClientsDatabase() {
       var file = DriveApp.getFileById(ss.getId()); file.moveTo(folder); dbId = file.getId();
       
       var sheet = ss.getSheets()[0]; sheet.setName("Clients");
-      // Updated Schema: 27 Columns (Added Company Phone, changed to Rate)
       var headers = [
-        "Timestamp", "Client ID", "Company Name", "Address", "Company Phone", "Website",
-        "Primary First Name", "Primary Last Name", "Primary Email", "Primary Phone", "Primary Position",
-        "Additional Contacts", "Services", "Rate", "Original Start Date", "Current Start Date",
-        "Term Count", "Term Unit", "Original Exp Date", "Current Exp Date", "Original End Date",
-        "Latest End Date", "Operational Notes", "Remarks", "Additional Fields", "History", "Status" 
+        "Timestamp", "Client ID", "Company Name", "Address", "Company Email", "Company Phone", "Website", 
+        "Primary First Name", "Primary Last Name", "Primary Email", "Primary Phone", "Services", "Rate", 
+        "Term Unit", "Term Count", "Original Start Date", "Current Start Date", "Original Exp Date", 
+        "Current Exp Date", "Original End Date", "Latest End Date", "Operational Notes", "Remarks", 
+        "Additional Fields", "History", "Status"
       ];
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight("bold").setBackground("#f1f5f9");
       sheet.setFrozenRows(1);
@@ -63,8 +56,7 @@ function setupClientsDatabase() {
        accordionGroups: [
            { id: "grp_client", label: "Client Details", isDefault: true },
            { id: "grp_contact", label: "Primary Contact", isDefault: true },
-           { id: "grp_contract", label: "Contract Information", isDefault: true },
-           { id: "grp_add_contact", label: "Additional Contacts", isDefault: true }
+           { id: "grp_contract", label: "Contract Information", isDefault: true }
        ],
        customFields: [] 
     };
@@ -91,10 +83,10 @@ function getClientsList() {
     var sheet = getClientsSheet(); var data = sheet.getDataRange().getValues(); var clients = [];
     for (var i = 1; i < data.length; i++) {
       if (!data[i][1]) continue; 
-      var addl = {}; try { addl = JSON.parse(data[i][24] || "{}"); } catch(e){}
+      var addl = {}; try { addl = JSON.parse(data[i][23] || "{}"); } catch(e){}
       var brand = addl.brand_name || data[i][2] || "Unknown Brand";
       var am = addl.account_manager || "Unassigned";
-      clients.push({ rowIndex: i, clientId: data[i][1], companyName: data[i][2], brandName: brand, pFirstName: data[i][6], pLastName: data[i][7], pEmail: data[i][8], services: data[i][12], acctMgr: am, status: data[i][26] });
+      clients.push({ rowIndex: i, clientId: data[i][1], companyName: data[i][2], brandName: brand, pFirstName: data[i][7], pLastName: data[i][8], pEmail: data[i][9], services: data[i][11], acctMgr: am, status: data[i][25] });
     }
     return { success: true, data: clients };
   } catch(e) { return { error: "List error: " + e.message }; }
@@ -107,9 +99,10 @@ function getClientById(rowIndex) {
     if (!row) return { error: "Record empty." };
     function safeVal(val) { return (val instanceof Date) ? Utilities.formatDate(val, tz, "yyyy-MM-dd") : (val === undefined ? "" : val); }
     return { success: true, data: {
-      rowIndex: rowIndex, clientId: safeVal(row[1]), companyName: safeVal(row[2]), address: safeVal(row[3]), companyPhone: safeVal(row[4]), website: safeVal(row[5]), pFirstName: safeVal(row[6]), pLastName: safeVal(row[7]), pEmail: safeVal(row[8]), pPhone: safeVal(row[9]), pPosition: safeVal(row[10]), 
-      addContacts: safeVal(row[11]), services: safeVal(row[12]), rate: safeVal(row[13]), origStartDate: safeVal(row[14]), currentStartDate: safeVal(row[15]), termCount: safeVal(row[16]), termUnit: safeVal(row[17]), origExpDate: safeVal(row[18]), currentExpDate: safeVal(row[19]), origEndDate: safeVal(row[20]), latestEndDate: safeVal(row[21]),
-      operationalNotes: safeVal(row[22]), remarks: safeVal(row[23]), addlFields: safeVal(row[24]), history: safeVal(row[25]), status: safeVal(row[26]) || "Active"
+      rowIndex: rowIndex, clientId: safeVal(row[1]), companyName: safeVal(row[2]), address: safeVal(row[3]), companyEmail: safeVal(row[4]), companyPhone: safeVal(row[5]), website: safeVal(row[6]), 
+      pFirstName: safeVal(row[7]), pLastName: safeVal(row[8]), pEmail: safeVal(row[9]), pPhone: safeVal(row[10]), 
+      services: safeVal(row[11]), rate: safeVal(row[12]), termUnit: safeVal(row[13]), termCount: safeVal(row[14]), origStartDate: safeVal(row[15]), currentStartDate: safeVal(row[16]), origExpDate: safeVal(row[17]), currentExpDate: safeVal(row[18]), origEndDate: safeVal(row[19]), latestEndDate: safeVal(row[20]),
+      operationalNotes: safeVal(row[21]), remarks: safeVal(row[22]), addlFields: safeVal(row[23]), history: safeVal(row[24]), status: safeVal(row[25]) || "Active"
     }};
   } catch(e) { return { error: "Backend crash: " + e.message }; }
 }
@@ -145,27 +138,26 @@ function createClientRecord(p) {
     var addl = {}; try { addl = JSON.parse(p.addlFields || "{}"); } catch(e){}
     var brand = addl.brand_name || p.companyName;
 
-    var newRow = new Array(27).fill("");
-    newRow[0] = new Date(); newRow[1] = "C-" + Math.floor(1000+Math.random()*9000); newRow[2] = p.companyName; newRow[3] = p.address; newRow[4] = p.companyPhone; newRow[5] = p.website;
-    newRow[6] = p.pFirstName; newRow[7] = p.pLastName; newRow[8] = p.pEmail; newRow[9] = p.pPhone; newRow[10] = p.pPosition;
-    newRow[11] = p.addContacts || "[]"; newRow[12] = p.services; newRow[13] = p.rate; newRow[14] = p.startDate; newRow[15] = p.startDate;
-    newRow[16] = p.termCount; newRow[17] = p.termUnit; newRow[18] = p.expDate; newRow[19] = p.expDate; newRow[22] = "[]";
-    newRow[24] = p.addlFields || "{}"; newRow[25] = "[]"; newRow[26] = "Onboarding";
+    var newRow = new Array(26).fill("");
+    newRow[0] = new Date(); newRow[1] = "C-" + Math.floor(1000+Math.random()*9000); 
+    newRow[2] = p.companyName; newRow[3] = p.address; newRow[4] = p.companyEmail; newRow[5] = p.companyPhone; newRow[6] = p.website;
+    newRow[7] = p.pFirstName; newRow[8] = p.pLastName; newRow[9] = p.pEmail; newRow[10] = p.pPhone;
+    newRow[11] = p.services; newRow[12] = p.rate; newRow[13] = p.termUnit; newRow[14] = p.termCount;
+    newRow[15] = p.startDate; newRow[16] = p.startDate; newRow[17] = p.expDate; newRow[18] = p.expDate; 
+    newRow[21] = "[]"; newRow[23] = p.addlFields || "{}"; newRow[24] = "[]"; newRow[25] = "Onboarding";
 
     sheet.appendRow(newRow); var targetRow = sheet.getLastRow() - 1;
 
     var conf = getClientsModuleConfig().data; var targetRole = conf.clientRole || "Client";
     try {
-      if (typeof saveUserRecord === 'function') {
-        if (p.pEmail) saveUserRecord({ username: p.pEmail, email: p.pEmail, firstName: p.pFirstName, lastName: p.pLastName, role: targetRole, status: "Active" });
-        JSON.parse(p.addContacts || "[]").forEach(function(c) { if (c.email) saveUserRecord({ username: c.email.trim(), email: c.email.trim(), firstName: c.firstName, lastName: c.lastName, role: targetRole, status: "Active" }); });
+      if (typeof saveUserRecord === 'function' && p.pEmail) {
+        saveUserRecord({ username: p.pEmail, email: p.pEmail, firstName: p.pFirstName, lastName: p.pLastName, role: targetRole, status: "Active" });
       }
     } catch(e) {}
 
-    var sysName = getSystemSettings().systemName || "SparkHub"; var ccEmails = [];
-    try { JSON.parse(p.addContacts || "[]").forEach(function(c) { if (c.email) ccEmails.push(c.email.trim()); }); } catch(e){}
+    var sysName = getSystemSettings().systemName || "SparkHub";
 
-    var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName, "cc": ccEmails.join(',') };
+    var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName };
     SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
     
     try {
@@ -179,11 +171,13 @@ function createClientRecord(p) {
 
 function updateClientRecord(p) {
   try {
-    var sheet = getClientsSheet(); var oldRow = sheet.getDataRange().getValues()[parseInt(p.rowIndex, 10)]; var newRow = [...oldRow]; while(newRow.length < 27) newRow.push(""); 
-    newRow[2] = p.companyName; newRow[3] = p.address; newRow[4] = p.companyPhone; newRow[5] = p.website; newRow[6] = p.pFirstName; newRow[7] = p.pLastName; newRow[8] = p.pEmail; newRow[9] = p.pPhone; newRow[10] = p.pPosition;
-    newRow[11] = p.addContacts; newRow[12] = p.services; newRow[13] = p.rate; newRow[15] = p.currentStartDate; newRow[16] = p.termCount; newRow[17] = p.termUnit; newRow[19] = p.currentExpDate;
-    if (!oldRow[20]) { newRow[20] = p.endDate; newRow[21] = p.endDate; } else { newRow[21] = p.endDate; }
-    newRow[23] = p.remarks; newRow[24] = p.addlFields; newRow[26] = p.status;            
+    var sheet = getClientsSheet(); var oldRow = sheet.getDataRange().getValues()[parseInt(p.rowIndex, 10)]; var newRow = [...oldRow]; while(newRow.length < 26) newRow.push(""); 
+    newRow[2] = p.companyName; newRow[3] = p.address; newRow[4] = p.companyEmail; newRow[5] = p.companyPhone; newRow[6] = p.website; 
+    newRow[7] = p.pFirstName; newRow[8] = p.pLastName; newRow[9] = p.pEmail; newRow[10] = p.pPhone; 
+    newRow[11] = p.services; newRow[12] = p.rate; newRow[13] = p.termUnit; newRow[14] = p.termCount; 
+    newRow[16] = p.currentStartDate; newRow[18] = p.currentExpDate;
+    if (!oldRow[19]) { newRow[19] = p.endDate; newRow[20] = p.endDate; } else { newRow[20] = p.endDate; }
+    newRow[22] = p.remarks; newRow[23] = p.addlFields; newRow[25] = p.status;            
     sheet.getRange(parseInt(p.rowIndex,10) + 1, 1, 1, newRow.length).setValues([newRow]);
     return { success: true };
   } catch(e) { return { error: e.message }; }
