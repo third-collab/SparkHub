@@ -91,23 +91,24 @@ function getSystemSettings() {
 // 4. WRITE / SAVE FUNCTIONS
 // ========================================================================
 /**
- * Saves environment overrides globally.
+ * saveGeneralSettings
+ * STANDALONE SAVE: Handles core system identity, database mapping, and branding.
+ * Replaces the previous global saveSystemSettings to align with Local Authority Pattern.
  */
-/**
- * Saves environment overrides globally.
- */
-function saveSystemSettings(settings) {
+function saveGeneralSettings(settings) {
   try {
     var props = PropertiesService.getScriptProperties();
-    
-    // IMMUTABLE ANCHOR: Block the core repository name from being used as a white-label identity
+
+    // 1. Governance Check: Block core repository name from white-label identity
     if (settings.systemName && settings.systemName.trim().toLowerCase() === 'sparkhub') {
       throw new Error("The name 'SparkHub' is restricted. Please provide a custom white-label system name.");
     }
     
+    // 2. Database Validation (Infrastructure Check)
     if (settings.mainDbId) validateDatabase(settings.mainDbId);
     if (settings.logsDbId) validateLogsDatabase(settings.logsDbId);
 
+    // 3. Identity & Environment Save
     if (settings.environment) props.setProperty('ENVIRONMENT', settings.environment);
     if (settings.authMode) props.setProperty('AUTH_MODE', settings.authMode);
     if (settings.adminEmail) props.setProperty('ADMIN_EMAIL', settings.adminEmail);
@@ -116,21 +117,30 @@ function saveSystemSettings(settings) {
     if (settings.mainDbId) props.setProperty('DATABASE_ID', settings.mainDbId);
     if (settings.logsDbId) props.setProperty('LOGS_DATABASE_ID', settings.logsDbId);
     if (settings.fallbackLogoUrl) props.setProperty('EMAIL_FALLBACK_LOGO', settings.fallbackLogoUrl);
+    if (settings.systemLogoId) props.setProperty('SYSTEM_LOGO_ID', settings.systemLogoId);
 
-    // Theme Engine Sync
+    // 4. Theme Engine Sync
     if (settings.themePrimary) props.setProperty('THEME_PRIMARY', settings.themePrimary);
     if (settings.themeAccent) props.setProperty('THEME_ACCENT', settings.themeAccent);
     if (settings.themeDark) props.setProperty('THEME_DARK', settings.themeDark);
     if (settings.themeHover) props.setProperty('THEME_HOVER', settings.themeHover);
     if (settings.themeBg) props.setProperty('THEME_BG', settings.themeBg);
     
-    if (settings.systemLogoId) props.setProperty('SYSTEM_LOGO_ID', settings.systemLogoId);
+    // 5. Broadcast Event via Broker
+    SystemEvent.emit(
+      "Settings", 
+      "UPDATE", 
+      "System Configuration", 
+      "WARN", 
+      "General Settings", 
+      "Core system architecture, identity, or theme settings were modified via local save."
+    );
 
-    SystemEvent.emit("Settings", "UPDATE", "System Configuration", "WARN", "Global Settings", "Core system architecture, identity, or theme settings were modified.");
-    return "Success! Settings updated.";
+    return { success: true, message: "Success! General settings updated." };
 
   } catch (e) { 
-    return "Error: " + e.message;
+    console.error("saveGeneralSettings Error: " + e.message);
+    return { error: e.message };
   }
 }
 

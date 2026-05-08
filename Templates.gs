@@ -194,6 +194,20 @@ function getRenderedTemplatePreview(rowIndex) {
   return fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
 }
 
+function saveTemplatesModuleConfig(payload) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('CONF_TPL_EXT_WRAPPER', payload.extWrapper);
+    props.setProperty('CONF_TPL_INT_WRAPPER', payload.intWrapper);
+    
+    SystemEvent.emit("Templates", "INFO", "Config Updated", "SYSTEM", "Templates", "Template configuration updated locally.");
+    
+    return { success: true, message: "Template settings saved." };
+  } catch (e) {
+    return { error: "Templates.gs: " + e.message };
+  }
+}
+
 // ========================================================================
 // 3. READ / GET FUNCTIONS
 // ========================================================================

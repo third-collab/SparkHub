@@ -805,61 +805,64 @@
      7. SUBMIT HANDLERS
      ======================================================================== */
   function handleSaveClientsConfig(e) {
-    var accs = Array.from(document.querySelectorAll('.accordion-grp-row')).map(r => ({ 
-      id: r.dataset.id, 
-      label: r.querySelector('.acc-label').value, 
-      isDefault: r.dataset.def === 'true' 
-    }));
+    if (e) e.preventDefault();
     
-    var flds = Array.from(document.querySelectorAll('.cf-row')).map(r => {
-      var type = r.querySelector('.cf-type').value; 
-      var optionsStr = '';
-      
-      if (type === 'select') {
-        optionsStr = r.querySelector('.cf-opts').value;
-      } else if (type === 'json') {
-        var sfs = Array.from(r.querySelectorAll('.json-sf-row')).map(sr => ({ 
-          label: sr.querySelector('.sf-label').value, 
-          type: sr.querySelector('.sf-type').value, 
-          options: sr.querySelector('.sf-opts').value 
-        })).filter(sf => sf.label.trim() !== '');
-        optionsStr = JSON.stringify(sfs);
-      }
-      
-      return { 
-        label: r.querySelector('.cf-label').value, 
-        id: r.querySelector('.cf-id').value, 
-        type: type, 
-        required: r.querySelector('.cf-req').value === 'true', 
-        groupId: r.querySelector('.cf-grp').value, 
-        options: optionsStr 
-      };
+    // 1. Gather Accordion Groups
+    const accordionGroups = [];
+    document.querySelectorAll('.accordion-grp-row').forEach(row => {
+      accordionGroups.push({
+        id: row.dataset.id,
+        label: row.querySelector('.acc-label').value,
+        isDefault: row.dataset.def === 'true'
+      });
     });
-    
-    var payload = { 
-      clientRole: document.getElementById('edt-client-role-select').value, 
-      accordionGroups: accs, 
-      customFields: flds 
+
+    // 2. Gather Custom Fields
+    const customFields = [];
+    document.querySelectorAll('.cf-row').forEach(row => {
+      customFields.push({
+        label: row.querySelector('.cf-label').value,
+        id: row.querySelector('.cf-id').value,
+        type: row.querySelector('.cf-type').value,
+        required: row.querySelector('.cf-req').value === 'true',
+        groupId: row.querySelector('.cf-grp').value,
+        options: row.querySelector('.cf-opts') ? row.querySelector('.cf-opts').value : ""
+      });
+    });
+
+    const payload = {
+      clientRole: document.getElementById('edt-client-role-select').value,
+      accordionGroups: accordionGroups,
+      customFields: customFields
     };
-    
-    var btn = e.target; 
-    btn.innerText = "Saving..."; 
+
+    // 3. UI Feedback: Disable button and show loading
+    const btn = e.target;
+    const originalText = btn.innerHTML;
     btn.disabled = true;
-    
-    google.script.run.withSuccessHandler(res => { 
-      btn.innerText = "Save Configuration"; 
-      btn.disabled = false; 
-      
-      if (res.success) { 
-        CLIENTS_CONFIG = payload; 
-        if (typeof showSystemModal === 'function') {
-          showSystemModal("Saved", "Config updated.");
+    btn.innerHTML = "Saving Configuration...";
+
+    // 4. Standalone Backend Call
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (res.success) {
+          showToast("Success", "Clients configuration saved locally.", "success");
+          // Update the local global config so the UI stays in sync without a refresh
+          CLIENTS_CONFIG = payload;
         } else {
-          alert("Saved!");
+          showToast("Error", res.error || "Failed to save.", "danger");
         }
-      } 
-    }).saveClientsModuleConfig(payload);
-  }
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        showToast("Critical Error", err.message, "danger");
+      })
+      .saveClientsModuleConfig(payload);
+}
 
   function handleDynamicSubmit(e) {
     e.preventDefault(); 

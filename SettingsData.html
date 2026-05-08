@@ -23,13 +23,38 @@
   </div>
 </template>
 
+<template id="tpl-settings-clients-ro">
+  <div id="ro-clients-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 class="settings-section-header" style="margin:0;">Client Configuration</h3>
+      <button class="btn-edit" onclick="toggleModuleEdit('clients', true)">Edit Settings</button>
+    </div>
+    
+    <div id="ro-clients-core-config" class="settings-card"></div>
+    <div id="ro-clients-accordions" class="settings-card"></div>
+    <div id="ro-clients-fields" class="settings-card"></div>
+  </div>
+</template>
+
+<template id="tpl-settings-clients-edt">
+  <div id="edt-clients-container" style="display:none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 class="settings-section-header" style="margin:0;">Edit Client Configuration</h3>
+      <button class="btn-dash-back" onclick="toggleModuleEdit('clients', false)">Cancel</button>
+    </div>
+
+    <div style="margin-top: 30px; text-align: right;">
+      <button type="button" class="btn-primary" onclick="handleSaveClientsConfig(event)">Save Configuration</button>
+    </div>
+  </div>
+</template>
+
 <div id="readOnlySettingsView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
   <div class="form-wrapper">
     <div id="ro-settings-overlay" class="settings-loading-overlay"><div class="spinner-core"></div><span>Synchronizing Config...</span></div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
        <h2 style="margin:0; color: var(--brand-dark);">System Configuration</h2>
-       <button class="btn-primary perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit System Settings</button>
     </div>
     
     <div id="ro-settings-nav" class="tab-nav">
@@ -144,13 +169,14 @@
         <div class="form-group" style="margin-top: 15px;"><label>Main DB Registry ID *</label><input type="text" id="edt-settings-dbid" class="form-control" required></div>
         <div class="form-group" style="margin-top: 15px;"><label>Logs DB Registry ID *</label><input type="text" id="edt-settings-logsid" class="form-control" required></div>
         <div class="form-group" style="margin-top: 15px;"><label>Email Asset Fallback URL *</label><input type="url" id="edt-settings-fallback" class="form-control" required></div>
+
+        <div style="margin-top: 40px; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+          <button type="button" class="btn-primary" onclick="handleSaveGeneralSettings(event)" style="padding: 12px 40px;">Save General Settings</button>
+        </div>
       </div>
 
       <div id="edt-dynamic-settings-container"></div>
 
-      <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 50px;">
-        <button type="submit" class="btn-primary" id="edt-settings-submit" style="padding: 15px 60px;">Save Global Sync</button>
-      </div>
     </form>
     <div id="edt-settings-msg" class="status-msg" style="text-align: right; margin-top: 20px; font-weight: 700;"></div>
   </div>
@@ -341,41 +367,25 @@
       .performModuleInstallation(name);
   }
 
-  function handleSettingsSubmit(e) {
+  function handleSaveGeneralSettings(e) {
     if(e) e.preventDefault();
-    var payload = {
+    const payload = {
       systemName: document.getElementById('edt-settings-sysname').value,
       environment: document.getElementById('edt-settings-env').value,
-      adminEmail: document.getElementById('edt-settings-email') ? document.getElementById('edt-settings-email').value : '',
-      authMode: document.getElementById('edt-settings-authmode') ? document.getElementById('edt-settings-authmode').value : 'SSO',
       rootFolderId: document.getElementById('edt-settings-rootid').value,
       mainDbId: document.getElementById('edt-settings-dbid').value,
       logsDbId: document.getElementById('edt-settings-logsid').value,
-      fallbackLogoUrl: document.getElementById('edt-settings-fallback').value,
-      themePrimary: document.getElementById('edt-theme-primary').value,
-      themeAccent: document.getElementById('edt-theme-accent').value,
-      themeDark: document.getElementById('edt-theme-dark').value,
-      themeHover: document.getElementById('edt-theme-hover').value,
-      themeBg: document.getElementById('edt-theme-bg').value
+      fallbackLogoUrl: document.getElementById('edt-settings-fallback').value
+      // ... add theme color IDs here
     };
     
-    var logoSrc = document.getElementById('edt-settings-logo-preview').src;
-    if (logoSrc.startsWith('data:image')) {
-      toggleSettingsOverlay('edt-settings-overlay', true, 'Saving Assets...');
-      google.script.run.withSuccessHandler(function(res) {
-        if (res.id) { payload.systemLogoId = res.id; finishSave(payload); }
-        else finishSave(payload);
-      }).uploadSystemLogo(logoSrc, "system_logo.png");
-    } else { finishSave(payload); }
-
-    function finishSave(p) {
-      toggleSettingsOverlay('edt-settings-overlay', true, 'Synchronizing Unified Config...');
-      google.script.run.withSuccessHandler(function(res) {
-        toggleSettingsOverlay('edt-settings-overlay', false);
-        if (res.includes("Success")) { loadSettings(); switchView('readOnlySettingsView'); }
-        else showSystemModal('Configuration Error', res);
-      }).saveSystemSettings(p);
-    }
+    toggleSettingsOverlay('edt-settings-overlay', true, 'Saving General Config...');
+    google.script.run.withSuccessHandler(res => {
+      toggleSettingsOverlay('edt-settings-overlay', false);
+      showToast("Success", "Core system settings updated.", "success");
+      toggleModuleEdit('core', false); // Return to RO view
+      loadSettings();
+    }).saveGeneralSettings(payload);
   }
 
   /* ========================================================================
@@ -403,6 +413,35 @@
       reader.onload = function(e) { document.getElementById('edt-settings-logo-preview').src = e.target.result; };
       reader.readAsDataURL(input.files[0]);
     }
+  }
+
+  /**
+   * toggleLocalEdit
+   * Toggles the visibility of RO vs EDT fragments for a specific module.
+   * @param {string} module - e.g., 'clients', 'users', 'templates'
+   * @param {boolean} isEditing - true to show edit form
+   */
+  function toggleLocalEdit(module, isEditing) {
+    const roView = document.getElementById(`ro-${module}-container`);
+    const edtView = document.getElementById(`edt-${module}-container`);
+    
+    if (isEditing) {
+      roView.style.display = 'none';
+      edtView.style.display = 'block';
+    } else {
+      roView.style.display = 'block';
+      edtView.style.display = 'none';
+    }
+  }
+
+  /**
+   * toggleModuleEdit
+   * Swaps between Read-Only (RO) and Edit (EDT) views for a specific module fragment.
+   */
+  function toggleModuleEdit(moduleName, editMode) {
+    const prefix = editMode ? 'set-edt' : 'set-ro';
+    // Use navigateClientTab to switch logic shells locally
+    navigateClientTab(prefix, moduleName);
   }
 </script>
 <!-- [SPARKHUB INTEGRITY ANCHOR: END] -->
