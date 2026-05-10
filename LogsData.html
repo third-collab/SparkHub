@@ -100,7 +100,7 @@
      ======================================================================== */
   function loadLogsTable() {
     var tbody = document.getElementById('logTableBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">Synchronizing Logs...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color:#64748b;">Synchronizing Logs...</td></tr>';
     
     google.script.run.withSuccessHandler(function(logs) {
       GLOBAL_LOGS_DATA = logs || [];

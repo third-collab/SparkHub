@@ -21,28 +21,6 @@
       --brand-bg: <?= themeBg ?> !important;
       --brand-hover: <?= themeHover ?> !important;
     }
-    
-    /* --- Standardized System Overlays --- */
-    .system-overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: var(--brand-accent); z-index: 10000;
-      display: flex; justify-content: center; align-items: center;
-      padding: 20px; box-sizing: border-box;
-    }
-    .overlay-card {
-      background: white; padding: 40px; border-radius: var(--border-radius-large);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 500px; width: 100%;
-      text-align: center; border-bottom: 8px solid var(--brand-primary);
-    }
-    .overlay-card h1, .overlay-card h2 { margin-top: 0; color: var(--brand-dark); }
-    .overlay-card p { color: #666; line-height: 1.5; margin-bottom: 30px; }
-    
-    .overlay-loading { 
-      display: none; 
-      flex-direction: column; 
-      align-items: center; 
-      gap: 15px; 
-    }
   </style>
 </head>
 <body>
