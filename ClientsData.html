@@ -25,9 +25,9 @@
 </template>
 
 <template id="tpl-settings-clients-ro">
-  <div style="margin-top: 25px;">
+  <div id="set-ro-clients" class="tab-content">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 class="settings-section-header" style="margin:0;">Client Configuration</h3>
+      <h2 class="settings-section-header" style="margin:0;">Client Configuration</h2>
       <button class="btn-edit" onclick="toggleModuleEdit('clients', true)">Edit Settings</button>
     </div>
 
@@ -42,9 +42,9 @@
 </template>
 
 <template id="tpl-settings-clients-edt">
-  <div style="margin-top: 25px;">
+  <div id="set-edt-clients" class="tab-content" style="display:none;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 class="settings-section-header" style="margin:0;">Edit Client Configuration</h3>
+      <h2 class="settings-section-header" style="margin:0;">Edit Client Configuration</h2>
       <button class="btn-dash-back" onclick="toggleModuleEdit('clients', false)">Cancel</button>
     </div>
     

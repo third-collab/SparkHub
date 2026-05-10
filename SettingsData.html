@@ -97,12 +97,14 @@
       <button type="button" class="tab-btn active" id="btn-set-edt-core" onclick="navigateClientTab('set-edt', 'core')">Core Engine</button>
     </div>
 
-    <form id="editSettingsForm" onsubmit="handleSettingsSubmit(event)">
+    <form id="editSettingsForm">
       <div id="set-edt-core" class="tab-content" style="display: block;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
           <h2 style="margin:0;">Edit System Settings</h2>
           <button type="button" class="btn-dash-back" onclick="toggleModuleEdit('core', false)">Cancel</button>
         </div>
+      </div>
+      <div id="edt-dynamic-settings-container">
         <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px; margin-top:25px;">Identity & Branding</h3>
         <div class="form-row">
           <div class="form-group"><label>System Label *</label><input type="text" id="edt-settings-sysname" class="form-control" required></div>
@@ -156,8 +158,6 @@
           <button type="button" class="btn-primary" onclick="handleSaveGeneralSettings(event)" style="padding: 12px 40px;">Save General Settings</button>
         </div>
       </div>
-
-      <div id="edt-dynamic-settings-container"></div>
 
     </form>
     <div id="edt-settings-msg" class="status-msg" style="text-align: right; margin-top: 20px; font-weight: 700;"></div>
