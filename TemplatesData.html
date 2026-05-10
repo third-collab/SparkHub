@@ -5,7 +5,7 @@
   SYNC STATUS: Fully Synchronized with Templates.gs
 -->
 <style>
-  #templatesListView .table-container, #editTemplateView .form-wrapper, #readOnlyTemplateView .form-wrapper { position: relative; min-height: 500px; }
+  #editTemplateView .form-wrapper, #readOnlyTemplateView .form-wrapper { position: relative; min-height: 500px; }
   .preview-frame-container { background: #f1f5f9; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 20px; min-height: 400px; }
   .preview-iframe { width: 100%; height: 600px; background: white; border: none; border-radius: 4px; box-shadow: var(--shadow-sm); }
   .placeholder-tag { display: inline-block; background: #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; border: 1px solid #cbd5e1; }
@@ -91,7 +91,7 @@
     </div>
 
     <div class="table-container">
-      <div id="tpl-list-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Syncing Library...</span></div>
+      <div id="tpl-list-overlay" class="global-loading-overlay"><div class="global-overlay-content"><div class="spinner-core"></div><span>Syncing Library...</span></div></div>
       <table>
         <thead>
           <tr>
@@ -104,7 +104,9 @@
             <th style="text-align:right;">Action</th>
           </tr>
         </thead>
-        <tbody id="templateTableBody"></tbody>
+        <tbody id="templateTableBody">
+          <tr><td colspan="7" style="text-align:center; padding: 30px; color:#64748b;">Loading templates...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -133,7 +135,9 @@
             <th style="text-align:right;">Action</th>
           </tr>
         </thead>
-        <tbody id="wrapperTableBody"></tbody>
+        <tbody id="wrapperTableBody">
+          <tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">Loading layouts...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -142,7 +146,7 @@
 <div id="readOnlyTemplateView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('templatesListView')">&#8592; Back to Library</button>
   <div class="form-wrapper">
-    <div id="ro-template-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Rendering Live Preview...</span></div>
+    <div id="ro-template-overlay" class="global-loading-overlay"><div class="global-overlay-content"><div class="spinner-core"></div><span>Rendering Live Preview...</span></div></div>
     
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
        <div>
@@ -179,7 +183,7 @@
 <div id="editTemplateView" class="container" style="display: none;">
   <button id="btn-back-edit-tpl" class="btn-dash-back">&#8592; Back to Library</button>
   <div class="form-wrapper">
-    <div id="edit-template-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span id="edit-tpl-overlay-text">Merging Data...</span></div>
+    <div id="edit-template-overlay" class="global-loading-overlay"><div class="global-overlay-content"><div class="spinner-core"></div><span id="edit-tpl-overlay-text">Merging Data...</span></div></div>
     <h2 id="tpl-form-title" style="margin-top: 0; color: var(--brand-dark);">Add Template</h2>
     
     <form id="editTemplateForm" onsubmit="handleTemplateSubmit(event)">
@@ -243,7 +247,7 @@
 <div id="readOnlyWrapperView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('templatesListView'); toggleTemplateSubView('wraps');">&#8592; Back to Layouts</button>
   <div class="form-wrapper">
-    <div id="ro-wrap-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Loading Layout...</span></div>
+    <div id="ro-wrap-overlay" class="global-loading-overlay"><div class="global-overlay-content"><div class="spinner-core"></div><span>Loading Layout...</span></div></div>
     
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
        <div>
@@ -270,7 +274,7 @@
 <div id="editWrapperView" class="container" style="display: none;">
   <button id="btn-back-edit-wrap" class="btn-dash-back">&#8592; Back to Layouts</button>
   <div class="form-wrapper">
-    <div id="edit-wrap-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Saving Layout...</span></div>
+    <div id="edit-wrap-overlay" class="global-loading-overlay"><div class="global-overlay-content"><div class="spinner-core"></div><span>Saving Layout...</span></div></div>
     <h2 id="wrap-form-title" style="margin-top: 0; color: var(--brand-dark);">Design Wrapper Layout</h2>
     <form id="editWrapperForm" onsubmit="handleWrapperSubmit(event)">
       <input type="hidden" id="edt-wrap-rowIndex">
@@ -346,7 +350,9 @@
      3. DATA LOADERS
      ======================================================================== */
   function loadTemplatesTable(callback) {
-    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Templates...');
+    var tbody = document.getElementById('templateTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 30px; color:#64748b;">Loading templates...</td></tr>';
+
     google.script.run.withSuccessHandler(function(wrappers) {
       GLOBAL_WRAPPER_DATA = wrappers || [];
       google.script.run.withSuccessHandler(function(templates) {
@@ -355,7 +361,6 @@
            GLOBAL_SYSTEM_TRIGGERS = triggers || [];
            populateTemplateFilters();
            applyTemplateFilters();
-           toggleTemplateOverlay('tpl-list-overlay', false);
            if (callback) callback();
         }).getDynamicTriggerRegistry();
       }).getTemplatesList();
@@ -363,9 +368,10 @@
   }
 
   function loadWrappersTable(callback) {
-    toggleTemplateOverlay('tpl-list-overlay', true, 'Pulling Layouts...');
+    var tbody = document.getElementById('wrapperTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">Loading layouts...</td></tr>';
+
     google.script.run.withSuccessHandler(function(wrappers) {
-      toggleTemplateOverlay('tpl-list-overlay', false);
       GLOBAL_WRAPPER_DATA = wrappers || [];
       applyWrapperFilters();
       if (callback) callback();

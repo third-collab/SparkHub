@@ -5,6 +5,7 @@
   SYNC STATUS: Fully Synchronized with Clients.gs
 -->
 <style>
+  #dynamicClientFormView .form-wrapper, #serviceFormView .form-wrapper { position: relative; min-height: 400px; }
   .dynamic-json-row { background: var(--brand-bg); border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 15px; position: relative; }
   .row-remove-btn { position: absolute; top: 10px; right: 10px; background: #fee2e2; color: #ef4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
   .ql-container.ql-snow { border: 1px solid #cbd5e1 !important; border-radius: 0 0 6px 6px; background:#fff; min-height: 120px;}
@@ -98,7 +99,9 @@
             <th style="text-align:right;">Action</th>
           </tr>
         </thead>
-        <tbody id="clientTableBody"></tbody>
+        <tbody id="clientTableBody">
+          <tr><td colspan="5" style="text-align:center; padding: 30px; color:#64748b;">Loading brands...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -124,8 +127,10 @@
   <button class="btn-dash-back" onclick="switchView('clientListView')">&#8592; Back to Registry</button>
   <div class="form-wrapper">
     <div id="dyn-client-overlay" class="global-loading-overlay">
-      <div class="spinner-client"></div>
-      <span id="dyn-overlay-text">Loading...</span>
+      <div class="global-overlay-content">
+        <div class="spinner-ccore"></div>
+        <span id="dyn-overlay-text">Loading...</span>
+      </div>
     </div>
     <h2 id="dyn-form-title" style="margin-top: 0; color: var(--brand-dark);">Onboard Client</h2>
     <form id="dynamicClientForm" onsubmit="handleDynamicSubmit(event)" novalidate>
@@ -203,6 +208,9 @@
      3. DATA LOADERS
      ======================================================================== */
   function loadClientsTable() {
+    var tbody = document.getElementById('clientTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color:#64748b;">Loading brands...</td></tr>';
+
     google.script.run.withSuccessHandler(res => { 
       GLOBAL_CLIENTS_DATA = res.data || []; 
       applyClientFilters(); 
