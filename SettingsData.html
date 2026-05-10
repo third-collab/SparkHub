@@ -23,45 +23,25 @@
   </div>
 </template>
 
-<template id="tpl-settings-clients-ro">
-  <div id="ro-clients-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h3 class="settings-section-header" style="margin:0;">Client Configuration</h3>
-      <button class="btn-edit" onclick="toggleModuleEdit('clients', true)">Edit Settings</button>
-    </div>
-    
-    <div id="ro-clients-core-config" class="settings-card"></div>
-    <div id="ro-clients-accordions" class="settings-card"></div>
-    <div id="ro-clients-fields" class="settings-card"></div>
-  </div>
-</template>
-
-<template id="tpl-settings-clients-edt">
-  <div id="edt-clients-container" style="display:none;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h3 class="settings-section-header" style="margin:0;">Edit Client Configuration</h3>
-      <button class="btn-dash-back" onclick="toggleModuleEdit('clients', false)">Cancel</button>
-    </div>
-
-    <div style="margin-top: 30px; text-align: right;">
-      <button type="button" class="btn-primary" onclick="handleSaveClientsConfig(event)">Save Configuration</button>
-    </div>
-  </div>
-</template>
-
 <div id="readOnlySettingsView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
+
+  <div class="view-header-bar" style="margin-bottom: 20px;">
+    <h2 style="margin: 0; color: var(--brand-dark);">System Configuration</h2>
+  </div>
+
   <div class="form-wrapper">
     <div id="ro-settings-overlay" class="settings-loading-overlay"><div class="spinner-core"></div><span>Synchronizing Config...</span></div>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
-       <h2 style="margin:0; color: var(--brand-dark);">System Configuration</h2>
-    </div>
     
     <div id="ro-settings-nav" class="tab-nav">
       <button type="button" class="tab-btn active" id="btn-set-ro-core" onclick="navigateClientTab('set-ro', 'core')">Core Engine</button>
     </div>
 
     <div id="set-ro-core" class="tab-content" style="display: block;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+        <h2 class="settings-section-header" style="margin:0;">Edit Core Engine Configuration</h2>
+        <button class="btn-edit perm-protected" onclick="toggleModuleEdit('core', true)" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Engine</button>
+      </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 14px; margin-top: 25px;">
          <div>
             <h4 class="settings-section-header" style="margin-top:0;">Identity & Theme</h4>
@@ -112,7 +92,6 @@
   <button class="btn-dash-back" onclick="switchView('readOnlySettingsView')">&#8592; Back to Settings</button>
   <div class="form-wrapper">
     <div id="edt-settings-overlay" class="settings-loading-overlay"><div class="spinner-core"></div><span id="edt-settings-overlay-txt">Saving Changes...</span></div>
-    <h2 style="margin:0; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">Edit System Settings</h2>
     
     <div id="edt-settings-nav" class="tab-nav">
       <button type="button" class="tab-btn active" id="btn-set-edt-core" onclick="navigateClientTab('set-edt', 'core')">Core Engine</button>
@@ -120,7 +99,10 @@
 
     <form id="editSettingsForm" onsubmit="handleSettingsSubmit(event)">
       <div id="set-edt-core" class="tab-content" style="display: block;">
-        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+          <h2 style="margin:0;">Edit System Settings</h2>
+          <button type="button" class="btn-dash-back" onclick="toggleModuleEdit('core', false)">Cancel</button>
+        </div>
         <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px; margin-top:25px;">Identity & Branding</h3>
         <div class="form-row">
           <div class="form-group"><label>System Label *</label><input type="text" id="edt-settings-sysname" class="form-control" required></div>
@@ -290,16 +272,43 @@
   /* ========================================================================
      6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
-  function navigateClientTab(prefix, tabId) {
-    var target = document.getElementById(prefix + '-' + tabId);
-    if (!target) return;
-    var container = target.closest('.container');
-    container.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    target.style.display = 'block';
-    var btn = document.getElementById('btn-' + prefix + '-' + tabId);
-    if (btn) btn.classList.add('active');
+  /**
+ * navigateClientTab
+ * UPDATED: Clears all local edit states when switching main tabs.
+ */
+function navigateClientTab(shell, tabId) {
+  // 1. Hide all shells first
+  const shells = ['set-ro', 'set-edt'];
+  const tabs = ['core', 'users', 'templates', 'logs', 'clients'];
+  
+  shells.forEach(s => {
+    tabs.forEach(t => {
+      const el = document.getElementById(s + '-' + t);
+      if (el) el.style.display = 'none';
+    });
+  });
+
+  // 2. Show the specific shell/tab requested
+  const targetId = shell + '-' + tabId;
+  const targetEl = document.getElementById(targetId);
+  if (targetEl) {
+    targetEl.style.display = 'block';
   }
+
+  // 3. Update tab button active states
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+}
+
+/**
+ * toggleModuleEdit
+ * New helper to swap between RO and EDT for the current module.
+ */
+function toggleModuleEdit(moduleName, editMode) {
+  const shell = editMode ? 'set-edt' : 'set-ro';
+  navigateClientTab(shell, moduleName);
+}
 
   function openEditSettingsForm() {
     switchView('editSettingsView');

@@ -26,7 +26,11 @@
 
 <template id="tpl-settings-clients-ro">
   <div style="margin-top: 25px;">
-    <h4 class="settings-section-header">Client Configuration</h4>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 class="settings-section-header" style="margin:0;">Client Configuration</h3>
+      <button class="btn-edit" onclick="toggleModuleEdit('clients', true)">Edit Settings</button>
+    </div>
+
     <div id="ro-clients-core-config" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
     
     <h4 class="settings-section-header">Form Accordions</h4>
@@ -39,7 +43,10 @@
 
 <template id="tpl-settings-clients-edt">
   <div style="margin-top: 25px;">
-    <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px;">Clients Module Configuration</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 class="settings-section-header" style="margin:0;">Edit Client Configuration</h3>
+      <button class="btn-dash-back" onclick="toggleModuleEdit('clients', false)">Cancel</button>
+    </div>
     
     <div class="form-group" style="background:var(--brand-bg); padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
       <label>Auto-Provision User Role</label>

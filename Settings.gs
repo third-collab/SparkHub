@@ -103,6 +103,7 @@ function saveGeneralSettings(settings) {
     if (settings.systemName && settings.systemName.trim().toLowerCase() === 'sparkhub') {
       throw new Error("The name 'SparkHub' is restricted. Please provide a custom white-label system name.");
     }
+
     
     // 2. Database Validation (Infrastructure Check)
     if (settings.mainDbId) validateDatabase(settings.mainDbId);
