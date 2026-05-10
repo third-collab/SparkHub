@@ -47,6 +47,35 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* Unified Global Loading Overlay */
+  .global-loading-overlay {
+    display: none; 
+    position: absolute; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%; 
+    background: rgba(255, 255, 255, 0.85); 
+    z-index: 2000; 
+    border-radius: var(--border-radius-med); 
+    backdrop-filter: blur(2px); 
+    
+    /* FIX: Force column layout so align-items centers horizontally */
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: flex-start; 
+  }
+
+  /* The Sticky Wrapper that tracks the viewport */
+  .global-overlay-content {
+    position: sticky;
+    top: 35vh; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center; /* FIX: Ensures text itself is centered */
+    gap: 15px;
+    padding: 20px;
+  }
+
   /* --- Header & Branding --- */
   .header {
     height: 70px;
@@ -399,6 +428,23 @@
     transition: var(--transition-speed);
   }
   .btn-dash-back:hover { color: var(--brand-hover); }
+
+  .btn-cancel {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 10px 20px;
+    border-radius: var(--border-radius-small);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+  }
+  .btn-cancel:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
 
   /* --- Tables --- */
   .table-container {

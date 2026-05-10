@@ -167,14 +167,14 @@ function updateLastLogin() {
 function saveUsersModuleConfig(payload) {
   try {
     if (!payload) throw new Error("No payload provided.");
-    
-    // Save to ScriptProperties (Key names aligned with system standards)
     const props = PropertiesService.getScriptProperties();
-    props.setProperty('CONF_USERS_DEFAULT_ROLE', payload.defaultRole);
-    props.setProperty('CONF_USERS_SESSION_TTL', payload.sessionTtl);
+    
+    // Check for values before saving to prevent undefined crashes
+    if (payload.defaultRole) props.setProperty('CONF_USERS_DEFAULT_ROLE', payload.defaultRole);
+    if (payload.adminEmail) props.setProperty('ADMIN_EMAIL', payload.adminEmail);
+    if (payload.authMode) props.setProperty('AUTH_MODE', payload.authMode);
     
     SystemEvent.emit("Users", "INFO", "Config Updated", "SYSTEM", "Users", "User module settings updated locally.");
-    
     return { success: true, message: "User settings saved." };
   } catch (e) {
     return { error: "Users.gs: " + e.message };

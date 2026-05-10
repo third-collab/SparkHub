@@ -5,7 +5,6 @@
   SYNC STATUS: Fully Synchronized with Users.gs
 -->
 <style>
-  .user-loading-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.7); z-index: 10; justify-content: center; align-items: center; border-radius: var(--border-radius-large); flex-direction: column; gap: 10px; }
   #addUserView .form-wrapper, #editUserView .form-wrapper, #readOnlyUserView .form-wrapper, #rolesListView .table-container, #editRoleView .form-wrapper { position: relative; min-height: 400px; }
   .user-avatar-placeholder { width: 50px; height: 50px; border-radius: 50%; background: var(--brand-primary); color: white; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; margin-right: 15px; }
   
@@ -23,10 +22,10 @@
 </template>
 
 <template id="tpl-settings-users-ro">
-  <div id="set-ro-users" class="tab-content">
+  <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">User Access & Security</h2>
-      <button class="btn-edit" onclick="toggleModuleEdit('users', true)">Edit Users Config</button>
+      <button class="btn-edit" onclick="openEditUsersConfig()">Edit Users Config</button>
     </div>
     <p><strong>Master Administrator Email:</strong><br><span id="ro-settings-email"></span></p>
     <p><strong>System Authentication Mode:</strong><br><span id="ro-settings-authmode"></span></p>
@@ -34,11 +33,12 @@
 </template>
 
 <template id="tpl-settings-users-edt">
-  <div id="set-edt-users" class="tab-content" style="display:none;">
+  <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">Edit Access Security</h2>
-      <button class="btn-dash-back" onclick="toggleModuleEdit('users', false)">Cancel</button>
+      <button type="button" class="btn-cancel" onclick="toggleModuleEdit('users', false)">Cancel</button>
     </div>
+    
     <div class="form-row">
       <div class="form-group"><label>Admin Contact Email *</label><input type="email" id="edt-settings-email" class="form-control" required></div>
       <div class="form-group"><label>Authentication Mode *</label>
@@ -48,8 +48,9 @@
         </select>
       </div>
     </div>
+    
     <div style="margin-top: 30px; text-align: right;">
-      <button type="button" class="btn-primary" onclick="handleSaveUsersConfig(event)">Save User Settings</button>
+      <button type="button" class="btn-primary" onclick="handleSaveUsersConfig(event)">Save Configuration</button>
     </div>
   </div>
 </template>
@@ -177,7 +178,7 @@
     </div>
 
     <div class="table-container">
-      <div id="role-list-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
+      <div id="role-list-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Loading roles...</span></div>
       <table>
         <thead>
           <tr>
@@ -196,7 +197,7 @@
 <div id="readOnlyUserView" class="container" style="display: none;">
   <button id="btn-back-ro-user" class="btn-dash-back" onclick="switchView('usersListView'); toggleUserSubView('users');">&#8592; Back to Directory</button>
   <div class="form-wrapper">
-    <div id="ro-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Profile...</span></div>
+    <div id="ro-user-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Loading Profile...</span></div>
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
        <div style="display: flex; align-items: center;">
@@ -231,7 +232,7 @@
 <div id="addUserView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('usersListView')">&#8592; Back to Directory</button>
   <div class="form-wrapper">
-    <div id="add-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Creating User Profile...</span></div>
+    <div id="add-user-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Creating User Profile...</span></div>
     <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Add System User</h2>
     <form id="addUserForm" onsubmit="handleAddUserSubmit(event)" novalidate>
       <div class="form-row">
@@ -267,7 +268,7 @@
 <div id="editUserView" class="container" style="display: none;">
   <button id="btn-back-edit-user" class="btn-dash-back">&#8592; Back to Directory</button>
   <div class="form-wrapper">
-    <div id="edit-user-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span id="edit-user-overlay-txt">Loading User Data...</span></div>
+    <div id="edit-user-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span id="edit-user-overlay-txt">Loading User Data...</span></div>
     <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit User Access</h2>
     <form id="editUserForm" onsubmit="handleEditUserSubmit(event)" novalidate>
       <input type="hidden" id="edt-user-rowIndex">
@@ -305,7 +306,7 @@
 <div id="readOnlyRoleView" class="container" style="display: none;">
   <button id="btn-back-ro-role" class="btn-dash-back" onclick="switchView('usersListView'); toggleUserSubView('roles');">&#8592; Back to Roles</button>
   <div class="form-wrapper">
-    <div id="ro-role-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Role...</span></div>
+    <div id="ro-role-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Loading Role...</span></div>
     
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
        <div>
@@ -330,7 +331,7 @@
 <div id="editRoleView" class="container" style="display: none;">
   <button id="btn-back-edit-role" class="btn-dash-back" onclick="switchView('usersListView'); toggleUserSubView('roles');">&#8592; Back to Roles</button>
   <div class="form-wrapper">
-    <div id="role-edit-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Saving Role...</span></div>
+    <div id="role-edit-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Saving Role...</span></div>
     <h2 id="role-form-title" style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Create Role</h2>
     
     <form id="roleForm" onsubmit="handleRoleSubmit(event)">
@@ -362,7 +363,7 @@
 <div id="myProfileView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('dashboardView')">&#8592; Back to Dashboard</button>
   <div class="form-wrapper">
-    <div id="my-profile-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Loading Your Profile...</span></div>
+    <div id="my-profile-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Loading Your Profile...</span></div>
     
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
        <div style="display: flex; align-items: center;">
@@ -394,7 +395,7 @@
 <div id="editMyProfileView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="openMyProfile()">&#8592; Cancel & Back to Profile</button>
   <div class="form-wrapper">
-    <div id="edit-my-profile-overlay" class="user-loading-overlay"><div class="spinner-core"></div><span>Saving Profile...</span></div>
+    <div id="edit-my-profile-overlay" class="global-loading-overlay"><div class="spinner-core"></div><span>Saving Profile...</span></div>
     <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit My Profile</h2>
     
     <form id="editMyProfileForm" onsubmit="handleEditMyProfileSubmit(event)" novalidate>
@@ -703,6 +704,15 @@
   /* ========================================================================
      6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
+  function openEditUsersConfig() {
+    toggleModuleEdit('users', true);
+    // Populate form from RO view values so it isn't blank
+    var roEmail = document.getElementById('ro-settings-email').innerText;
+    var roAuth = document.getElementById('ro-settings-authmode').innerText;
+    document.getElementById('edt-settings-email').value = roEmail !== 'Not Set' ? roEmail : '';
+    document.getElementById('edt-settings-authmode').value = roAuth === 'Local Session' ? 'Local' : 'SSO';
+  }
+
   function toggleUserSubView(view) {
     var usersView = document.getElementById('users-sub-view');
     var rolesView = document.getElementById('roles-sub-view');
@@ -956,20 +966,19 @@
   function handleSaveUsersConfig(e) {
     if (e) e.preventDefault();
     const payload = {
-      defaultRole: "Client", // Add logic to select this if needed
+      defaultRole: "Client", 
       adminEmail: document.getElementById('edt-settings-email').value,
       authMode: document.getElementById('edt-settings-authmode').value
     };
-
     const btn = e.target;
     btn.disabled = true; btn.innerHTML = "Saving...";
-
     google.script.run.withSuccessHandler(res => {
-      btn.disabled = false; btn.innerHTML = "Save User Settings";
+      btn.disabled = false; btn.innerHTML = "Save Configuration";
       if (res.success) {
-        showToast("Success", "User settings updated.", "success");
+        // FIX: Force the view switch first
         toggleModuleEdit('users', false);
-        loadSettings(); // Refresh the RO view
+        if(typeof showToast === 'function') showToast("Success", "User settings updated.", "success");
+        if(typeof loadSettings === 'function') loadSettings(); 
       }
     }).saveUsersModuleConfig(payload);
   }

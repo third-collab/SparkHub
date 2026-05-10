@@ -5,7 +5,6 @@
   SYNC STATUS: Fully Synchronized with Clients.gs
 -->
 <style>
-  .client-loading-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); z-index: 2000; justify-content: center; align-items: center; border-radius: 8px; flex-direction: column; gap: 15px; backdrop-filter: blur(2px); }
   .dynamic-json-row { background: var(--brand-bg); border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 15px; position: relative; }
   .row-remove-btn { position: absolute; top: 10px; right: 10px; background: #fee2e2; color: #ef4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
   .ql-container.ql-snow { border: 1px solid #cbd5e1 !important; border-radius: 0 0 6px 6px; background:#fff; min-height: 120px;}
@@ -25,10 +24,10 @@
 </template>
 
 <template id="tpl-settings-clients-ro">
-  <div id="set-ro-clients" class="tab-content">
+  <div>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">Client Configuration</h2>
-      <button class="btn-edit" onclick="toggleModuleEdit('clients', true)">Edit Settings</button>
+      <button class="btn-edit" onclick="openEditClientsConfig()">Edit Settings</button>
     </div>
 
     <div id="ro-clients-core-config" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
@@ -42,10 +41,11 @@
 </template>
 
 <template id="tpl-settings-clients-edt">
-  <div id="set-edt-clients" class="tab-content" style="display:none;">
+  <div>
+
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">Edit Client Configuration</h2>
-      <button class="btn-dash-back" onclick="toggleModuleEdit('clients', false)">Cancel</button>
+      <button type="button" class="btn-cancel" onclick="toggleModuleEdit('clients', false); renderRoClientsConfig();">Cancel</button>
     </div>
     
     <div class="form-group" style="background:var(--brand-bg); padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
@@ -123,7 +123,7 @@
 <div id="dynamicClientFormView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('clientListView')">&#8592; Back to Registry</button>
   <div class="form-wrapper">
-    <div id="dyn-client-overlay" class="client-loading-overlay">
+    <div id="dyn-client-overlay" class="global-loading-overlay">
       <div class="spinner-client"></div>
       <span id="dyn-overlay-text">Loading...</span>
     </div>
@@ -315,11 +315,17 @@
 
   function renderEdtClientsConfig() {
     google.script.run.withSuccessHandler(res => { 
-      document.getElementById('edt-client-role-select').innerHTML = (res.data || []).map(r => `
-        <option value="${r.roleName}" ${r.roleName === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>
-          ${r.roleName}
+      document.getElementById('edt-client-role-select').innerHTML = (res || []).map(r => `
+        <option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>
+          ${r.name}
         </option>
       `).join(''); 
+      
+      // Command the MASTER overlay to turn off
+      if(typeof toggleSettingsOverlay === 'function') {
+        toggleSettingsOverlay('edt-settings-overlay', false);
+      }
+      
     }).getRolesList();
     
     var accContainer = document.getElementById('edt-accordions-container'); 
@@ -748,6 +754,17 @@
   /* ========================================================================
      6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
+  function openEditClientsConfig() {
+    toggleModuleEdit('clients', true);
+    
+    // Command the MASTER overlay to turn on with custom text
+    if(typeof toggleSettingsOverlay === 'function') {
+      toggleSettingsOverlay('edt-settings-overlay', true, 'Loading Configuration...');
+    }
+    
+    renderEdtClientsConfig(); 
+  }
+  
   function switchClientMasterTab(tab) {
     var bV = document.getElementById('cm-tab-brands');
     var sV = document.getElementById('cm-tab-services');
@@ -813,63 +830,46 @@
      ======================================================================== */
   function handleSaveClientsConfig(e) {
     if (e) e.preventDefault();
-    
-    // 1. Gather Accordion Groups
     const accordionGroups = [];
     document.querySelectorAll('.accordion-grp-row').forEach(row => {
-      accordionGroups.push({
-        id: row.dataset.id,
-        label: row.querySelector('.acc-label').value,
-        isDefault: row.dataset.def === 'true'
-      });
+      accordionGroups.push({ id: row.dataset.id, label: row.querySelector('.acc-label').value, isDefault: row.dataset.def === 'true' });
     });
-
-    // 2. Gather Custom Fields
     const customFields = [];
     document.querySelectorAll('.cf-row').forEach(row => {
       customFields.push({
-        label: row.querySelector('.cf-label').value,
-        id: row.querySelector('.cf-id').value,
-        type: row.querySelector('.cf-type').value,
-        required: row.querySelector('.cf-req').value === 'true',
-        groupId: row.querySelector('.cf-grp').value,
+        label: row.querySelector('.cf-label').value, id: row.querySelector('.cf-id').value, type: row.querySelector('.cf-type').value,
+        required: row.querySelector('.cf-req').value === 'true', groupId: row.querySelector('.cf-grp').value,
         options: row.querySelector('.cf-opts') ? row.querySelector('.cf-opts').value : ""
       });
     });
-
-    const payload = {
-      clientRole: document.getElementById('edt-client-role-select').value,
-      accordionGroups: accordionGroups,
-      customFields: customFields
-    };
-
-    // 3. UI Feedback: Disable button and show loading
+    const payload = { clientRole: document.getElementById('edt-client-role-select').value, accordionGroups: accordionGroups, customFields: customFields };
     const btn = e.target;
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "Saving Configuration...";
 
-    // 4. Standalone Backend Call
     google.script.run
       .withSuccessHandler(res => {
         btn.disabled = false;
         btn.innerHTML = originalText;
-        
         if (res.success) {
-          showToast("Success", "Clients configuration saved locally.", "success");
-          // Update the local global config so the UI stays in sync without a refresh
           CLIENTS_CONFIG = payload;
+          
+          // FIX: Force view switch and refresh RO rendering
+          toggleModuleEdit('clients', false);
+          renderRoClientsConfig();
+          
+          if(typeof showToast === 'function') showToast("Success", "Clients configuration saved locally.", "success");
         } else {
-          showToast("Error", res.error || "Failed to save.", "danger");
+          if(typeof showToast === 'function') showToast("Error", res.error || "Failed to save.", "danger");
         }
       })
       .withFailureHandler(err => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        showToast("Critical Error", err.message, "danger");
+        btn.disabled = false; btn.innerHTML = originalText;
+        if(typeof showToast === 'function') showToast("Critical Error", err.message, "danger");
       })
       .saveClientsModuleConfig(payload);
-}
+  }
 
   function handleDynamicSubmit(e) {
     e.preventDefault(); 

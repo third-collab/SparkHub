@@ -5,7 +5,6 @@
   SYNC STATUS: Fully Synchronized with Settings.gs
 -->
 <style>
-  .settings-loading-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.8); z-index: 2000; justify-content: center; align-items: center; border-radius: var(--border-radius-large); flex-direction: column; gap: 15px; backdrop-filter: blur(2px); }
   #readOnlySettingsView .form-wrapper, #editSettingsView .form-wrapper { position: relative; min-height: 500px; }
   .sys-logo-preview { height: 80px; object-fit: contain; background: #fff; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); }
   .theme-swatch-box { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #cbd5e1; flex-shrink: 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
@@ -31,16 +30,21 @@
   </div>
 
   <div class="form-wrapper">
-    <div id="ro-settings-overlay" class="settings-loading-overlay"><div class="spinner-core"></div><span>Synchronizing Config...</span></div>
+    <div id="ro-settings-overlay" class="global-loading-overlay">
+      <div class="global-overlay-content">
+        <div class="spinner-core"></div>
+        <span>Synchronizing Config...</span>
+      </div>
+    </div>
     
     <div id="ro-settings-nav" class="tab-nav">
-      <button type="button" class="tab-btn active" id="btn-set-ro-core" onclick="navigateClientTab('set-ro', 'core')">Core Engine</button>
+      <button type="button" class="tab-btn active" id="btn-set-ro-core" onclick="toggleModuleEdit('core', false)">Core Engine</button>
     </div>
 
     <div id="set-ro-core" class="tab-content" style="display: block;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
-        <h2 class="settings-section-header" style="margin:0;">Edit Core Engine Configuration</h2>
-        <button class="btn-edit perm-protected" onclick="toggleModuleEdit('core', true)" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Engine</button>
+        <h2 class="settings-section-header" style="margin:0;">Core Engine Configuration</h2>
+        <button class="btn-edit perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Engine</button>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 14px; margin-top: 25px;">
          <div>
@@ -89,22 +93,23 @@
 </div>
 
 <div id="editSettingsView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('readOnlySettingsView')">&#8592; Back to Settings</button>
+  <button class="btn-dash-back" onclick="closeEditSettings()">&#8592; Back to Settings</button>
   <div class="form-wrapper">
-    <div id="edt-settings-overlay" class="settings-loading-overlay"><div class="spinner-core"></div><span id="edt-settings-overlay-txt">Saving Changes...</span></div>
-    
-    <div id="edt-settings-nav" class="tab-nav">
-      <button type="button" class="tab-btn active" id="btn-set-edt-core" onclick="navigateClientTab('set-edt', 'core')">Core Engine</button>
+    <div id="edt-settings-overlay" class="global-loading-overlay">
+      <div class="global-overlay-content">
+        <div class="spinner-core"></div>
+        <span id="edt-settings-overlay-txt">Saving Changes...</span>
+      </div>
     </div>
 
     <form id="editSettingsForm">
+      
       <div id="set-edt-core" class="tab-content" style="display: block;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
           <h2 style="margin:0;">Edit System Settings</h2>
-          <button type="button" class="btn-dash-back" onclick="toggleModuleEdit('core', false)">Cancel</button>
+          <button type="button" class="btn-cancel" onclick="toggleModuleEdit('core', false)">Cancel</button>
         </div>
-      </div>
-      <div id="edt-dynamic-settings-container">
+        
         <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px; margin-top:25px;">Identity & Branding</h3>
         <div class="form-row">
           <div class="form-group"><label>System Label *</label><input type="text" id="edt-settings-sysname" class="form-control" required></div>
@@ -155,10 +160,12 @@
         <div class="form-group" style="margin-top: 15px;"><label>Email Asset Fallback URL *</label><input type="url" id="edt-settings-fallback" class="form-control" required></div>
 
         <div style="margin-top: 40px; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-          <button type="button" class="btn-primary" onclick="handleSaveGeneralSettings(event)" style="padding: 12px 40px;">Save General Settings</button>
+          <button type="button" class="btn-primary" onclick="handleSaveGeneralSettings(event)" style="padding: 12px 40px;">Save Configuration</button>
         </div>
       </div>
-
+      
+      <div id="edt-dynamic-settings-container"></div>
+      
     </form>
     <div id="edt-settings-msg" class="status-msg" style="text-align: right; margin-top: 20px; font-weight: 700;"></div>
   </div>
@@ -168,7 +175,7 @@
   /* ========================================================================
      1. GLOBAL STATE
      ======================================================================== */
-  // No global state required for the Settings Module currently.
+  var CURRENT_SETTINGS_MODULE = 'core'; // Remembers the active edit tab
 
   /* ========================================================================
      2. BOOTSTRAPPERS
@@ -186,24 +193,25 @@
 
     var roNav = document.getElementById('ro-settings-nav');
     var roContainer = document.getElementById('ro-dynamic-settings-container');
-    var edtNav = document.getElementById('edt-settings-nav');
     var edtContainer = document.getElementById('edt-dynamic-settings-container');
 
     roContainer.innerHTML = ''; edtContainer.innerHTML = '';
     roNav.querySelectorAll('.dynamic-tab').forEach(t => t.remove());
-    edtNav.querySelectorAll('.dynamic-tab').forEach(t => t.remove());
 
     allModules.forEach(mod => {
       var tabLabel = mod.charAt(0).toUpperCase() + mod.slice(1);
+      
+      // Inject Read-Only Fragment AND its Tab Button
       var roTpl = document.getElementById(`tpl-settings-${mod}-ro`);
       if (roTpl) {
-        roNav.innerHTML += `<button type="button" class="tab-btn dynamic-tab" id="btn-set-ro-${mod}" onclick="navigateClientTab('set-ro', '${mod}')">${tabLabel}</button>`;
+        roNav.innerHTML += `<button type="button" class="tab-btn dynamic-tab" id="btn-set-ro-${mod}" onclick="toggleModuleEdit('${mod}', false)">${tabLabel}</button>`;
         var div = document.createElement('div'); div.id = `set-ro-${mod}`; div.className = 'tab-content'; div.style.display = 'none'; div.appendChild(roTpl.content.cloneNode(true));
         roContainer.appendChild(div);
       }
+      
+      // Inject Edit Fragment (STANDALONE - NO TAB BUTTON GENERATED)
       var edtTpl = document.getElementById(`tpl-settings-${mod}-edt`);
       if (edtTpl) {
-        edtNav.innerHTML += `<button type="button" class="tab-btn dynamic-tab" id="btn-set-edt-${mod}" onclick="navigateClientTab('set-edt', '${mod}')">${tabLabel}</button>`;
         var div = document.createElement('div'); div.id = `set-edt-${mod}`; div.className = 'tab-content'; div.style.display = 'none'; div.appendChild(edtTpl.content.cloneNode(true));
         edtContainer.appendChild(div);
       }
@@ -217,18 +225,18 @@
     toggleSettingsOverlay('ro-settings-overlay', true, 'Syncing Registry...');
     google.script.run.withSuccessHandler(function(data) {
       toggleSettingsOverlay('ro-settings-overlay', false);
-      document.getElementById('ro-settings-sysname').innerText = data.systemName;
+      
+      // Bind RO views
+      document.getElementById('ro-settings-sysname').innerText = data.systemName || '';
       document.getElementById('ro-settings-logo').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
       var envBox = document.getElementById('ro-settings-env-box');
       if (envBox) envBox.innerHTML = `<span class="badge ${data.environment === 'Production' ? 'badge-active' : 'badge-onboarding'}">${data.environment} Profile</span>`;
 
-      // Infrastructure Bindings
       document.getElementById('ro-settings-rootid').innerText = data.rootFolderId || 'Not Set';
       document.getElementById('ro-settings-dbid').innerText = data.mainDbId || 'Not Set';
       document.getElementById('ro-settings-logsid').innerText = data.logsDbId || 'Not Set';
       document.getElementById('ro-settings-fallback').innerText = data.emailFallbackLogo || 'Not Set';
 
-      // Theme Swatch Bindings
       var themes = { primary: data.themePrimary, accent: data.themeAccent, dark: data.themeDark, hover: data.themeHover, bg: data.themeBg };
       for (var key in themes) {
         var txtEl = document.getElementById('ro-settings-' + key);
@@ -253,7 +261,6 @@
   /* ========================================================================
      4. DATA MANIPULATION
      ======================================================================== */
-  // Settings are directly bound to inputs, no array manipulation required.
 
   /* ========================================================================
      5. RENDERERS
@@ -272,52 +279,62 @@
   /* ========================================================================
      6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
-  /**
- * navigateClientTab
- * UPDATED: Clears all local edit states when switching main tabs.
- */
-function navigateClientTab(shell, tabId) {
-  // 1. Hide all shells first
-  const shells = ['set-ro', 'set-edt'];
-  const tabs = ['core', 'users', 'templates', 'logs', 'clients'];
-  
-  shells.forEach(s => {
-    tabs.forEach(t => {
-      const el = document.getElementById(s + '-' + t);
-      if (el) el.style.display = 'none';
+  function navigateClientTab(shell, tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => {
+      el.style.display = 'none';
     });
-  });
 
-  // 2. Show the specific shell/tab requested
-  const targetId = shell + '-' + tabId;
-  const targetEl = document.getElementById(targetId);
-  if (targetEl) {
-    targetEl.style.display = 'block';
+    const targetId = shell + '-' + tabId;
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+      targetEl.style.display = 'block';
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-${targetId}`);
+    if (activeBtn) activeBtn.classList.add('active');
   }
 
-  // 3. Update tab button active states
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  const activeBtn = document.querySelector(`button[onclick*="'${tabId}'"]`);
-  if (activeBtn) activeBtn.classList.add('active');
-}
+  /**
+   * toggleModuleEdit
+   * Switches the Master View AND the Local Tab, while tracking current module.
+   */
+  function toggleModuleEdit(moduleName, editMode) {
+    if (editMode) {
+      CURRENT_SETTINGS_MODULE = moduleName; // Track where the user is
+      
+      document.getElementById('readOnlySettingsView').style.display = 'none';
+      document.getElementById('editSettingsView').style.display = 'block';
+      navigateClientTab('set-edt', moduleName);
+    } else {
+      document.getElementById('editSettingsView').style.display = 'none';
+      document.getElementById('readOnlySettingsView').style.display = 'block';
+      navigateClientTab('set-ro', moduleName);
+    }
+  }
 
-/**
- * toggleModuleEdit
- * New helper to swap between RO and EDT for the current module.
- */
-function toggleModuleEdit(moduleName, editMode) {
-  const shell = editMode ? 'set-edt' : 'set-ro';
-  navigateClientTab(shell, moduleName);
-}
+  /**
+   * closeEditSettings
+   * Smartly returns the user to the correct RO tab, cleaning up unsaved data if needed.
+   */
+  function closeEditSettings() {
+    // 1. Send them back to the exact tab they were editing
+    toggleModuleEdit(CURRENT_SETTINGS_MODULE, false);
+    
+    // 2. If they were in Clients, wipe any unsaved custom fields they might have added
+    if (CURRENT_SETTINGS_MODULE === 'clients' && typeof renderRoClientsConfig === 'function') {
+      renderRoClientsConfig();
+    }
+  }
 
   function openEditSettingsForm() {
-    switchView('editSettingsView');
-    navigateClientTab('set-edt', 'core');
-    toggleSettingsOverlay('edt-settings-overlay', true, 'Opening Logic Shell...');
+    toggleModuleEdit('core', true);
+    toggleSettingsOverlay('edt-settings-overlay', true, 'Loading configuration...');
     
     google.script.run.withSuccessHandler(function(data) {
       toggleSettingsOverlay('edt-settings-overlay', false);
-      document.getElementById('edt-settings-sysname').value = data.systemName;
+      
+      document.getElementById('edt-settings-sysname').value = data.systemName || '';
       document.getElementById('edt-settings-env').value = data.environment || 'Production';
       document.getElementById('edt-settings-rootid').value = data.rootFolderId || '';
       document.getElementById('edt-settings-dbid').value = data.mainDbId || '';
@@ -358,17 +375,12 @@ function toggleModuleEdit(moduleName, editMode) {
       })
       .withSuccessHandler(function(res) {
         toggleSettingsOverlay('ro-settings-overlay', false);
-        
         if (res.includes("Success")) {
           showSystemModal("Module Installed", res + "\n\nThe ecosystem will now automatically restart to apply architectural changes.");
-          
-          // Securely fetch the app URL and trigger a hard refresh
           google.script.run.withSuccessHandler(function(url) {
              setTimeout(function() { window.top.location.href = url; }, 2500);
           }).getAppUrl();
-          
         } else {
-          // If it's just a notice (e.g. "Module already installed")
           showSystemModal("System Notice", res);
           document.getElementById('ins-mod-name').value = '';
         }
@@ -384,15 +396,22 @@ function toggleModuleEdit(moduleName, editMode) {
       rootFolderId: document.getElementById('edt-settings-rootid').value,
       mainDbId: document.getElementById('edt-settings-dbid').value,
       logsDbId: document.getElementById('edt-settings-logsid').value,
-      fallbackLogoUrl: document.getElementById('edt-settings-fallback').value
-      // ... add theme color IDs here
+      fallbackLogoUrl: document.getElementById('edt-settings-fallback').value,
+      themePrimary: document.getElementById('edt-theme-primary').value,
+      themeAccent: document.getElementById('edt-theme-accent').value,
+      themeDark: document.getElementById('edt-theme-dark').value,
+      themeHover: document.getElementById('edt-theme-hover').value,
+      themeBg: document.getElementById('edt-theme-bg').value
     };
     
     toggleSettingsOverlay('edt-settings-overlay', true, 'Saving General Config...');
     google.script.run.withSuccessHandler(res => {
       toggleSettingsOverlay('edt-settings-overlay', false);
-      showToast("Success", "Core system settings updated.", "success");
-      toggleModuleEdit('core', false); // Return to RO view
+      
+      // FIX: Force the view switch BEFORE doing anything else
+      toggleModuleEdit('core', false); 
+      
+      if(typeof showToast === 'function') showToast("Success", "Core system settings updated.", "success");
       loadSettings();
     }).saveGeneralSettings(payload);
   }
@@ -422,35 +441,6 @@ function toggleModuleEdit(moduleName, editMode) {
       reader.onload = function(e) { document.getElementById('edt-settings-logo-preview').src = e.target.result; };
       reader.readAsDataURL(input.files[0]);
     }
-  }
-
-  /**
-   * toggleLocalEdit
-   * Toggles the visibility of RO vs EDT fragments for a specific module.
-   * @param {string} module - e.g., 'clients', 'users', 'templates'
-   * @param {boolean} isEditing - true to show edit form
-   */
-  function toggleLocalEdit(module, isEditing) {
-    const roView = document.getElementById(`ro-${module}-container`);
-    const edtView = document.getElementById(`edt-${module}-container`);
-    
-    if (isEditing) {
-      roView.style.display = 'none';
-      edtView.style.display = 'block';
-    } else {
-      roView.style.display = 'block';
-      edtView.style.display = 'none';
-    }
-  }
-
-  /**
-   * toggleModuleEdit
-   * Swaps between Read-Only (RO) and Edit (EDT) views for a specific module fragment.
-   */
-  function toggleModuleEdit(moduleName, editMode) {
-    const prefix = editMode ? 'set-edt' : 'set-ro';
-    // Use navigateClientTab to switch logic shells locally
-    navigateClientTab(prefix, moduleName);
   }
 </script>
 <!-- [SPARKHUB INTEGRITY ANCHOR: END] -->
