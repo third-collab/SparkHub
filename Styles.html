@@ -46,8 +46,22 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  
+  /* ========================================================================
+     UNIVERSAL UI COMPONENT SPECS (Global Standard)
+     ======================================================================== */
 
-  /* Unified Global Loading Overlay */
+  /* Standardized Form Wrapper (Universal Spec) */
+  .form-wrapper {
+    position: relative;
+    background: white;
+    padding: 40px;
+    border-radius: var(--border-radius-med);
+    box-shadow: var(--shadow-md);
+    min-height: 400px; /* Global standard minimum height */
+  }
+
+  /* Global Loading Overlay (Universal Spec) */
   .global-loading-overlay {
     display: none; 
     position: absolute; 
@@ -57,30 +71,51 @@
     z-index: 2000; 
     border-radius: var(--border-radius-med); 
     backdrop-filter: blur(2px); 
-    
-    /* FIX: Force column layout so align-items centers horizontally */
     flex-direction: column; 
     align-items: center; 
     justify-content: flex-start; 
   }
 
-  /* The Sticky Wrapper that tracks the viewport */
+  /* Standardized Sticky Overlay Content (Universal Spec) */
   .global-overlay-content {
     position: sticky;
     top: 35vh; 
     display: flex;
     flex-direction: column;
     align-items: center;
-    text-align: center; /* FIX: Ensures text itself is centered */
+    text-align: center;
     gap: 15px;
     padding: 20px;
   }
 
-  /* GLOBAL FORM WRAPPER STANDARD */
-  .form-wrapper {
-    position: relative;
-    min-height: 400px;
+  /* Standardized Section Headers (Used in Settings, Users, Clients) */
+  .settings-section-header { 
+    margin-top: 35px; 
+    border-bottom: 2px solid #f1f5f9; 
+    padding-bottom: 10px; 
+    margin-bottom: 20px; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    font-size: 11px; 
+    color: var(--brand-primary); 
+    font-weight: 800; 
   }
+
+  /* Universal Registry Tags (Used in Settings, Logs, Directory) */
+  .registry-tag { 
+    display: inline-flex; 
+    align-items: center; 
+    background: #f1f5f9; 
+    color: #475569; 
+    padding: 8px 16px; 
+    border-radius: 20px; 
+    font-size: 11px; 
+    font-weight: 700; 
+    margin-right: 10px; 
+    margin-bottom: 10px; 
+    border: 1px solid #e2e8f0; 
+  }
+  .registry-tag::before { content: "•"; margin-right: 8px; color: var(--brand-primary); font-size: 20px; line-height: 1; }
 
   /* --- Header & Branding --- */
   .header {
@@ -590,56 +625,7 @@
   }
   @keyframes spin-core { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-  /* ========================================================================
-     ECOSYSTEM GLOBAL UI COMPONENTS 
-     ======================================================================== */
-
-  /* --- System Modal Overlays (From Index.html) --- */
-  .system-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: var(--brand-accent); z-index: 10000;
-    display: flex; justify-content: center; align-items: center;
-    padding: 20px; box-sizing: border-box;
-  }
-  .overlay-card {
-    background: white; padding: 40px; border-radius: var(--border-radius-large);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 500px; width: 100%;
-    text-align: center; border-bottom: 8px solid var(--brand-primary);
-  }
-  .overlay-card h1, .overlay-card h2 { margin-top: 0; color: var(--brand-dark); }
-  .overlay-card p { color: #666; line-height: 1.5; margin-bottom: 30px; }
-  .overlay-loading { display: none; flex-direction: column; align-items: center; gap: 15px; }
-
-  /* --- Quill.js Rich Text Overrides (Used in Clients & Templates) --- */
-  .ql-container.ql-snow { border: 1px solid #cbd5e1 !important; border-radius: 0 0 6px 6px; background:#fff; min-height: 120px;}
-  .ql-toolbar.ql-snow { border: 1px solid #cbd5e1 !important; border-radius: 6px 6px 0 0; background: var(--brand-bg); }
-
-  /* --- Settings UI Components (Used in Core, Users, & Clients) --- */
-  .settings-section-header { margin-top: 35px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; color: var(--brand-primary); font-weight: 800; }
-  .settings-full-row { background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-top: 30px; width: 100%; box-sizing: border-box; }
-  .sys-logo-preview { height: 80px; object-fit: contain; background: #fff; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); }
-  .theme-swatch-box { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #cbd5e1; flex-shrink: 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
-  .registry-tag { display: inline-flex; align-items: center; background: #f1f5f9; color: #475569; padding: 8px 16px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-right: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-  .registry-tag::before { content: "•"; margin-right: 8px; color: var(--brand-primary); font-size: 20px; line-height: 1; }
-
-  /* --- User Module Components --- */
-  .user-avatar-placeholder { width: 50px; height: 50px; border-radius: 50%; background: var(--brand-primary); color: white; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; margin-right: 15px; }
-  .perm-group { margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
-  .perm-group-title { background: #f8fafc; padding: 10px 15px; font-size: 13px; font-weight: 700; color: var(--brand-dark); border-bottom: 1px solid #e2e8f0; text-transform: uppercase; letter-spacing: 0.5px; }
-  .perm-group-items { padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
-  .perm-cb-label { font-size: 13px; color: #475569; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-
-  /* --- Template Module Components --- */
-  .preview-frame-container { background: #f1f5f9; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 20px; min-height: 400px; }
-  .preview-iframe { width: 100%; height: 600px; background: white; border: none; border-radius: 4px; box-shadow: var(--shadow-sm); }
-  .placeholder-tag { display: inline-block; background: #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; border: 1px solid #cbd5e1; }
-  .placeholder-tag:hover { background: var(--brand-primary); color: white; border-color: var(--brand-primary); transform: translateY(-1px); }
-  .tpl-trigger-code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; color: var(--brand-primary); font-weight: 600; }
-
-  /* --- Dynamic Form Components (Used in Clients & Future Modules) --- */
-  .dynamic-json-row { background: var(--brand-bg); border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 15px; position: relative; }
-  .row-remove-btn { position: absolute; top: 10px; right: 10px; background: #fee2e2; color: #ef4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
-  .accordion-grp-row { display:flex; gap:15px; align-items:center; background:#fff; border:1px solid #e2e8f0; padding:15px; border-radius:8px; margin-bottom:10px; }
+  
 
 </style>
 
