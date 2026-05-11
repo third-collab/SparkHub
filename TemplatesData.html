@@ -21,14 +21,52 @@
 
 <template id="tpl-settings-templates-ro">
   <div style="margin-top: 25px; font-size: 14px;">
-    <h2 class="settings-section-header" style="margin:0;">Communication Templates</h2>
-    <p style="color: #64748b; font-style: italic;">System-wide template engine settings will appear here.</p>
+    <h2 class="settings-section-header" style="margin:0;">Communication Standards</h2>
+    <div style="margin-top: 20px;">
+      <p><strong>Default System Wrapper:</strong> <span id="ro-settings-tpl-wrapper" style="color:var(--brand-primary); font-weight:700;">Loading...</span></p>
+      <p><strong>Compliance BCC:</strong> <code id="ro-settings-tpl-bcc" style="font-size:11px;">Not Set</code></p>
+      <p><strong>Link Tracking:</strong> <span id="ro-settings-tpl-tracking" style="font-weight:700;">Disabled</span></p>
+      <p><strong>Sandbox Whitelist:</strong><br><code id="ro-settings-tpl-whitelist" style="font-size:11px;">None</code></p>
+      <p><strong>Global Email Signature:</strong></p>
+      <div id="ro-settings-tpl-sig" style="padding:15px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; font-size:12px; white-space: pre-wrap;"></div>
+    </div>
   </div>
 </template>
 
 <template id="tpl-settings-templates-edt">
-  <h2 class="settings-section-header" style="margin:0;">Template Configuration</h2>
-  <p style="margin-top: 20px; color: #64748b; font-style: italic;">Placeholder for future template configuration.</p>
+  <h2 class="settings-section-header" style="margin:0;">Templates Configuration</h2>
+  
+  <div class="form-row">
+    <div class="form-group">
+      <label>Default System Wrapper</label>
+      <select id="edt-settings-tpl-wrapper" class="form-control"></select>
+    </div>
+    <div class="form-group">
+      <label>Compliance BCC Address</label>
+      <input type="email" id="edt-settings-tpl-bcc" class="form-control" placeholder="archive@yourdomain.com">
+    </div>
+  </div>
+
+  <div class="form-group" style="margin-top:15px;">
+    <label>Sandbox Whitelist (Comma separated)</label>
+    <input type="text" id="edt-settings-tpl-whitelist" class="form-control" placeholder="admin@sparkhub.com, dev@sparkhub.com">
+    <small style="color:#64748b;">Only these emails receive dispatches when the System Sandbox is ON.</small>
+  </div>
+
+  <div class="form-group" style="margin-top:15px;">
+    <label class="perm-cb-label">
+      <input type="checkbox" id="edt-settings-tpl-tracking"> Enable Link Click Tracking
+    </label>
+  </div>
+
+  <div class="form-group" style="margin-top:15px;">
+    <label>Global Email Signature (Plain Text or HTML)</label>
+    <textarea id="edt-settings-tpl-sig" class="form-control" style="height: 80px; font-family: monospace;"></textarea>
+  </div>
+
+  <div style="margin-top: 30px; text-align: right;">
+    <button type="button" class="btn-primary" onclick="handleSaveTemplatesConfig(event)">Save Template Settings</button>
+  </div>
 </template>
 
 <div id="quickPreviewModal" class="system-overlay" style="display:none;">
@@ -846,6 +884,25 @@
   /* ========================================================================
      7. SUBMIT HANDLERS
      ======================================================================== */
+  function handleSaveTemplatesConfig(e) {
+    if (e) e.preventDefault();
+    const payload = {
+      defaultWrapper: document.getElementById('edt-settings-tpl-wrapper').value,
+      bccArchive: document.getElementById('edt-settings-tpl-bcc').value,
+      whitelist: document.getElementById('edt-settings-tpl-whitelist').value,
+      linkTracking: document.getElementById('edt-settings-tpl-tracking').checked,
+      signature: document.getElementById('edt-settings-tpl-sig').value
+    };
+
+    google.script.run.withSuccessHandler(res => {
+      if (res.success) {
+        showToast("Success", "Template standards updated.", "success");
+        toggleModuleEdit('templates', false);
+        loadSettings();
+      }
+    }).saveTemplatesModuleConfig(payload);
+  }
+
   function handleTemplateSubmit(e) {
     if(e) e.preventDefault();
     toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');

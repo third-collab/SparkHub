@@ -165,6 +165,23 @@
     applyLogFilters();
   }
 
+  function populateLogsSettings(configs) {
+    // Populate Read-Only View
+    const roId = document.getElementById('ro-settings-logsid');
+    const roRet = document.getElementById('ro-settings-retention-txt');
+    if (roId) roId.innerText = configs.LOGS_DATABASE_ID || 'Not Set';
+    if (roRet) {
+      const days = configs.LOGS_RETENTION_DAYS || "90";
+      roRet.innerText = days === "0" ? "Indefinite" : days + " Days";
+    }
+
+    // Populate Edit View
+    const edtId = document.getElementById('edt-settings-logsid');
+    const edtRet = document.getElementById('edt-settings-retention');
+    if (edtId) edtId.value = configs.LOGS_DATABASE_ID || '';
+    if (edtRet) edtRet.value = configs.LOGS_RETENTION_DAYS || "90";
+  }
+
   /* ========================================================================
      5. RENDERERS
      ======================================================================== */

@@ -194,17 +194,22 @@ function getRenderedTemplatePreview(rowIndex) {
   return fullHtml.replace(/src="cid:logo"/g, 'src="' + logo + '"');
 }
 
+/**
+ * Saves the Templates module specific configuration.
+ */
 function saveTemplatesModuleConfig(payload) {
   try {
-    const props = PropertiesService.getScriptProperties();
-    props.setProperty('CONF_TPL_EXT_WRAPPER', payload.extWrapper);
-    props.setProperty('CONF_TPL_INT_WRAPPER', payload.intWrapper);
+    var props = PropertiesService.getScriptProperties();
+    props.setProperty('TPL_DEFAULT_WRAPPER', payload.defaultWrapper);
+    props.setProperty('TPL_GLOBAL_SIGNATURE', payload.signature);
+    props.setProperty('TPL_BCC_ARCHIVE', payload.bccArchive);
+    props.setProperty('TPL_LINK_TRACKING', payload.linkTracking); // "true" or "false"
+    props.setProperty('TPL_WHITELIST', payload.whitelist); // Comma-separated string
     
-    SystemEvent.emit("Templates", "INFO", "Config Updated", "SYSTEM", "Templates", "Template configuration updated locally.");
-    
-    return { success: true, message: "Template settings saved." };
-  } catch (e) {
-    return { error: "Templates.gs: " + e.message };
+    SystemEvent.emit("Templates", "UPDATE", "Config Updated", "INFO", "Templates", "Communication and safety standards updated.");
+    return { success: true };
+  } catch (e) { 
+    return { error: "Templates.gs: " + e.message }; 
   }
 }
 
