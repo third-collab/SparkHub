@@ -16,7 +16,7 @@
   <div style="margin-top: 25px; font-size: 14px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">System Logs Configuration</h2>
-      <button class="btn-edit perm-protected" onclick="toggleModuleEdit('logs', true)" data-perm-category="Core System" data-perm-action="View Logs">Edit Logs Settings</button>
+      <button class="btn-edit perm-protected" onclick="toggleModuleEdit('logs', true)" data-perm-category="Logs" data-perm-action="View Logs">Edit Logs Settings</button>
     </div>
     
     <div style="margin-top: 20px;">
@@ -30,12 +30,12 @@
 <template id="tpl-settings-logs-edt">
   <h2 class="settings-section-header" style="margin:0;">Logging Configuration</h2>
   
-  <div class="form-group" style="margin-bottom: 20px;">
+  <div class="form-group" style="margin-bottom: 20px; margin-top: 25px;">
     <label>Logs DB Registry ID *</label>
     <input type="text" id="edt-settings-logsid" class="form-control" placeholder="Spreadsheet ID">
   </div>
 
-  <div class="form-row">
+  <div class="form-row" style="margin-top:25px;">
     <div class="form-group">
       <label>Retention Policy</label>
       <select id="edt-settings-retention" class="form-control">
@@ -92,7 +92,7 @@
         </tr>
       </thead>
       <tbody id="logTableBody">
-        <tr><td colspan="6" style="text-align:center; padding: 30px;">Loading logs...</td></tr>
+        <tr><td colspan="6" style="text-align:center; padding: 30px;">Synchronizing logs...</td></tr>
       </tbody>
     </table>
   </div>

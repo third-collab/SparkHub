@@ -23,7 +23,7 @@
   <div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">User Access & Security</h2>
-      <button class="btn-edit" onclick="openEditUsersConfig()">Edit Users Config</button>
+      <button class="btn-edit perm-protected" onclick="openEditUsersConfig()" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Users Config</button>
     </div>
     <p><strong>Master Administrator Email:</strong><br><span id="ro-settings-email"></span></p>
     <p><strong>System Authentication Mode:</strong><br><span id="ro-settings-authmode"></span></p>
@@ -37,7 +37,7 @@
       <button type="button" class="btn-cancel" onclick="toggleModuleEdit('users', false)">Cancel</button>
     </div>
     
-    <div class="form-row">
+    <div class="form-row" style="margin-top:25px;">
       <div class="form-group"><label>Admin Contact Email *</label><input type="email" id="edt-settings-email" class="form-control" required></div>
       <div class="form-group"><label>Authentication Mode *</label>
         <select id="edt-settings-authmode" class="form-control" required>
