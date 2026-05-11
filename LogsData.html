@@ -16,30 +16,43 @@
   <div style="margin-top: 25px; font-size: 14px;">
     <h2 class="settings-section-header" style="margin:0;">System Logs Configuration</h2>
     <div style="margin-top: 20px;">
-      <p><strong>Log Retention:</strong> <span style="color:var(--brand-primary); font-weight:700;">Indefinite</span></p>
+      <p><strong>Logs Registry ID:</strong><br><code id="ro-settings-logsid" style="font-size:11px;"></code></p>
+      <p><strong>Log Retention:</strong> <span id="ro-settings-retention-txt" style="color:var(--brand-primary); font-weight:700;">Loading...</span></p>
       <p><strong>Audit Level:</strong> <span style="color:var(--brand-primary); font-weight:700;">Full System Broadcast</span></p>
-      <p style="color: #64748b; font-size: 13px; font-style: italic; margin-top: 15px;">Note: Logs are currently saved to the dedicated Logs Registry Spreadsheet. Retention policies can be configured here in future updates.</p>
     </div>
   </div>
 </template>
 
 <template id="tpl-settings-logs-edt">
   <h2 class="settings-section-header" style="margin:0;">Logging Configuration</h2>
+  
+  <div class="form-group" style="margin-bottom: 20px;">
+    <label>Logs DB Registry ID *</label>
+    <input type="text" id="edt-settings-logsid" class="form-control" placeholder="Spreadsheet ID">
+  </div>
+
   <div class="form-row">
     <div class="form-group">
       <label>Retention Policy</label>
-      <select class="form-control" disabled>
-        <option>All Logs (No Purge)</option>
+      <select id="edt-settings-retention" class="form-control">
+        <option value="30">1 Month</option>
+        <option value="90">3 Months (Default)</option>
+        <option value="180">6 Months</option>
+        <option value="365">1 Year</option>
+        <option value="0">Indefinite (No Purge)</option>
       </select>
     </div>
     <div class="form-group">
-      <label>Minimum Severity to Record</label>
+      <label>Minimum Severity</label>
       <select class="form-control" disabled>
-        <option>INFO</option>
+        <option>INFO (Standard)</option>
       </select>
     </div>
   </div>
-  <p style="font-size: 12px; color: #94a3b8; margin-top: 10px;">Cloud-side log rotation settings are managed via Google Cloud Console.</p>
+  
+  <div style="margin-top: 30px; text-align: right;">
+    <button type="button" class="btn-primary" onclick="handleSaveLogsConfig(event)">Save Logs Settings</button>
+  </div>
 </template>
 
 <div id="logsListView" class="container" style="display: none;">

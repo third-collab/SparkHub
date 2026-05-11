@@ -489,13 +489,13 @@
 
   /* --- Tables --- */
   .table-container {
-    position: relative; /* FIX: Anchors absolute loading overlays to the table */
+    position: relative;
     background: white;
     border-radius: var(--border-radius-med);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
     border: 1px solid #e2e8f0;
-    min-height: 300px; /* Provides a baseline height when lists are empty */
+    min-height: 300px; /* Ensures lists don't look like thin lines when loading */
   }
 
   table { width: 100%; border-collapse: collapse; }

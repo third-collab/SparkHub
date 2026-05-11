@@ -87,7 +87,66 @@ function getEventTimestampFromLogs(module, type, entity) {
 // ========================================================================
 // 4. WRITE / SAVE FUNCTIONS
 // ========================================================================
-// Currently handled by CORE PROCESSORS (handleSystemEvent)
+/**
+ * Saves the Logs module specific configuration.
+ */
+function saveLogsModuleConfig(payload) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    // Move the ID here and save the new retention policy
+    props.setProperty('LOGS_DATABASE_ID', payload.logsDbId);
+    props.setProperty('LOGS_RETENTION_DAYS', payload.retentionDays);
+    
+    // Ensure the nightly trigger is active
+    setupLogJanitorTrigger();
+    
+    SystemEvent.emit("Logs", "UPDATE", "Config Updated", "INFO", "Logs", "Logs registry and retention settings updated.");
+    return { success: true };
+  } catch (e) { 
+    return { error: "Logs.gs: " + e.message }; 
+  }
+}
+
+/**
+ * Nightly Janitor: Purges logs older than the retention period.
+ * Triggered automatically by setupLogJanitorTrigger()
+ */
+function runLogJanitor() {
+  var props = PropertiesService.getScriptProperties();
+  var retentionDays = parseInt(props.getProperty('LOGS_RETENTION_DAYS') || "90");
+  
+  // If set to 0 (Indefinite), stop here.
+  if (retentionDays === 0) return; 
+
+  var sheet = getLogsDb().getSheetByName("System Logs");
+  if (!sheet) return;
+
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return; // Only header exists
+
+  var now = new Date();
+  // Calculate the cutoff date based on settings
+  var cutoff = new Date(now.getTime() - (retentionDays * 24 * 60 * 60 * 1000));
+  
+  var rowsToKeep = [data[0]]; // Always keep the header
+  var deletedCount = 0;
+
+  for (var i = 1; i < data.length; i++) {
+    var logDate = new Date(data[i][0]); // Assumes Timestamp is in first column
+    if (logDate >= cutoff) {
+      rowsToKeep.push(data[i]);
+    } else {
+      deletedCount++;
+    }
+  }
+  
+  // If we found old logs, overwrite the sheet with only the fresh logs
+  if (deletedCount > 0) {
+    sheet.clearContents();
+    sheet.getRange(1, 1, rowsToKeep.length, rowsToKeep[0].length).setValues(rowsToKeep);
+    console.log("Log Janitor: Purged " + deletedCount + " old logs.");
+  }
+}
 
 // ========================================================================
 // 5. INTERNAL HELPERS

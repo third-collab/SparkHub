@@ -80,5 +80,21 @@ function sendDailyPing() {
 }
 
 /**
+ * Creates a nightly trigger for the Log Janitor if it doesn't already exist.
+ */
+function setupLogJanitorTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var triggerExists = triggers.some(t => t.getHandlerFunction() === 'runLogJanitor');
+  
+  if (!triggerExists) {
+    ScriptApp.newTrigger('runLogJanitor')
+      .timeBased()
+      .atHour(2) // Runs at 2:00 AM
+      .everyDays(1)
+      .create();
+  }
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

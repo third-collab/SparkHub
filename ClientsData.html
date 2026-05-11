@@ -222,7 +222,7 @@
 
   function loadServicesTable() {
     var tbody = document.getElementById('servicesTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">Loading services...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">Loading services...</td></tr>';
     
     google.script.run.withSuccessHandler(res => { 
       GLOBAL_SERVICES = res.data || []; 

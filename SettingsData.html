@@ -5,6 +5,7 @@
   SYNC STATUS: Fully Synchronized with Settings.gs
 -->
 <style>
+  .sys-logo-preview { height: 80px; max-width: 280px; object-fit: contain; background: #fff; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); }
   .theme-swatch-box { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #cbd5e1; flex-shrink: 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
   .settings-full-row { background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-top: 30px; width: 100%; box-sizing: border-box; }
 </style>
@@ -62,7 +63,6 @@
             <div style="display:flex; flex-direction:column; gap:15px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
               <p style="margin:0;"><strong>Root Folder ID:</strong><br><code id="ro-settings-rootid" style="font-size:11px;"></code></p>
               <p style="margin:0;"><strong>Main Registry ID:</strong><br><code id="ro-settings-dbid" style="font-size:11px;"></code></p>
-              <p style="margin:0;"><strong>Logs Registry ID:</strong><br><code id="ro-settings-logsid" style="font-size:11px;"></code></p>
               <p style="margin:0;"><strong>Fallback Asset:</strong><br><code id="ro-settings-fallback" style="font-size:11px; word-break:break-all;"></code></p>
             </div>
          </div>
@@ -151,7 +151,6 @@
         <h3 class="settings-section-header" style="border-left:4px solid var(--brand-primary); padding-left:15px;">Cloud Infrastructure</h3>
         <div class="form-group" style="margin-top: 15px;"><label>Cloud Root Folder ID *</label><input type="text" id="edt-settings-rootid" class="form-control" required></div>
         <div class="form-group" style="margin-top: 15px;"><label>Main DB Registry ID *</label><input type="text" id="edt-settings-dbid" class="form-control" required></div>
-        <div class="form-group" style="margin-top: 15px;"><label>Logs DB Registry ID *</label><input type="text" id="edt-settings-logsid" class="form-control" required></div>
         <div class="form-group" style="margin-top: 15px;"><label>Email Asset Fallback URL *</label><input type="url" id="edt-settings-fallback" class="form-control" required></div>
 
         <div style="margin-top: 40px; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 20px;">
@@ -390,7 +389,6 @@
       environment: document.getElementById('edt-settings-env').value,
       rootFolderId: document.getElementById('edt-settings-rootid').value,
       mainDbId: document.getElementById('edt-settings-dbid').value,
-      logsDbId: document.getElementById('edt-settings-logsid').value,
       fallbackLogoUrl: document.getElementById('edt-settings-fallback').value,
       themePrimary: document.getElementById('edt-theme-primary').value,
       themeAccent: document.getElementById('edt-theme-accent').value,
