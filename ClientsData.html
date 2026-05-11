@@ -24,13 +24,13 @@
 
 <template id="tpl-settings-clients-ro">
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">Client Configuration</h2>
-      <button class="btn-edit" onclick="openEditClientsConfig()">Edit Settings</button>
+      <button class="btn-edit perm-protected" onclick="openEditClientsConfig()" data-perm-category="Clients" data-perm-action="Manage Clients">Edit Client Settings</button>
     </div>
 
     <div id="ro-clients-core-config" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
-    
+  
     <h4 class="settings-section-header">Form Accordions</h4>
     <div id="ro-clients-accordions" style="background:var(--brand-bg); padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
     

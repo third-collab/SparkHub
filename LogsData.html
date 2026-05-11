@@ -14,7 +14,11 @@
 
 <template id="tpl-settings-logs-ro">
   <div style="margin-top: 25px; font-size: 14px;">
-    <h2 class="settings-section-header" style="margin:0;">System Logs Configuration</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+      <h2 class="settings-section-header" style="margin:0;">System Logs Configuration</h2>
+      <button class="btn-edit perm-protected" onclick="toggleModuleEdit('logs', true)" data-perm-category="Core System" data-perm-action="View Logs">Edit Logs Settings</button>
+    </div>
+    
     <div style="margin-top: 20px;">
       <p><strong>Logs Registry ID:</strong><br><code id="ro-settings-logsid" style="font-size:11px;"></code></p>
       <p><strong>Log Retention:</strong> <span id="ro-settings-retention-txt" style="color:var(--brand-primary); font-weight:700;">Loading...</span></p>

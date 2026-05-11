@@ -21,7 +21,11 @@
 
 <template id="tpl-settings-templates-ro">
   <div style="margin-top: 25px; font-size: 14px;">
-    <h2 class="settings-section-header" style="margin:0;">Communication Standards</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+      <h2 class="settings-section-header" style="margin:0;">Communication Standards</h2>
+      <button class="btn-edit perm-protected" onclick="toggleModuleEdit('templates', true)" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Template Settings</button>
+    </div>
+
     <div style="margin-top: 20px;">
       <p><strong>Default System Wrapper:</strong> <span id="ro-settings-tpl-wrapper" style="color:var(--brand-primary); font-weight:700;">Loading...</span></p>
       <p><strong>Compliance BCC:</strong> <code id="ro-settings-tpl-bcc" style="font-size:11px;">Not Set</code></p>
