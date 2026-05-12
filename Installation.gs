@@ -19,6 +19,13 @@ function performUiInstallation(data) {
     props.setProperty('ROOT_FOLDER_ID', data.rootId);
     props.setProperty('SYSTEM_NAME', data.sysName);
     props.setProperty('ADMIN_EMAIL', installerEmail);
+
+    // Set default communication and maintenance standards
+    props.setProperty('LOGS_RETENTION_DAYS', '90'); 
+    props.setProperty('TPL_WHITELIST', installerEmail);
+    props.setProperty('TPL_DEFAULT_WRAPPER', 'Internal Communication');
+    props.setProperty('TPL_LINK_TRACKING', 'false');
+
     props.setProperty('CLIENT_ID', "CID-" + Utilities.getUuid().substring(0, 8).toUpperCase());
     props.setProperty('INSTANCE_SECRET', Utilities.getUuid());
     

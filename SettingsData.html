@@ -231,6 +231,9 @@
       document.getElementById('ro-settings-logsid').innerText = data.logsDbId || 'Not Set';
       document.getElementById('ro-settings-fallback').innerText = data.emailFallbackLogo || 'Not Set';
 
+      if (typeof populateLogsSettings === 'function') populateLogsSettings(data);
+      if (typeof populateTemplatesSettings === 'function') populateTemplatesSettings(data);
+
       var themes = { primary: data.themePrimary, accent: data.themeAccent, dark: data.themeDark, hover: data.themeHover, bg: data.themeBg };
       for (var key in themes) {
         var txtEl = document.getElementById('ro-settings-' + key);

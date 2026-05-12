@@ -428,6 +428,36 @@
   /* ========================================================================
      4. DATA MANIPULATION
      ======================================================================== */
+  /**
+   * Populates the Templates Settings UI from the system config.
+   */
+  function populateTemplatesSettings(data) {
+    // Read-Only
+    const roWrap = document.getElementById('ro-settings-tpl-wrapper');
+    if (roWrap) roWrap.innerText = data.tplDefaultWrapper;
+    
+    const roBcc = document.getElementById('ro-settings-tpl-bcc');
+    if (roBcc) roBcc.innerText = data.tplBccArchive || 'Not Set';
+
+    const roWhitelist = document.getElementById('ro-settings-tpl-whitelist');
+    if (roWhitelist) roWhitelist.innerText = data.tplWhitelist || 'None';
+
+    // Edit Dropdown
+    const edtWrap = document.getElementById('edt-settings-tpl-wrapper');
+    if (edtWrap && typeof GLOBAL_WRAPPER_DATA !== 'undefined') {
+      edtWrap.innerHTML = GLOBAL_WRAPPER_DATA.map(w => 
+        `<option value="${w.name}">${w.name}</option>`
+      ).join('');
+      edtWrap.value = data.tplDefaultWrapper;
+    }
+    
+    // Set checkboxes and other fields
+    if(document.getElementById('edt-settings-tpl-tracking')) {
+      document.getElementById('edt-settings-tpl-tracking').checked = (data.tplLinkTracking === 'true');
+    }
+    // ... (and so on for signature and BCC)
+  }
+
   function populateTemplateFilters() {
     var mods = new Set(), cats = new Set(), stats = new Set(), wraps = new Set();
     GLOBAL_TEMPLATE_DATA.forEach(t => { 

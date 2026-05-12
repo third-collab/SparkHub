@@ -73,6 +73,15 @@ function getSystemSettings() {
       rootFolderId: props.getProperty('ROOT_FOLDER_ID') || '',
       mainDbId: props.getProperty('DATABASE_ID') || '',
       logsDbId: props.getProperty('LOGS_DATABASE_ID') || '',
+      logsRetentionDays: props.getProperty('LOGS_RETENTION_DAYS') || '90',
+    
+      // Templates Module Settings
+      tplDefaultWrapper: props.getProperty('TPL_DEFAULT_WRAPPER') || 'Internal Communication',
+      tplBccArchive: props.getProperty('TPL_BCC_ARCHIVE') || '',
+      tplLinkTracking: props.getProperty('TPL_LINK_TRACKING') || 'false',
+      tplWhitelist: props.getProperty('TPL_WHITELIST') || '',
+      tplGlobalSignature: props.getProperty('TPL_GLOBAL_SIGNATURE') || '',
+
       hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'), 
       installedModules: props.getProperty('INSTALLED_MODULES') || '',
       installedPlugins: props.getProperty('INSTALLED_PLUGINS') || '',
