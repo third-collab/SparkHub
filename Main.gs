@@ -14,6 +14,44 @@
  * - Routes to the Installation Wizard or the Modular Dashboard.
  */
 function doGet(e) {
+  // --- COMMUNICATION INTERCEPTOR: LINK TRACKING ---
+  if (e && e.parameter && e.parameter.action === 'trackEvent' && e.parameter.dest) {
+    var destUrl = decodeURIComponent(e.parameter.dest);
+    var userEmail = e.parameter.u || "Unknown User";
+    
+    // Log the click event to the global audit trail
+    SystemEvent.emit("Templates", "TRACKING", "Email Link Clicked", "INFO", userEmail, "Navigated to: " + destUrl);
+    
+    // 1. Fetch the primary brand color
+    var props = PropertiesService.getScriptProperties();
+    var themeStr = props.getProperty('SYSTEM_THEME');
+    var primaryColor = '#2563eb'; // Default SparkHub Blue fallback
+    if (themeStr) {
+      try {
+        var theme = JSON.parse(themeStr);
+        if (theme.primary) primaryColor = theme.primary;
+      } catch(err) { /* ignore parse error */ }
+    }
+    
+    // 2. Inject the dynamic brand color into the redirect button CSS
+    var redirectHtml = '<!DOCTYPE html><html><head><style>' +
+      'body { font-family: sans-serif; text-align: center; padding-top: 60px; color: #64748b; }' +
+      '.btn { display: inline-block; margin-top: 25px; padding: 12px 24px; background-color: ' + primaryColor + '; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; transition: opacity 0.2s; }' +
+      '.btn:hover { opacity: 0.9; }' +
+      '</style></head><body>' +
+      '<h2>Redirecting...</h2>' +
+      '<p>You are being securely routed to your destination.</p>' +
+      '<a href="' + destUrl + '" target="_top" class="btn">Continue Now</a>' +
+      '<script>' +
+      '  setTimeout(function() { ' +
+      '    try { window.top.location.replace("' + destUrl + '"); } catch(err) {} ' +
+      '  }, 800);' +
+      '</script></body></html>';
+      
+    return HtmlService.createHtmlOutput(redirectHtml);
+  }
+  // ------------------------------------------------
+  
   var props = PropertiesService.getScriptProperties();
   var env = props.getProperty('ENVIRONMENT');
   var userEmail = Session.getActiveUser().getEmail();

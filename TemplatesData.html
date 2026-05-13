@@ -431,31 +431,56 @@
   /**
    * Populates the Templates Settings UI from the system config.
    */
+  /**
+   * Populates the Templates Settings UI from the system config.
+   */
   function populateTemplatesSettings(data) {
-    // Read-Only
+    // 1. Populate Read-Only View
     const roWrap = document.getElementById('ro-settings-tpl-wrapper');
-    if (roWrap) roWrap.innerText = data.tplDefaultWrapper;
+    if (roWrap) roWrap.innerText = data.tplDefaultWrapper || 'Internal Communication';
     
     const roBcc = document.getElementById('ro-settings-tpl-bcc');
     if (roBcc) roBcc.innerText = data.tplBccArchive || 'Not Set';
 
     const roWhitelist = document.getElementById('ro-settings-tpl-whitelist');
     if (roWhitelist) roWhitelist.innerText = data.tplWhitelist || 'None';
-
-    // Edit Dropdown
-    const edtWrap = document.getElementById('edt-settings-tpl-wrapper');
-    if (edtWrap && typeof GLOBAL_WRAPPER_DATA !== 'undefined') {
-      edtWrap.innerHTML = GLOBAL_WRAPPER_DATA.map(w => 
-        `<option value="${w.name}">${w.name}</option>`
-      ).join('');
-      edtWrap.value = data.tplDefaultWrapper;
-    }
     
-    // Set checkboxes and other fields
+    const roTrack = document.getElementById('ro-settings-tpl-tracking');
+    if (roTrack) roTrack.innerText = data.tplLinkTracking === 'true' ? 'Enabled' : 'Disabled';
+
+    const roSig = document.getElementById('ro-settings-tpl-sig');
+    if (roSig) roSig.innerText = data.tplGlobalSignature || '';
+
+    // 2. Populate Edit View standard fields
     if(document.getElementById('edt-settings-tpl-tracking')) {
       document.getElementById('edt-settings-tpl-tracking').checked = (data.tplLinkTracking === 'true');
     }
-    // ... (and so on for signature and BCC)
+    
+    const edtBcc = document.getElementById('edt-settings-tpl-bcc');
+    if (edtBcc) edtBcc.value = data.tplBccArchive || '';
+
+    const edtWhitelist = document.getElementById('edt-settings-tpl-whitelist');
+    if (edtWhitelist) edtWhitelist.value = data.tplWhitelist || '';
+
+    const edtSig = document.getElementById('edt-settings-tpl-sig');
+    if (edtSig) edtSig.value = data.tplGlobalSignature || '';
+
+    // 3. Force-fetch the dropdown options directly from the registry
+    const edtWrap = document.getElementById('edt-settings-tpl-wrapper');
+    if (edtWrap) {
+      google.script.run.withSuccessHandler(function(wrappers) {
+         GLOBAL_WRAPPER_DATA = wrappers || [];
+         if (GLOBAL_WRAPPER_DATA.length > 0) {
+           edtWrap.innerHTML = GLOBAL_WRAPPER_DATA.map(w => 
+             `<option value="${w.name}">${w.name}</option>`
+           ).join('');
+         } else {
+           edtWrap.innerHTML = `<option value="Internal Communication">Internal Communication</option>`;
+         }
+         // Set the selected value AFTER the options are loaded
+         edtWrap.value = data.tplDefaultWrapper || 'Internal Communication';
+      }).getWrappersList();
+    }
   }
 
   function populateTemplateFilters() {
@@ -920,6 +945,7 @@
      ======================================================================== */
   function handleSaveTemplatesConfig(e) {
     if (e) e.preventDefault();
+    
     const payload = {
       defaultWrapper: document.getElementById('edt-settings-tpl-wrapper').value,
       bccArchive: document.getElementById('edt-settings-tpl-bcc').value,
@@ -928,13 +954,33 @@
       signature: document.getElementById('edt-settings-tpl-sig').value
     };
 
-    google.script.run.withSuccessHandler(res => {
-      if (res.success) {
-        showToast("Success", "Template standards updated.", "success");
+    // Optional: disable button to prevent double-clicks
+    const btn = e.target;
+    const originalText = btn.innerText;
+    btn.innerText = "Saving...";
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        
+        if (res && res.error) {
+          alert("Error saving templates: " + res.error);
+          return;
+        }
+
+        // 1. Close the edit view
         toggleModuleEdit('templates', false);
+        // 2. Reload the registry to update the UI
         loadSettings();
-      }
-    }).saveTemplatesModuleConfig(payload);
+      })
+      .withFailureHandler(function(err) {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        alert("Server Error: " + err.message);
+      })
+      .saveTemplatesModuleConfig(payload);
   }
 
   function handleTemplateSubmit(e) {

@@ -147,6 +147,8 @@ function sendHardcodedEmail(triggerHandle, toEmail, dataMap) {
       return;
   }
 
+  htmlBody = applyGlobalSignature(htmlBody);
+
   // Inject the raw HTML into the wrapper
   var fullHtml = getWrapperContent(wrapperName).replace("{{USER_MESSAGE_CONTENT}}", htmlBody);
   
@@ -169,6 +171,9 @@ function sendHardcodedEmail(triggerHandle, toEmail, dataMap) {
       sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
       fullHtml += sandboxWarning;
   }
+
+  // 2. Wrap all links for tracking right before sending
+  fullHtml = applyLinkTracking(fullHtml, finalToEmail);
 
   // Dispatch via core mail app, using the dynamic system name and attached logo
   try {
@@ -363,6 +368,47 @@ function ensureWrappersSheet() {
     sheet.appendRow([new Date(), "W-USER", "User Communications", "Dedicated layout for user access and security emails", userHtml, "Active"]);
   }
   return sheet;
+}
+
+/**
+ * Scans an HTML body and wraps valid URLs in the SparkHub tracking endpoint.
+ */
+function applyLinkTracking(htmlBody, recipientEmail) {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('TPL_LINK_TRACKING') !== 'true') return htmlBody;
+  
+  var scriptUrl = ScriptApp.getService().getUrl();
+  if (!scriptUrl) return htmlBody; // Failsafe if script URL isn't available
+  
+  // Find all href="http..." attributes and rewrite them
+  return htmlBody.replace(/href=["'](https?:\/\/[^"']+)["']/gi, function(match, originalUrl) {
+    // Prevent double-wrapping if it already points to a Google Script
+    if (originalUrl.indexOf('script.google.com') > -1) return match;
+    
+    var trackingUrl = scriptUrl + "?action=trackEvent&dest=" + encodeURIComponent(originalUrl);
+    if (recipientEmail) {
+      trackingUrl += "&u=" + encodeURIComponent(recipientEmail);
+    }
+    
+    return 'href="' + trackingUrl + '"';
+  });
+}
+
+/**
+ * Appends the Global Signature to the email content.
+ */
+function applyGlobalSignature(htmlBody) {
+  var signature = PropertiesService.getScriptProperties().getProperty('TPL_GLOBAL_SIGNATURE');
+  if (!signature || signature.trim() === '') return htmlBody;
+  
+  // Convert standard newlines to HTML breaks if it's plain text
+  var formattedSig = signature;
+  if (formattedSig.indexOf('<') === -1) {
+    formattedSig = formattedSig.replace(/\n/g, '<br>');
+  }
+  
+  var signatureBlock = '<div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">' + formattedSig + '</div>';
+  return htmlBody + signatureBlock;
 }
 
 /**

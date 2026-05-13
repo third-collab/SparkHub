@@ -148,6 +148,8 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     for (var w=1; w<wData.length; w++) {
       if (wData[w][2] === wrapperName && wData[w][5] === "Active") wrapperHtml = wData[w][4];
     }
+
+    finalHtmlBody = applyGlobalSignature(finalHtmlBody);
     
     var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
     for (var key in dataMap) {
@@ -164,6 +166,9 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
       fullHtml += sandboxWarning;
     }
+
+    // 2. Wrap all links for tracking right before sending
+    fullHtml = applyLinkTracking(fullHtml, finalToEmail);
 
     MailApp.sendEmail({
       to: finalToEmail, subject: finalSubject, htmlBody: fullHtml, 

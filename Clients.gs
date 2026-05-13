@@ -357,5 +357,30 @@ function getClientsSheet() {
 }
 
 /**
+ * Retrieves standard system data for populating dynamic dropdowns.
+ */
+function getSystemDynamicLookups() {
+  var lookups = { users: [], templates: [] };
+  
+  try {
+    var userDb = ensureSheet('W-USERS');
+    var uData = userDb.getDataRange().getValues();
+    for (var i = 1; i < uData.length; i++) {
+      if (uData[i][2] && uData[i][8] !== 'Inactive') lookups.users.push(uData[i][2]); // Email
+    }
+  } catch(e) {}
+  
+  try {
+    var tplDb = ensureSheet('W-TEMPLATES');
+    var tData = tplDb.getDataRange().getValues();
+    for (var j = 1; j < tData.length; j++) {
+      if (tData[j][1] && tData[j][6] !== 'Inactive') lookups.templates.push(tData[j][1]); // Name
+    }
+  } catch(e) {}
+  
+  return lookups;
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

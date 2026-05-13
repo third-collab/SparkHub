@@ -364,10 +364,13 @@
       </div>
     `;
     
+    // Add Up/Down arrows and Remove button
     if (!data.isDefault) {
       html += `
-        <div style="padding-bottom: 2px;">
-          <button type="button" class="btn-reset-filters" onclick="this.parentElement.parentElement.remove(); refreshCustomFieldGroupDropdowns();" style="color:#ef4444; border-color:#fee2e2; background:#fff; padding: 10px 20px;">Remove</button>
+        <div style="padding-bottom: 2px; display:flex; gap:5px;">
+          <button type="button" onclick="moveDomRow(this, -1)" style="padding: 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; color:#475569; cursor:pointer;">▲</button>
+          <button type="button" onclick="moveDomRow(this, 1)" style="padding: 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; color:#475569; cursor:pointer;">▼</button>
+          <button type="button" onclick="this.parentElement.parentElement.remove(); refreshCustomFieldGroupDropdowns();" style="color:#ef4444; border:1px solid #fee2e2; border-radius:6px; background:#fff; padding: 10px 20px; cursor:pointer;">Remove</button>
         </div>
       `;
     }
@@ -381,17 +384,27 @@
     var c = document.getElementById('edt-clients-custom-fields-container'); 
     var row = document.createElement('div'); 
     row.className = 'dynamic-json-row cf-row';
+    row.style.position = 'relative'; // Required for absolute positioning of buttons
     
-    var typeOpts = ['text', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json'].map(t => `
+    // ADDED file-single and file-multiple
+    var typeOpts = ['text', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `
       <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
     `).join('');
     
-    var optsDisplay = data.type === 'select' ? 'block' : 'none'; 
+    var isSelect = data.type === 'select';
+    var isFile = data.type && data.type.startsWith('file-');
+    var optsDisplay = (isSelect || isFile) ? 'block' : 'none'; 
+    var optsLabel = isFile ? 'Allowed Extensions (e.g., .pdf, .png) - Leave blank for all' : 'Dropdown Options (Comma separated)';
     var jsonDisplay = data.type === 'json' ? 'block' : 'none';
     
     row.innerHTML = `
-      <button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button>
-      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr; gap:12px; align-items:end;">
+      <div style="position: absolute; top: 10px; right: 10px; display:flex; gap:5px;">
+        <button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:none; border-radius:4px; cursor:pointer; width:28px; height:28px; color:#475569;">▲</button>
+        <button type="button" onclick="moveDomRow(this, 1)" style="background:#f1f5f9; border:none; border-radius:4px; cursor:pointer; width:28px; height:28px; color:#475569;">▼</button>
+        <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#fee2e2; color:#ef4444; border:none; border-radius:4px; width:28px; height:28px; cursor:pointer; font-weight:bold;">&times;</button>
+      </div>
+      
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr; gap:12px; align-items:end; margin-top:20px;">
         <div class="form-group">
           <label>Field Label</label>
           <input type="text" class="cf-label form-control" value="${data.label || ''}" onchange="this.parentElement.nextElementSibling.querySelector('.cf-id').value = this.value.toLowerCase().replace(/[^a-z0-9]/g, '_')">
@@ -417,8 +430,8 @@
         </div>
       </div>
       <div class="form-group cf-opts-grp" style="margin-top:10px; display:${optsDisplay};">
-        <label class="cf-opts-lbl">Dropdown Options (Comma separated)</label>
-        <input type="text" class="cf-opts form-control" value="${data.type === 'select' ? (data.options || '') : ''}">
+        <label class="cf-opts-lbl">${optsLabel}</label>
+        <input type="text" class="cf-opts form-control" value="${(isSelect || isFile) ? (data.options || '') : ''}">
       </div>
       <div class="form-group cf-json-grp" style="margin-top:15px; display:${jsonDisplay}; border:1px dashed #cbd5e1; padding:15px; border-radius:8px; background:#fff;">
         <label style="color:var(--brand-primary); font-weight:bold; margin-bottom:10px; display:block;">JSON Sub-Field Definitions</label>
@@ -448,9 +461,11 @@
     row.style.borderRadius = '6px'; 
     row.style.border = '1px solid #e2e8f0';
     
-    var types = ['text', 'number', 'date', 'checkbox', 'select', 'textarea'].map(t => `
+    var types = ['text', 'number', 'date', 'checkbox', 'select', 'textarea', 'file-single', 'file-multiple'].map(t => `
       <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
     `).join('');
+    
+    var isOptType = data.type === 'select' || data.type?.startsWith('file-');
     
     row.innerHTML = `
       <div style="flex:2;">
@@ -459,13 +474,18 @@
       </div>
       <div style="flex:1;">
         <label style="font-size:11px;">Type</label>
-        <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="this.parentElement.nextElementSibling.style.display = this.value==='select'?'block':'none'">${types}</select>
+        <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="var n=this.parentElement.nextElementSibling; n.style.display = (this.value==='select' || this.value.startsWith('file-'))?'block':'none'; n.querySelector('label').innerText = this.value.startsWith('file-') ? 'Allowed Extensions' : 'Dropdown Options';">${types}</select>
       </div>
-      <div style="flex:2; display:${data.type === 'select' ? 'block' : 'none'};">
-        <label style="font-size:11px;">Dropdown Options</label>
+      <div style="flex:2; display:${isOptType ? 'block' : 'none'};">
+        <label style="font-size:11px;">${data.type?.startsWith('file-') ? 'Allowed Extensions' : 'Dropdown Options'}</label>
         <input type="text" class="sf-opts form-control" style="font-size:13px; padding:6px;" value="${data.options || ''}">
       </div>
-      <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:#ef4444; cursor:pointer; padding:6px; font-weight:bold; font-size:18px;">&times;</button>
+      
+      <div style="display:flex; gap:3px;">
+        <button type="button" onclick="moveDomRow(this, -1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:4px 6px; color:#475569; font-size:10px;">▲</button>
+        <button type="button" onclick="moveDomRow(this, 1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:4px 6px; color:#475569; font-size:10px;">▼</button>
+        <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#fee2e2; border:1px solid #f87171; color:#ef4444; border-radius:4px; cursor:pointer; padding:4px 8px; font-weight:bold;">&times;</button>
+      </div>
     `;
     container.appendChild(row);
   }
@@ -619,47 +639,52 @@
 
       var cFields = CLIENTS_CONFIG.customFields.filter(f => f.groupId === grp.id);
       
+      // ADDED: CSS Grid Wrapper to force side-by-side layout
+      if (cFields.length > 0) {
+        html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">`;
+      }
+
       cFields.forEach(f => {
         var val = addl[f.id] !== undefined ? addl[f.id] : '';
-        html += `<div class="form-group"><label>${f.label}${f.required ? ' *' : ''}</label>`;
+        
+        // Let large text/json fields span the entire row
+        var spanClass = (f.type === 'json' || f.type === 'richtext' || f.type === 'textarea') ? 'grid-column: 1 / -1;' : '';
+        
+        html += `<div class="form-group" style="${spanClass}"><label>${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
         
         if (f.type === 'select') { 
-          var o = (f.options || "").split(','); 
-          var optionsHtml = o.map(x => `
-            <option value="${x.trim()}" ${val === x.trim() ? 'selected' : ''}>
-              ${x.trim()}
-            </option>
-          `).join('');
-          
-          html += `
-            <select id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="select">
-              <option value="">Select...</option>
-              ${optionsHtml}
-            </select>
-          `; 
+          // ADDED: Support for System Lookups
+          if (f.options && f.options.startsWith('SYS_LOOKUP:')) {
+            html += `<select id="dyn-cf-${f.id}" class="form-control dyn-cf dynamic-lookup" data-id="${f.id}" data-type="select" data-lookup="${f.options}" data-value="${val}" ${f.required ? 'required' : ''}><option value="">Loading...</option></select>`;
+          } else {
+            var o = (f.options || "").split(','); 
+            var optionsHtml = o.map(x => `<option value="${x.trim()}" ${val === x.trim() ? 'selected' : ''}>${x.trim()}</option>`).join('');
+            html += `<select id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="select"><option value="">Select...</option>${optionsHtml}</select>`; 
+          }
         } else if (f.type === 'textarea') { 
-          html += `
-            <textarea id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="textarea" style="height:80px;">${val}</textarea>
-          `; 
+          html += `<textarea id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="textarea" style="height:80px;" ${f.required ? 'required' : ''}>${val}</textarea>`; 
         } else if (f.type === 'richtext') { 
-          html += `
-            <div id="editor-${f.id}" style="min-height:120px;">${val}</div>
-            <input type="hidden" id="dyn-cf-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="richtext">
-          `; 
+          html += `<div id="editor-${f.id}" style="min-height:120px;">${val}</div><input type="hidden" id="dyn-cf-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="richtext">`; 
         } else if (f.type === 'json') { 
           var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
-          html += `
-            <div id="json-rep-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="json"></div>
-            <button type="button" class="btn-add-row" onclick="addRepeaterRow('json-rep-${f.id}', '${encodedOptions}')">+ Add Item</button>
-          `; 
+          html += `<div id="json-rep-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="json"></div><button type="button" class="btn-add-row" onclick="addRepeaterRow('json-rep-${f.id}', '${encodedOptions}')">+ Add Item</button>`; 
+        } else if (f.type && f.type.startsWith('file-')) {
+          // ADDED: Support for HTML5 file types and extensions
+          var isMult = f.type === 'file-multiple' ? 'multiple' : '';
+          var accpt = f.options ? `accept="${f.options.replace(/ /g,'')}"` : '';
+          html += `<input type="file" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="${f.type}" ${isMult} ${accpt} ${f.required && !val ? 'required' : ''}>`;
+          if (val) html += `<small style="display:block; margin-top:5px; color:#3b82f6;">Tracked IDs: ${val}</small>`;
         } else { 
-          html += `
-            <input type="${f.type}" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="${f.type}" value="${val}" ${f.required ? 'required' : ''}>
-          `; 
+          html += `<input type="${f.type}" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="${f.type}" value="${val}" ${f.required ? 'required' : ''}>`; 
         }
         
         html += `</div>`;
       });
+      
+      // Close the CSS Grid Wrapper
+      if (cFields.length > 0) {
+        html += `</div>`;
+      }
       
       html += `</div>`; 
       target.innerHTML += html;
@@ -692,6 +717,8 @@
         addRepeaterRow('json-rep-' + f.id, btoa(unescape(encodeURIComponent(f.options || "[]")))); 
       });
     }
+    // Trigger dynamic lookups once the form is fully drawn
+    if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
   }
 
   function addRepeaterRow(containerId, encodedSfDef, existingObj = {}) {
@@ -700,6 +727,7 @@
     
     var subfields = []; 
     try { 
+      // Your original safe decoding block
       subfields = JSON.parse(decodeURIComponent(escape(atob(encodedSfDef)))); 
     } catch (e) {}
     
@@ -713,52 +741,36 @@
       var val = existingObj[safeK] !== undefined ? existingObj[safeK] : '';
       var inputHtml = '';
       
-      if (sf.type === 'select') { 
-        var opts = (sf.options || '').split(',').map(o => `
-          <option value="${o.trim()}" ${val === o.trim() ? 'selected' : ''}>
-            ${o.trim()}
-          </option>
-        `).join(''); 
-        
-        inputHtml = `
-          <select class="form-control rep-input" data-key="${safeK}">
-            <option value="">Select...</option>
-            ${opts}
-          </select>
-        `; 
+      if (sf.type === 'select') {
+        if (sf.options && sf.options.startsWith('SYS_LOOKUP:')) {
+          inputHtml = `<select class="form-control rep-input dynamic-lookup" data-key="${safeK}" data-lookup="${sf.options}" data-value="${val}"><option value="">Loading...</option></select>`;
+        } else {
+          var opts = (sf.options || '').split(',').map(o => `<option value="${o.trim()}" ${val === o.trim() ? 'selected' : ''}>${o.trim()}</option>`).join(''); 
+          inputHtml = `<select class="form-control rep-input" data-key="${safeK}"><option value="">Select...</option>${opts}</select>`; 
+        }
       } else if (sf.type === 'textarea') { 
-        inputHtml = `
-          <textarea class="form-control rep-input" data-key="${safeK}" style="height:40px;">${val}</textarea>
-        `; 
+        inputHtml = `<textarea class="form-control rep-input" data-key="${safeK}" style="height:40px;">${val}</textarea>`; 
       } else if (sf.type === 'checkbox') { 
-        inputHtml = `
-          <select class="form-control rep-input" data-key="${safeK}">
-            <option value="false" ${val === 'false' ? 'selected' : ''}>No</option>
-            <option value="true" ${val === 'true' ? 'selected' : ''}>Yes</option>
-          </select>
-        `; 
+        inputHtml = `<select class="form-control rep-input" data-key="${safeK}"><option value="false" ${val === 'false' ? 'selected' : ''}>No</option><option value="true" ${val === 'true' ? 'selected' : ''}>Yes</option></select>`; 
+      } else if (sf.type && sf.type.startsWith('file-')) {
+        var isMult = sf.type === 'file-multiple' ? 'multiple' : '';
+        var accpt = sf.options ? `accept="${sf.options.replace(/ /g,'')}"` : '';
+        inputHtml = `<input type="file" class="form-control rep-input" data-key="${safeK}" ${isMult} ${accpt}>`;
+        if (val) inputHtml += `<small style="display:block; color:#3b82f6;">Tracked</small>`;
       } else { 
-        inputHtml = `
-          <input type="${sf.type}" class="form-control rep-input" data-key="${safeK}" value="${val}">
-        `; 
+        inputHtml = `<input type="${sf.type}" class="form-control rep-input" data-key="${safeK}" value="${val}">`; 
       }
       
-      return `
-        <div class="form-group">
-          <label>${sf.label}</label>
-          ${inputHtml}
-        </div>
-      `;
+      return `<div class="form-group"><label>${sf.label}</label>${inputHtml}</div>`;
     }).join('');
     
-    row.innerHTML = `
-      <button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; padding-right: 30px;">
-        ${inputs}
-      </div>
-    `;
+    // Add grid layout to the repeater subfields
+    row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; padding-right: 30px;">${inputs}</div>`;
     
     c.appendChild(row);
+    
+    // Fetch dropdowns if a new row was just added via button click
+    if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
   }
 
   /* ========================================================================
@@ -975,13 +987,32 @@
   /* ========================================================================
      8. UI HELPERS
      ======================================================================== */
+  function moveDomRow(btn, direction) {
+    var row = btn.closest('.accordion-grp-row, .cf-row, .json-sf-row');
+    var container = row.parentElement;
+    
+    if (direction === -1 && row.previousElementSibling) {
+      container.insertBefore(row, row.previousElementSibling); // Move Up
+    } else if (direction === 1 && row.nextElementSibling) {
+      container.insertBefore(row.nextElementSibling, row); // Move Down
+    }
+    // Refresh group dropdowns just in case an accordion was moved
+    if (typeof refreshCustomFieldGroupDropdowns === 'function') refreshCustomFieldGroupDropdowns();
+  }
+
   function toggleCfOpts(sel) {
     var row = sel.closest('.cf-row'); 
     var optGrp = row.querySelector('.cf-opts-grp'); 
+    var optLbl = row.querySelector('.cf-opts-lbl');
     var jsonGrp = row.querySelector('.cf-json-grp');
     
     if (sel.value === 'select') { 
       optGrp.style.display = 'block'; 
+      optLbl.innerText = 'Dropdown Options (Comma separated)';
+      jsonGrp.style.display = 'none'; 
+    } else if (sel.value.startsWith('file-')) {
+      optGrp.style.display = 'block'; 
+      optLbl.innerText = 'Allowed Extensions (e.g., .pdf, .png) - Leave blank for all';
       jsonGrp.style.display = 'none'; 
     } else if (sel.value === 'json') { 
       optGrp.style.display = 'none'; 

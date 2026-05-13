@@ -168,22 +168,25 @@
     document.querySelectorAll('.log-filter-mod-cb').forEach(cb => cb.checked = true);
     applyLogFilters();
   }
-
+  
   function populateLogsSettings(configs) {
     // Populate Read-Only View
     const roId = document.getElementById('ro-settings-logsid');
     const roRet = document.getElementById('ro-settings-retention-txt');
-    if (roId) roId.innerText = configs.LOGS_DATABASE_ID || 'Not Set';
+    
+    // Now matches the camelCase from Settings.gs
+    if (roId) roId.innerText = configs.logsDbId || 'Not Set'; 
     if (roRet) {
-      const days = configs.LOGS_RETENTION_DAYS || "90";
+      const days = configs.logsRetentionDays || "90"; 
       roRet.innerText = days === "0" ? "Indefinite" : days + " Days";
     }
 
     // Populate Edit View
     const edtId = document.getElementById('edt-settings-logsid');
     const edtRet = document.getElementById('edt-settings-retention');
-    if (edtId) edtId.value = configs.LOGS_DATABASE_ID || '';
-    if (edtRet) edtRet.value = configs.LOGS_RETENTION_DAYS || "90";
+    
+    if (edtId) edtId.value = configs.logsDbId || '';
+    if (edtRet) edtRet.value = configs.logsRetentionDays || "90";
   }
 
   /* ========================================================================
@@ -218,7 +221,43 @@
   /* ========================================================================
      7. SUBMIT HANDLERS
      ======================================================================== */
-  // N/A
+
+  function handleSaveLogsConfig(e) {
+    if (e) e.preventDefault();
+    
+    const payload = {
+      logsDbId: document.getElementById('edt-settings-logsid').value,
+      retentionDays: document.getElementById('edt-settings-retention').value
+    };
+    
+    // Optional: disable button to prevent double-clicks
+    const btn = e.target;
+    const originalText = btn.innerText;
+    btn.innerText = "Saving...";
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        
+        if (res && res.error) {
+          alert("Error saving logs: " + res.error);
+          return;
+        }
+        
+        // 1. Close the edit view
+        toggleModuleEdit('logs', false);
+        // 2. Reload the registry to update the UI
+        loadSettings(); 
+      })
+      .withFailureHandler(function(err) {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        alert("Server Error: " + err.message);
+      })
+      .saveLogsModuleConfig(payload);
+  }
 
   /* ========================================================================
      8. UI HELPERS
