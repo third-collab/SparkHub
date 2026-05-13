@@ -177,6 +177,7 @@
   function initSettingsModule() {
     switchView('readOnlySettingsView');
     injectSettingsFragments();
+    toggleModuleEdit('core', false); // Forces the Core tab to be visible
     loadSettings();
   }
 

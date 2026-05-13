@@ -387,7 +387,7 @@
     row.style.position = 'relative'; // Required for absolute positioning of buttons
     
     // ADDED file-single and file-multiple
-    var typeOpts = ['text', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `
+    var typeOpts = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `
       <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
     `).join('');
     
@@ -461,7 +461,7 @@
     row.style.borderRadius = '6px'; 
     row.style.border = '1px solid #e2e8f0';
     
-    var types = ['text', 'number', 'date', 'checkbox', 'select', 'textarea', 'file-single', 'file-multiple'].map(t => `
+    var types = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'file-single', 'file-multiple'].map(t => `
       <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
     `).join('');
     
@@ -591,17 +591,58 @@
       }
       
       if (grp.id === 'grp_contract') {
+        if (mode === 'add') {
+          html += `
+            <div class="form-row">
+              <div class="form-group">
+                <label>Start Date *</label>
+                <input type="date" id="dyn-core-startDate" class="form-control dyn-core" required>
+              </div>
+              <div class="form-group">
+                <label>Expiration Date *</label>
+                <input type="date" id="dyn-core-expDate" class="form-control dyn-core" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Rate ($)</label>
+                <input type="number" id="dyn-core-rate" class="form-control dyn-core">
+              </div>
+            </div>
+          `;
+        } else {
+          // Edit mode: show Read-Only originals, and allow editing current dates
+          html += `
+            <div class="form-row">
+              <div class="form-group">
+                <label>Original Start Date</label>
+                <input type="date" class="form-control dyn-core" value="${data.origStartDate ? new Date(data.origStartDate).toISOString().split('T')[0] : ''}" readonly style="background:#f1f5f9; cursor:not-allowed;" title="Original Start Date">
+              </div>
+              <div class="form-group">
+                <label>Original Expiration</label>
+                <input type="date" class="form-control dyn-core" value="${data.origExpDate ? new Date(data.origExpDate).toISOString().split('T')[0] : ''}" readonly style="background:#f1f5f9; cursor:not-allowed;" title="Original Expiration Date">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Current Start Date *</label>
+                <input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${data.currentStartDate ? new Date(data.currentStartDate).toISOString().split('T')[0] : ''}" required>
+              </div>
+              <div class="form-group">
+                <label>Current End Date *</label>
+                <input type="date" id="dyn-core-expDate" class="form-control dyn-core" value="${data.currentExpDate ? new Date(data.currentExpDate).toISOString().split('T')[0] : ''}" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Rate ($)</label>
+                <input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}">
+              </div>
+            </div>
+          `;
+        }
+        
         html += `
-          <div class="form-row">
-            <div class="form-group">
-              <label>Start Date *</label>
-              <input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${mode === 'add' ? (data.startDate || '') : (data.currentStartDate || '')}" required>
-            </div>
-            <div class="form-group">
-              <label>Rate ($)</label>
-              <input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}">
-            </div>
-          </div>
           <div class="form-row">
             <div class="form-group">
               <label>Term Unit</label>
@@ -648,11 +689,14 @@
         var val = addl[f.id] !== undefined ? addl[f.id] : '';
         
         // Let large text/json fields span the entire row
-        var spanClass = (f.type === 'json' || f.type === 'richtext' || f.type === 'textarea') ? 'grid-column: 1 / -1;' : '';
+        var spanClass = (f.type === 'json' || f.type === 'richtext' || f.type === 'textarea' || f.type === 'longtext') ? 'grid-column: 1 / -1;' : '';
         
         html += `<div class="form-group" style="${spanClass}"><label>${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
         
-        if (f.type === 'select') { 
+        // Add this rule right above the textarea check
+        if (f.type === 'longtext') {
+          html += `<input type="text" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="longtext" value="${val}" ${f.required ? 'required' : ''}>`;
+        } else if (f.type === 'select') {
           // ADDED: Support for System Lookups
           if (f.options && f.options.startsWith('SYS_LOOKUP:')) {
             html += `<select id="dyn-cf-${f.id}" class="form-control dyn-cf dynamic-lookup" data-id="${f.id}" data-type="select" data-lookup="${f.options}" data-value="${val}" ${f.required ? 'required' : ''}><option value="">Loading...</option></select>`;
@@ -750,7 +794,9 @@
         }
       } else if (sf.type === 'textarea') { 
         inputHtml = `<textarea class="form-control rep-input" data-key="${safeK}" style="height:40px;">${val}</textarea>`; 
-      } else if (sf.type === 'checkbox') { 
+      } else if (sf.type === 'longtext') { 
+        inputHtml = `<input type="text" class="form-control rep-input" data-key="${safeK}" value="${val}">`; 
+      } else if (sf.type === 'checkbox') {
         inputHtml = `<select class="form-control rep-input" data-key="${safeK}"><option value="false" ${val === 'false' ? 'selected' : ''}>No</option><option value="true" ${val === 'true' ? 'selected' : ''}>Yes</option></select>`; 
       } else if (sf.type && sf.type.startsWith('file-')) {
         var isMult = sf.type === 'file-multiple' ? 'multiple' : '';
@@ -764,8 +810,8 @@
       return `<div class="form-group"><label>${sf.label}</label>${inputHtml}</div>`;
     }).join('');
     
-    // Add grid layout to the repeater subfields
-    row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; padding-right: 30px;">${inputs}</div>`;
+    // Add grid layout to the repeater subfields (Forcing larger columns to limit items per row)
+    row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap:15px; padding-right: 30px;">${inputs}</div>`;
     
     c.appendChild(row);
     
@@ -852,19 +898,56 @@
      ======================================================================== */
   function handleSaveClientsConfig(e) {
     if (e) e.preventDefault();
+    
+    // 1. Gather Accordion Groups
     const accordionGroups = [];
     document.querySelectorAll('.accordion-grp-row').forEach(row => {
-      accordionGroups.push({ id: row.dataset.id, label: row.querySelector('.acc-label').value, isDefault: row.dataset.def === 'true' });
-    });
-    const customFields = [];
-    document.querySelectorAll('.cf-row').forEach(row => {
-      customFields.push({
-        label: row.querySelector('.cf-label').value, id: row.querySelector('.cf-id').value, type: row.querySelector('.cf-type').value,
-        required: row.querySelector('.cf-req').value === 'true', groupId: row.querySelector('.cf-grp').value,
-        options: row.querySelector('.cf-opts') ? row.querySelector('.cf-opts').value : ""
+      accordionGroups.push({ 
+        id: row.dataset.id, 
+        label: row.querySelector('.acc-label').value, 
+        isDefault: row.dataset.def === 'true' 
       });
     });
-    const payload = { clientRole: document.getElementById('edt-client-role-select').value, accordionGroups: accordionGroups, customFields: customFields };
+    
+    // 2. Gather Custom Fields (with JSON subfield support)
+    const customFields = [];
+    document.querySelectorAll('.cf-row').forEach(row => {
+      var type = row.querySelector('.cf-type').value;
+      var optionsStr = "";
+      
+      // FIX: If it is a JSON field, loop through its specific subfield rows!
+      if (type === 'json') {
+        var subfields = [];
+        row.querySelectorAll('.json-sf-row').forEach(sfRow => {
+          subfields.push({
+            label: sfRow.querySelector('.sf-label').value,
+            type: sfRow.querySelector('.sf-type').value,
+            options: sfRow.querySelector('.sf-opts').value
+          });
+        });
+        optionsStr = JSON.stringify(subfields);
+      } else {
+        // Otherwise, just grab the standard options box
+        optionsStr = row.querySelector('.cf-opts') ? row.querySelector('.cf-opts').value : "";
+      }
+
+      customFields.push({
+        label: row.querySelector('.cf-label').value, 
+        id: row.querySelector('.cf-id').value, 
+        type: type,
+        required: row.querySelector('.cf-req').value === 'true', 
+        groupId: row.querySelector('.cf-grp').value,
+        options: optionsStr
+      });
+    });
+    
+    // 3. Build Payload & Save
+    const payload = { 
+      clientRole: document.getElementById('edt-client-role-select').value, 
+      accordionGroups: accordionGroups, 
+      customFields: customFields 
+    };
+    
     const btn = e.target;
     const originalText = btn.innerHTML;
     btn.disabled = true;
@@ -876,18 +959,16 @@
         btn.innerHTML = originalText;
         if (res.success) {
           CLIENTS_CONFIG = payload;
-          
-          // FIX: Force view switch and refresh RO rendering
           toggleModuleEdit('clients', false);
           renderRoClientsConfig();
-          
           if(typeof showToast === 'function') showToast("Success", "Clients configuration saved locally.", "success");
         } else {
           if(typeof showToast === 'function') showToast("Error", res.error || "Failed to save.", "danger");
         }
       })
       .withFailureHandler(err => {
-        btn.disabled = false; btn.innerHTML = originalText;
+        btn.disabled = false; 
+        btn.innerHTML = originalText;
         if(typeof showToast === 'function') showToast("Critical Error", err.message, "danger");
       })
       .saveClientsModuleConfig(payload);
@@ -911,10 +992,10 @@
       pFirstName: document.getElementById('dyn-core-pFirstName').value, 
       pLastName: document.getElementById('dyn-core-pLastName').value, 
       pEmail: document.getElementById('dyn-core-pEmail').value, 
-      pPhone: document.getElementById('dyn-core-pPhone').value, 
-      startDate: document.getElementById('dyn-core-startDate').value, 
-      currentStartDate: document.getElementById('dyn-core-startDate').value, 
-      rate: document.getElementById('dyn-core-rate').value, 
+      pPhone: document.getElementById('dyn-core-pPhone').value,
+       startDate: document.getElementById('dyn-core-startDate') ? document.getElementById('dyn-core-startDate').value : '', 
+      expDate: document.getElementById('dyn-core-expDate') ? document.getElementById('dyn-core-expDate').value : '', 
+      rate: document.getElementById('dyn-core-rate') ? document.getElementById('dyn-core-rate').value : '',
       termUnit: document.getElementById('dyn-core-termUnit').value, 
       termCount: document.getElementById('dyn-core-termCount').value, 
       status: document.getElementById('dyn-core-status').value 
