@@ -202,8 +202,15 @@
 
   function initClientsModule() { 
     switchView('clientListView'); 
-    loadClientsTable(); 
-    loadServicesTable(); 
+    
+    // Step 1: Fetch Services first to ensure they are available for any form rendering
+    google.script.run.withSuccessHandler(res => { 
+      GLOBAL_SERVICES = res.data || []; 
+      
+      // Step 2: Once services are in memory, load the tables
+      loadClientsTable(); 
+      renderServicesTable(); // Helper added below to separate DOM rendering from data fetching
+    }).getServicesList();
   }
 
   /* ========================================================================
@@ -219,29 +226,33 @@
     }).getClientsList();
   }
 
-  function loadServicesTable() {
+  /**
+   * Handles the physical rendering of the services table.
+   */
+  function renderServicesTable() {
     var tbody = document.getElementById('servicesTableBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">Loading services...</td></tr>';
+    if (!tbody) return;
     
-    google.script.run.withSuccessHandler(res => { 
-      GLOBAL_SERVICES = res.data || []; 
-      
-      if (GLOBAL_SERVICES.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">No services defined.</td></tr>';
-        return;
-      }
-      
-      tbody.innerHTML = GLOBAL_SERVICES.map(s => `
-        <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>${s.description}</td>
-          <td>${s.status}</td>
-          <td style="text-align:right;">
-            <button class="btn-edit" onclick="openServiceForm(${s.rowIndex})">Edit</button>
-          </td>
-        </tr>
-      `).join(''); 
-    }).getServicesList();
+    if (GLOBAL_SERVICES.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">No services defined.</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = GLOBAL_SERVICES.map(s => `
+      <tr>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.description}</td>
+        <td>${s.status}</td>
+        <td style="text-align:right;">
+          <button class="btn-edit" onclick="openServiceForm(${s.rowIndex})">Edit</button>
+        </td>
+      </tr>
+    `).join(''); 
+  }
+
+  // Legacy wrapper to maintain compatibility
+  function loadServicesTable() {
+    renderServicesTable();
   }
 
   /* ========================================================================
@@ -489,14 +500,13 @@
     `;
     container.appendChild(row);
   }
-
+  
   function buildDynamicForm(mode, data) {
     var target = document.getElementById('dyn-accordions-render-target'); 
     target.innerHTML = '';
     
     var addl = {}; 
     try { addl = JSON.parse(data.addlFields || "{}"); } catch (e) {}
-    
     var srvArr = (data.services || "").split(',').map(s => s.trim());
     
     CLIENTS_CONFIG.accordionGroups.forEach((grp, idx) => {
@@ -506,198 +516,91 @@
         </button>
         <div class="panel" style="display: ${idx === 0 ? 'block' : 'none'}; padding-top:15px;">
       `;
+
+      // Wrapper forcing 2-column max but allowing spanning
+      html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">`;
       
       if (grp.id === 'grp_client') {
-        var statusHtml = '';
-        if (mode === 'edit') {
-          statusHtml = `
-            <div class="form-group">
-              <label>Status</label>
-              <select id="dyn-core-status" class="form-control dyn-core">
-                <option value="Onboarding" ${data.status === 'Onboarding' ? 'selected' : ''}>Onboarding</option>
-                <option value="Active" ${data.status === 'Active' ? 'selected' : ''}>Active</option>
-              </select>
-            </div>
-          `;
-          html += `
-            <div class="form-row">
-              <div class="form-group">
-                <label>Company Name *</label>
-                <input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName || ''}" required>
-              </div>
-              ${statusHtml}
-            </div>
-          `;
-        } else {
-          statusHtml = `<input type="hidden" id="dyn-core-status" value="Onboarding">`;
-          html += `
-            <div class="form-group" style="margin-bottom: 20px;">
-              <label>Company Name *</label>
-              <input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName || ''}" required>
-            </div>
-            ${statusHtml}
-          `;
-        }
-        
         html += `
-          <div class="form-row" style="margin-bottom: 20px;">
-            <div class="form-group" style="width: 100%;">
-              <label>Address</label>
-              <input type="text" id="dyn-core-address" class="form-control dyn-core" value="${data.address || ''}">
-            </div>
+          <div class="form-group">
+            <label>Company Name *</label>
+            <input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName || ''}" required>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Company Email</label>
-              <input type="email" id="dyn-core-companyEmail" class="form-control dyn-core" value="${data.companyEmail || ''}">
-            </div>
-            <div class="form-group">
-              <label>Company Phone</label>
-              <input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone || ''}">
-            </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="dyn-core-status" class="form-control dyn-core">
+              <option value="Onboarding" ${data.status === 'Onboarding' ? 'selected' : ''}>Onboarding</option>
+              <option value="Active" ${data.status === 'Active' ? 'selected' : ''}>Active</option>
+            </select>
           </div>
-          <div class="form-row" style="margin-bottom: 20px;">
-            <div class="form-group" style="width: 100%;">
-              <label>Website</label>
-              <input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website || ''}">
-            </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Address</label>
+            <input type="text" id="dyn-core-address" class="form-control dyn-core" value="${data.address || ''}">
+          </div>
+          <div class="form-group">
+            <label>Company Email</label>
+            <input type="email" id="dyn-core-companyEmail" class="form-control dyn-core" value="${data.companyEmail || ''}">
+          </div>
+          <div class="form-group">
+            <label>Company Phone</label>
+            <input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone || ''}">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Website</label>
+            <input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website || ''}">
           </div>
         `;
       }
       
       if (grp.id === 'grp_contact') {
         html += `
-          <div class="form-row">
-            <div class="form-group">
-              <label>First Name *</label>
-              <input type="text" id="dyn-core-pFirstName" class="form-control dyn-core" value="${data.pFirstName || ''}" required>
-            </div>
-            <div class="form-group">
-              <label>Last Name *</label>
-              <input type="text" id="dyn-core-pLastName" class="form-control dyn-core" value="${data.pLastName || ''}" required>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Email *</label>
-              <input type="email" id="dyn-core-pEmail" class="form-control dyn-core" value="${data.pEmail || ''}" required>
-            </div>
-            <div class="form-group">
-              <label>Phone</label>
-              <input type="text" id="dyn-core-pPhone" class="form-control dyn-core" value="${data.pPhone || ''}">
-            </div>
-          </div>
+          <div class="form-group"><label>First Name *</label><input type="text" id="dyn-core-pFirstName" class="form-control dyn-core" value="${data.pFirstName || ''}" required></div>
+          <div class="form-group"><label>Last Name *</label><input type="text" id="dyn-core-pLastName" class="form-control dyn-core" value="${data.pLastName || ''}" required></div>
+          <div class="form-group"><label>Email *</label><input type="email" id="dyn-core-pEmail" class="form-control dyn-core" value="${data.pEmail || ''}" required></div>
+          <div class="form-group"><label>Phone</label><input type="text" id="dyn-core-pPhone" class="form-control dyn-core" value="${data.pPhone || ''}"></div>
         `;
       }
       
       if (grp.id === 'grp_contract') {
-        if (mode === 'add') {
-          html += `
-            <div class="form-row">
-              <div class="form-group">
-                <label>Start Date *</label>
-                <input type="date" id="dyn-core-startDate" class="form-control dyn-core" required>
-              </div>
-              <div class="form-group">
-                <label>Expiration Date *</label>
-                <input type="date" id="dyn-core-expDate" class="form-control dyn-core" required>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Rate ($)</label>
-                <input type="number" id="dyn-core-rate" class="form-control dyn-core">
-              </div>
-            </div>
-          `;
-        } else {
-          // Edit mode: show Read-Only originals, and allow editing current dates
-          html += `
-            <div class="form-row">
-              <div class="form-group">
-                <label>Original Start Date</label>
-                <input type="date" class="form-control dyn-core" value="${data.origStartDate ? new Date(data.origStartDate).toISOString().split('T')[0] : ''}" readonly style="background:#f1f5f9; cursor:not-allowed;" title="Original Start Date">
-              </div>
-              <div class="form-group">
-                <label>Original Expiration</label>
-                <input type="date" class="form-control dyn-core" value="${data.origExpDate ? new Date(data.origExpDate).toISOString().split('T')[0] : ''}" readonly style="background:#f1f5f9; cursor:not-allowed;" title="Original Expiration Date">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Current Start Date *</label>
-                <input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${data.currentStartDate ? new Date(data.currentStartDate).toISOString().split('T')[0] : ''}" required>
-              </div>
-              <div class="form-group">
-                <label>Current End Date *</label>
-                <input type="date" id="dyn-core-expDate" class="form-control dyn-core" value="${data.currentExpDate ? new Date(data.currentExpDate).toISOString().split('T')[0] : ''}" required>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Rate ($)</label>
-                <input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}">
-              </div>
-            </div>
-          `;
-        }
-        
+        var startVal = mode === 'edit' ? (data.currentStartDate ? new Date(data.currentStartDate).toISOString().split('T')[0] : '') : '';
+        var expVal = mode === 'edit' ? (data.currentExpDate ? new Date(data.currentExpDate).toISOString().split('T')[0] : '') : '';
+
         html += `
-          <div class="form-row">
-            <div class="form-group">
-              <label>Term Unit</label>
-              <select id="dyn-core-termUnit" class="form-control dyn-core" onchange="handleTermUnitChange(this)">
-                <option value="Days" ${data.termUnit === 'Days' ? 'selected' : ''}>Days</option>
-                <option value="Weeks" ${data.termUnit === 'Weeks' ? 'selected' : ''}>Weeks</option>
-                <option value="Months" ${data.termUnit === 'Months' ? 'selected' : ''}>Months</option>
-                <option value="Years" ${data.termUnit === 'Years' ? 'selected' : ''}>Years</option>
-                <option value="One-time" ${data.termUnit === 'One-time' ? 'selected' : ''}>One-time</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Term Count</label>
-              <input type="number" id="dyn-core-termCount" class="form-control dyn-core" value="${data.termCount || '1'}">
-            </div>
-          </div>
-        `;
-        
-        var sbox = GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => `
-          <label>
-            <input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name) ? 'checked' : ''}> 
-            ${s.name}
-          </label>
-        `).join('');
-        
-        html += `
+          <div class="form-group"><label>Start Date *</label><input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${startVal}" required></div>
+          <div class="form-group"><label>Expiration Date *</label><input type="date" id="dyn-core-expDate" class="form-control dyn-core" value="${expVal}" required></div>
+          <div class="form-group"><label>Rate ($)</label><input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}"></div>
           <div class="form-group">
+            <label>Term Unit</label>
+            <select id="dyn-core-termUnit" class="form-control dyn-core" onchange="handleTermUnitChange(this)">
+              <option value="Days" ${data.termUnit === 'Days' ? 'selected' : ''}>Days</option>
+              <option value="Weeks" ${data.termUnit === 'Weeks' ? 'selected' : ''}>Weeks</option>
+              <option value="Months" ${data.termUnit === 'Months' ? 'selected' : ''}>Months</option>
+              <option value="Years" ${data.termUnit === 'Years' ? 'selected' : ''}>Years</option>
+              <option value="One-time" ${data.termUnit === 'One-time' ? 'selected' : ''}>One-time</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Term Count</label><input type="number" id="dyn-core-termCount" class="form-control dyn-core" value="${data.termCount || '1'}"></div>
+          <div class="form-group" style="grid-column: 1 / -1;">
             <label>Services Included</label>
-            <div class="checkbox-group" id="dyn-core-services" style="display:flex; gap:15px;">
-              ${sbox || 'No services defined'}
+            <div class="checkbox-group" id="dyn-core-services" style="display:flex; flex-wrap:wrap; gap:15px; margin-top:5px;">
+              ${GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name) ? 'checked' : ''}> ${s.name}</label>`).join('') || 'No services defined'}
             </div>
           </div>
         `;
       }
 
+      // Dynamic Custom Fields Logic (Uniform 2-Column enforcement)
       var cFields = CLIENTS_CONFIG.customFields.filter(f => f.groupId === grp.id);
-      
-      // ADDED: CSS Grid Wrapper to force side-by-side layout
-      if (cFields.length > 0) {
-        html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">`;
-      }
-
       cFields.forEach(f => {
         var val = addl[f.id] !== undefined ? addl[f.id] : '';
+        // Expansion Rule: Occupy full row for large content types
+        var spanStyle = (f.type === 'json' || f.type === 'richtext' || f.type === 'textarea' || f.type === 'longtext') ? 'grid-column: 1 / -1;' : '';
         
-        // Let large text/json fields span the entire row
-        var spanClass = (f.type === 'json' || f.type === 'richtext' || f.type === 'textarea' || f.type === 'longtext') ? 'grid-column: 1 / -1;' : '';
+        html += `<div class="form-group" style="${spanStyle}"><label>${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
         
-        html += `<div class="form-group" style="${spanClass}"><label>${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
-        
-        // Add this rule right above the textarea check
         if (f.type === 'longtext') {
           html += `<input type="text" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="longtext" value="${val}" ${f.required ? 'required' : ''}>`;
         } else if (f.type === 'select') {
-          // ADDED: Support for System Lookups
           if (f.options && f.options.startsWith('SYS_LOOKUP:')) {
             html += `<select id="dyn-cf-${f.id}" class="form-control dyn-cf dynamic-lookup" data-id="${f.id}" data-type="select" data-lookup="${f.options}" data-value="${val}" ${f.required ? 'required' : ''}><option value="">Loading...</option></select>`;
           } else {
@@ -712,56 +615,20 @@
         } else if (f.type === 'json') { 
           var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
           html += `<div id="json-rep-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="json"></div><button type="button" class="btn-add-row" onclick="addRepeaterRow('json-rep-${f.id}', '${encodedOptions}')">+ Add Item</button>`; 
-        } else if (f.type && f.type.startsWith('file-')) {
-          // ADDED: Support for HTML5 file types and extensions
-          var isMult = f.type === 'file-multiple' ? 'multiple' : '';
-          var accpt = f.options ? `accept="${f.options.replace(/ /g,'')}"` : '';
-          html += `<input type="file" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="${f.type}" ${isMult} ${accpt} ${f.required && !val ? 'required' : ''}>`;
-          if (val) html += `<small style="display:block; margin-top:5px; color:#3b82f6;">Tracked IDs: ${val}</small>`;
         } else { 
           html += `<input type="${f.type}" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="${f.type}" value="${val}" ${f.required ? 'required' : ''}>`; 
         }
-        
         html += `</div>`;
       });
       
-      // Close the CSS Grid Wrapper
-      if (cFields.length > 0) {
-        html += `</div>`;
-      }
-      
-      html += `</div>`; 
+      html += `</div></div>`; // Close grid and panel
       target.innerHTML += html;
     });
 
-    // Post-Render Init
+    // Post-Render Initialize components
     CLIENTS_CONFIG.customFields.filter(f => f.type === 'richtext').forEach(f => { 
       ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); 
     });
-    
-    var tu = document.getElementById('dyn-core-termUnit'); 
-    if (tu) handleTermUnitChange(tu);
-
-    if (mode === 'edit') {
-      CLIENTS_CONFIG.customFields.filter(f => f.type === 'json').forEach(f => { 
-        var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
-        try { 
-          var arrJ = JSON.parse(addl[f.id] || "[]"); 
-          if (arrJ.length > 0) {
-            arrJ.forEach(obj => addRepeaterRow('json-rep-' + f.id, encodedOptions, obj)); 
-          } else {
-            addRepeaterRow('json-rep-' + f.id, encodedOptions); 
-          }
-        } catch (e) { 
-          addRepeaterRow('json-rep-' + f.id, encodedOptions); 
-        } 
-      });
-    } else { 
-      CLIENTS_CONFIG.customFields.filter(f => f.type === 'json').forEach(f => { 
-        addRepeaterRow('json-rep-' + f.id, btoa(unescape(encodeURIComponent(f.options || "[]")))); 
-      });
-    }
-    // Trigger dynamic lookups once the form is fully drawn
     if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
   }
 
@@ -770,11 +637,7 @@
     if (!c) return;
     
     var subfields = []; 
-    try { 
-      // Your original safe decoding block
-      subfields = JSON.parse(decodeURIComponent(escape(atob(encodedSfDef)))); 
-    } catch (e) {}
-    
+    try { subfields = JSON.parse(decodeURIComponent(escape(atob(encodedSfDef)))); } catch (e) {}
     if (subfields.length === 0) return;
 
     var row = document.createElement('div'); 
@@ -784,6 +647,8 @@
       var safeK = sf.label.replace(/[^a-zA-Z0-9]/g, '_');
       var val = existingObj[safeK] !== undefined ? existingObj[safeK] : '';
       var inputHtml = '';
+      // Expansion logic for repeater subfields
+      var spanStyle = (sf.type === 'textarea' || sf.type === 'longtext' || sf.type === 'address') ? 'grid-column: 1 / -1;' : '';
       
       if (sf.type === 'select') {
         if (sf.options && sf.options.startsWith('SYS_LOOKUP:')) {
@@ -793,29 +658,18 @@
           inputHtml = `<select class="form-control rep-input" data-key="${safeK}"><option value="">Select...</option>${opts}</select>`; 
         }
       } else if (sf.type === 'textarea') { 
-        inputHtml = `<textarea class="form-control rep-input" data-key="${safeK}" style="height:40px;">${val}</textarea>`; 
-      } else if (sf.type === 'longtext') { 
-        inputHtml = `<input type="text" class="form-control rep-input" data-key="${safeK}" value="${val}">`; 
-      } else if (sf.type === 'checkbox') {
-        inputHtml = `<select class="form-control rep-input" data-key="${safeK}"><option value="false" ${val === 'false' ? 'selected' : ''}>No</option><option value="true" ${val === 'true' ? 'selected' : ''}>Yes</option></select>`; 
-      } else if (sf.type && sf.type.startsWith('file-')) {
-        var isMult = sf.type === 'file-multiple' ? 'multiple' : '';
-        var accpt = sf.options ? `accept="${sf.options.replace(/ /g,'')}"` : '';
-        inputHtml = `<input type="file" class="form-control rep-input" data-key="${safeK}" ${isMult} ${accpt}>`;
-        if (val) inputHtml += `<small style="display:block; color:#3b82f6;">Tracked</small>`;
+        inputHtml = `<textarea class="form-control rep-input" data-key="${safeK}" style="height:60px;">${val}</textarea>`; 
       } else { 
-        inputHtml = `<input type="${sf.type}" class="form-control rep-input" data-key="${safeK}" value="${val}">`; 
+        inputHtml = `<input type="${sf.type === 'longtext' ? 'text' : sf.type}" class="form-control rep-input" data-key="${safeK}" value="${val}">`; 
       }
       
-      return `<div class="form-group"><label>${sf.label}</label>${inputHtml}</div>`;
+      return `<div class="form-group" style="${spanStyle}"><label>${sf.label}</label>${inputHtml}</div>`;
     }).join('');
     
-    // Add grid layout to the repeater subfields (Forcing larger columns to limit items per row)
-    row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap:15px; padding-right: 30px;">${inputs}</div>`;
+    // Enforce 350px min-width to ensure maximum 2 fields per row in the repeater
+    row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap:15px; padding-right: 30px;">${inputs}</div>`;
     
     c.appendChild(row);
-    
-    // Fetch dropdowns if a new row was just added via button click
     if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
   }
 
@@ -993,7 +847,7 @@
       pLastName: document.getElementById('dyn-core-pLastName').value, 
       pEmail: document.getElementById('dyn-core-pEmail').value, 
       pPhone: document.getElementById('dyn-core-pPhone').value,
-       startDate: document.getElementById('dyn-core-startDate') ? document.getElementById('dyn-core-startDate').value : '', 
+      startDate: document.getElementById('dyn-core-startDate') ? document.getElementById('dyn-core-startDate').value : '', 
       expDate: document.getElementById('dyn-core-expDate') ? document.getElementById('dyn-core-expDate').value : '', 
       rate: document.getElementById('dyn-core-rate') ? document.getElementById('dyn-core-rate').value : '',
       termUnit: document.getElementById('dyn-core-termUnit').value, 
