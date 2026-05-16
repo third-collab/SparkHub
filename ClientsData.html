@@ -203,13 +203,19 @@
   function initClientsModule() { 
     switchView('clientListView'); 
     
-    // Step 1: Fetch Services first to ensure they are available for any form rendering
     google.script.run.withSuccessHandler(res => { 
       GLOBAL_SERVICES = res.data || []; 
       
-      // Step 2: Once services are in memory, load the tables
       loadClientsTable(); 
-      renderServicesTable(); // Helper added below to separate DOM rendering from data fetching
+      renderServicesTable();
+
+      // NEW: If the dynamic form is currently being built or is open, re-sync the services
+      var serviceContainer = document.getElementById('dyn-core-services');
+      if (serviceContainer && GLOBAL_SERVICES.length > 0) {
+        serviceContainer.innerHTML = GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => 
+          `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}"> ${s.name}</label>`
+        ).join('');
+      }
     }).getServicesList();
   }
 
@@ -583,7 +589,9 @@
           <div class="form-group" style="grid-column: 1 / -1;">
             <label>Services Included</label>
             <div class="checkbox-group" id="dyn-core-services" style="display:flex; flex-wrap:wrap; gap:15px; margin-top:5px;">
-              ${GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name) ? 'checked' : ''}> ${s.name}</label>`).join('') || 'No services defined'}
+              ${GLOBAL_SERVICES.length > 0 
+                ? GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name) ? 'checked' : ''}> ${s.name}</label>`).join('') 
+                : '<span style="color:#94a3b8; font-style:italic;">Loading available services...</span>'}
             </div>
           </div>
         `;
@@ -881,24 +889,27 @@
 
     var action = mode === 'add' ? createClientRecord : updateClientRecord;
     
-    google.script.run.withSuccessHandler(res => { 
-      btn.disabled = false; 
-      btn.innerText = "Save Profile"; 
-      
-      if (res.success) { 
-        loadClientsTable(); 
-        switchView('clientListView'); 
+    google.script.run
+      .withSuccessHandler(res => { 
+        btn.disabled = false; 
+        btn.innerText = "Save Profile"; 
+        if (res.success) { 
+          loadClientsTable(); 
+          switchView('clientListView'); 
+          if (typeof showSystemModal === 'function') showSystemModal("Success", "Profile saved."); 
+        } else { 
+          if (typeof showSystemModal === 'function') showSystemModal("Error", res.error); 
+        } 
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.innerText = "Save Profile";
         if (typeof showSystemModal === 'function') {
-          showSystemModal("Success", "Profile saved."); 
-        }
-      } else { 
-        if (typeof showSystemModal === 'function') {
-          showSystemModal("Error", res.error); 
+          showSystemModal("Critical Server Error", err.message);
         } else {
-          alert(res.error);
+          alert("Server Error: " + err.message);
         }
-      } 
-    })(payload);
+      })(payload);
   }
 
   function handleServiceSubmit(e) { 

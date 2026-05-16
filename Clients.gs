@@ -208,12 +208,18 @@ function saveServiceRecord(p) {
   }
 }
 
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: START]
+ * File: Clients.gs
+ * Fix: Re-ordered logic to ensure database commit before email triggers.
+ */
 function createClientRecord(p) {
   try {
     var sheet = getClientsSheet();
     var addl = {};
     try { addl = JSON.parse(p.addlFields || "{}"); } catch(e){}
     var brand = addl.brand_name || p.companyName;
+
     var newRow = new Array(26).fill("");
     newRow[0] = new Date(); 
     newRow[1] = "C-" + Math.floor(1000+Math.random()*9000); 
@@ -239,31 +245,39 @@ function createClientRecord(p) {
     newRow[24] = "[]";
     newRow[25] = "Onboarding";
 
+    // CORE ACTION: Write to sheet first!
     sheet.appendRow(newRow); 
     var targetRow = sheet.getLastRow() - 1;
 
-    var conf = getClientsModuleConfig().data; 
-    var targetRole = conf.clientRole || "Client";
+    // POST-SAVE ACTIONS (Wrapped in internal try/catch so they don't break the record creation)
     try {
+      var conf = getClientsModuleConfig().data; 
+      var targetRole = conf.clientRole || "Client";
       if (typeof saveUserRecord === 'function' && p.pEmail) {
         saveUserRecord({ username: p.pEmail, email: p.pEmail, firstName: p.pFirstName, lastName: p.pLastName, role: targetRole, status: "Active" });
       }
-    } catch(e) {}
 
-    var sysName = getSystemSettings().systemName || "SparkHub";
-    var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName };
-    SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
-    try {
-      var bccEmails = typeof getUsersList==='function' ? getUsersList().data.filter(function(u){return u.status==='Active'&&u.email;}).map(function(u){return u.email;}) : [];
-      if (bccEmails.length > 0) { 
-        dataMap.bcc = bccEmails.join(','); 
-        SystemEvent.emit("Clients", "ANNOUNCE_NEW", "Announcement", "INFO", brand, brand+" joined.", bccEmails[0], dataMap); 
+      var sysName = getSystemSettings().systemName || "SparkHub";
+      var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName };
+      
+      SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
+      
+      // Announcement Logic
+      if (typeof getUsersList === 'function') {
+        var staff = getUsersList().data.filter(function(u){ return u.status === 'Active' && u.email; });
+        if (staff.length > 0) {
+          var bccEmails = staff.map(function(u){ return u.email; }).join(',');
+          dataMap.bcc = bccEmails;
+          SystemEvent.emit("Clients", "ANNOUNCE_NEW", "Announcement", "INFO", brand, brand+" joined.", staff[0].email, dataMap); 
+        }
       }
-    } catch(e) {}
+    } catch(postError) {
+      console.warn("Client saved, but post-save actions failed: " + postError.message);
+    }
     
     return { success: true, rowIndex: targetRow };
   } catch (e) { 
-    return { error: e.message }; 
+    return { error: "Backend error: " + e.message };
   }
 }
 
