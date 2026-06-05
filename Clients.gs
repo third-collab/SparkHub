@@ -353,20 +353,36 @@ function getSystemDynamicLookups() {
   var lookups = { users: [], templates: [] };
   
   try {
-    var userDb = ensureSheet('W-USERS');
-    var uData = userDb.getDataRange().getValues();
-    for (var i = 1; i < uData.length; i++) {
-      if (uData[i][2] && uData[i][8] !== 'Inactive') lookups.users.push(uData[i][2]); // Email
+    var userDb = getMainDb().getSheetByName("Users");
+    if (userDb) {
+      var uData = userDb.getDataRange().getValues();
+      for (var i = 1; i < uData.length; i++) {
+        // Col B (1) is Username, Col C (2) is Role, Col F & G (5,6) are Names, Col H (7) is Status
+        if (uData[i][1] && uData[i][7] === 'Active') {
+          lookups.users.push({
+            username: uData[i][1],
+            name: uData[i][5] + " " + uData[i][6],
+            role: uData[i][2]
+          });
+        }
+      }
     }
-  } catch(e) {}
+  } catch(e) { console.warn("Dynamic Lookup Error (Users): " + e.message); }
   
   try {
-    var tplDb = ensureSheet('W-TEMPLATES');
-    var tData = tplDb.getDataRange().getValues();
-    for (var j = 1; j < tData.length; j++) {
-      if (tData[j][1] && tData[j][6] !== 'Inactive') lookups.templates.push(tData[j][1]); // Name
+    var tplDb = getMainDb().getSheetByName("Templates");
+    if (tplDb) {
+      var tData = tplDb.getDataRange().getValues();
+      for (var j = 1; j < tData.length; j++) {
+        // Col C (2) is Template Name, Col K (10) is Status
+        if (tData[j][2] && tData[j][10] === 'Active') {
+          lookups.templates.push({
+            name: tData[j][2]
+          });
+        }
+      }
     }
-  } catch(e) {}
+  } catch(e) { console.warn("Dynamic Lookup Error (Templates): " + e.message); }
   
   return lookups;
 }
