@@ -190,7 +190,6 @@ function performModuleInstallation(moduleName) {
         var wrappers = getWrappersList().filter(function(w) { return w.status === "Active"; });
         var extWrapper = wrappers.find(function(w) { return w.name.toLowerCase().includes("external") || w.name.toLowerCase().includes("client"); });
         if (extWrapper) extWrapperName = extWrapper.name;
-        
         var intWrapper = wrappers.find(function(w) { return w.name.toLowerCase().includes("internal") || w.name.toLowerCase().includes("user"); });
         if (intWrapper) intWrapperName = intWrapper.name;
       }
@@ -202,7 +201,6 @@ function performModuleInstallation(moduleName) {
 
     // 4. Dispatch the Event and the BCC Announcement
     SystemEvent.emit("Settings", "UPDATE", "Module Installed", "INFO", mName, "The " + mName + " module was successfully provisioned.", "System", {});
-    
     try {
       var bccEmails = [];
       if (typeof getUsersList === 'function') {
@@ -215,6 +213,33 @@ function performModuleInstallation(moduleName) {
         SystemEvent.emit("System", "MODULE_INSTALLED", "Module Installed", "INFO", mName, "The " + mName + " module was successfully installed.", adminEmail, { bcc: bccString, moduleName: mName });
       }
     } catch(e) { console.error("Announcement Error: " + e.message); }
+
+    // --- 5. SPARKHUB REGISTRY PING ---
+    try {
+      var masterSecret = props.getProperty('WEBHOOK_SECRET') || "SparkHub-Sec-92vM4xL7qP8nR3wK1bC6";
+      var clientId = props.getProperty('CLIENT_ID');
+      var instanceSecret = props.getProperty('INSTANCE_SECRET');
+
+      if (typeof MASTER_WEBHOOK_URL !== 'undefined' && MASTER_WEBHOOK_URL && clientId && instanceSecret) {
+        var payload = { 
+          action: "module_install", 
+          secretKey: masterSecret,
+          clientId: clientId, 
+          instanceSecret: instanceSecret,
+          moduleName: mName
+        };
+        
+        UrlFetchApp.fetch(MASTER_WEBHOOK_URL, { 
+          method: 'post', 
+          contentType: 'application/json', 
+          payload: JSON.stringify(payload), 
+          muteHttpExceptions: true 
+        });
+      }
+    } catch (e) {
+      console.warn("Registry module ping failed: " + e.message);
+    }
+    // ---------------------------------
 
     return "Success: Module '" + mName + "' installed and registered!";
   } catch (e) {
