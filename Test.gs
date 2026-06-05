@@ -1,16 +1,34 @@
-/*
-
-
-
-  <div id="ro-clients-core-config" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
+function testWebhookConnection() {
+  var props = PropertiesService.getScriptProperties();
+  var clientId = props.getProperty('CLIENT_ID');
+  var instanceSecret = props.getProperty('INSTANCE_SECRET');
   
-  <h4 class="settings-section-header">Form Accordions</h4>
-  <div id="ro-clients-accordions" style="background:var(--brand-bg); padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
+  Logger.log("Client ID: " + clientId);
+  Logger.log("Instance Secret: " + instanceSecret);
+  Logger.log("Webhook URL: " + MASTER_WEBHOOK_URL);
   
-  <h4 class="settings-section-header">Custom Fields</h4>
-  <div id="ro-clients-fields" style="background:var(--brand-bg); padding:20px; border-radius:8px; border:1px solid #e2e8f0;"></div>
-*/
-
+  if (!MASTER_WEBHOOK_URL || !clientId || !instanceSecret) {
+    Logger.log("FAILED: Missing required credentials or Webhook URL. Cannot send ping.");
+    return;
+  }
+  
+  var payload = { 
+    action: "module_install", 
+    secretKey: "SparkHub-Sec-92vM4xL7qP8nR3wK1bC6",
+    clientId: clientId, 
+    instanceSecret: instanceSecret,
+    moduleName: "DiagnosticTestModule"
+  };
+  
+  var response = UrlFetchApp.fetch(MASTER_WEBHOOK_URL, { 
+    method: 'post', 
+    contentType: 'application/json', 
+    payload: JSON.stringify(payload), 
+    muteHttpExceptions: true 
+  });
+  
+  Logger.log("REGISTRY RESPONSE: " + response.getContentText());
+}
 
 function testLinkTrackingAndSignature() {
   // Get the email of the person running the script (you)
