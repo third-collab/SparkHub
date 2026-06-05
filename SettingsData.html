@@ -388,6 +388,8 @@
 
   function handleSaveGeneralSettings(e) {
     if(e) e.preventDefault();
+    
+    // 1. Gather all standard text/color inputs
     const payload = {
       systemName: document.getElementById('edt-settings-sysname').value,
       environment: document.getElementById('edt-settings-env').value,
@@ -401,16 +403,47 @@
       themeBg: document.getElementById('edt-theme-bg').value
     };
     
-    toggleSettingsOverlay('edt-settings-overlay', true, 'Saving General Config...');
-    google.script.run.withSuccessHandler(res => {
-      toggleSettingsOverlay('edt-settings-overlay', false);
+    // 2. Check if a new logo was uploaded (it will be formatted as a base64 data string)
+    var logoSrc = document.getElementById('edt-settings-logo-preview').src;
+    
+    if (logoSrc.startsWith('data:image')) {
+      toggleSettingsOverlay('edt-settings-overlay', true, 'Uploading System Logo to Drive...');
       
-      // FIX: Force the view switch BEFORE doing anything else
-      toggleModuleEdit('core', false); 
-      
-      if(typeof showToast === 'function') showToast("Success", "Core system settings updated.", "success");
-      loadSettings();
-    }).saveGeneralSettings(payload);
+      // Upload the image first
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.id) { 
+            payload.systemLogoId = res.id; // Append the new Drive File ID to our payload
+          }
+          finishSave(payload);
+        })
+        .withFailureHandler(function(err) {
+          alert("Logo Upload Error: " + err.message);
+          finishSave(payload); // Attempt to save the rest of the settings anyway
+        })
+        .uploadSystemLogo(logoSrc, "system_logo.png");
+        
+    } else {
+      // No new image selected, just save the text fields immediately
+      finishSave(payload); 
+    }
+
+    // 3. The final save execution
+    function finishSave(p) {
+      toggleSettingsOverlay('edt-settings-overlay', true, 'Saving General Config...');
+      google.script.run
+        .withSuccessHandler(res => {
+          toggleSettingsOverlay('edt-settings-overlay', false);
+          toggleModuleEdit('core', false); 
+          if(typeof showToast === 'function') showToast("Success", "Core system settings updated.", "success");
+          loadSettings();
+        })
+        .withFailureHandler(err => {
+          toggleSettingsOverlay('edt-settings-overlay', false);
+          alert("Server Error: " + err.message);
+        })
+        .saveGeneralSettings(p);
+    }
   }
 
   /* ========================================================================
