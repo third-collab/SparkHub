@@ -19,35 +19,46 @@ function performUiInstallation(data) {
     props.setProperty('ROOT_FOLDER_ID', data.rootId);
     props.setProperty('SYSTEM_NAME', data.sysName);
     props.setProperty('ADMIN_EMAIL', installerEmail);
-
     // Set default communication and maintenance standards
     props.setProperty('LOGS_RETENTION_DAYS', '90'); 
     props.setProperty('TPL_WHITELIST', installerEmail);
     props.setProperty('TPL_DEFAULT_WRAPPER', 'Internal Communication');
     props.setProperty('TPL_LINK_TRACKING', 'false');
-
     props.setProperty('CLIENT_ID', "CID-" + Utilities.getUuid().substring(0, 8).toUpperCase());
     props.setProperty('INSTANCE_SECRET', Utilities.getUuid());
+    
+    // NEW: Save the Webhook Secret so daily cron jobs can authenticate!
+    var masterSecret = "SparkHub-Sec-92vM4xL7qP8nR3wK1bC6";
+    props.setProperty('WEBHOOK_SECRET', masterSecret);
     
     // Register the integrated UserBar plugin
     props.setProperty('INSTALLED_PLUGINS', 'UserBar');
 
     runInstallation();
     setupSystemTriggers();
-    
     // IMMUTABLE ANCHOR: Prevent concurrent write-locks from overwriting the User creation log
     Utilities.sleep(1500);
-    
     // Route the installation success via the Event Broker, passing the dynamic data
     SystemEvent.emit("System", "INSTALL", "System Installation", "WARN", "Core Architecture", "SparkHub core deployed.", installerEmail, { sysName: data.sysName, adminUsername: adminUsername });
-    
     props.setProperty('ENVIRONMENT', 'Sandbox');
     
     // IMMUTABLE ANCHOR: Master Webhook Reporting
     if (MASTER_WEBHOOK_URL) {
       var payload = { 
-        action: "install", clientId: props.getProperty('CLIENT_ID'), 
-        clientName: data.sysName, clientEmail: installerEmail, databaseId: props.getProperty('DATABASE_ID') 
+        action: "install", 
+        secretKey: masterSecret,
+        clientId: props.getProperty('CLIENT_ID'), 
+        clientName: data.sysName, 
+        clientEmail: installerEmail, 
+        version: SPARKHUB_VERSION,
+        appUrl: ScriptApp.getService().getUrl(),
+        timezone: Session.getScriptTimeZone(),
+        rootId: data.rootId,
+        databaseId: props.getProperty('DATABASE_ID'),
+        status: "Active",
+        lastPing: new Date().toISOString(),
+        instanceSecret: props.getProperty('INSTANCE_SECRET'),
+        date: new Date().toISOString()
       };
       UrlFetchApp.fetch(MASTER_WEBHOOK_URL, { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true });
     }

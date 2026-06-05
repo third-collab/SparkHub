@@ -88,6 +88,41 @@
     padding: 20px;
   }
 
+  /* --- System Overlays & Modals (Universal Spec) --- */
+  .system-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(241, 245, 249, 0.95); /* Matches --brand-bg with opacity */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    backdrop-filter: blur(5px);
+  }
+
+  .overlay-card {
+    background: white;
+    padding: 45px 40px;
+    border-radius: var(--border-radius-large);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+    border-top: 6px solid var(--brand-primary);
+    position: relative;
+    animation: fadeIn 0.4s ease-out;
+  }
+
+  .overlay-loading {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 40px 0;
+  }
+
   /* Standardized Section Headers (Used in Settings, Users, Clients) */
   .settings-section-header { 
     margin-top: 35px; 
