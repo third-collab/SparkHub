@@ -887,29 +887,28 @@
     
     payload.addlFields = JSON.stringify(addl);
 
-    var action = mode === 'add' ? createClientRecord : updateClientRecord;
-    
-    google.script.run
+    var runner = google.script.run
       .withSuccessHandler(res => { 
         btn.disabled = false; 
         btn.innerText = "Save Profile"; 
         if (res.success) { 
           loadClientsTable(); 
           switchView('clientListView'); 
-          if (typeof showSystemModal === 'function') showSystemModal("Success", "Profile saved."); 
         } else { 
-          if (typeof showSystemModal === 'function') showSystemModal("Error", res.error); 
+          alert("Error: " + res.error); 
         } 
       })
       .withFailureHandler(err => {
         btn.disabled = false;
         btn.innerText = "Save Profile";
-        if (typeof showSystemModal === 'function') {
-          showSystemModal("Critical Server Error", err.message);
-        } else {
-          alert("Server Error: " + err.message);
-        }
-      })(payload);
+        alert("Server Error: " + err.message);
+      });
+
+    if (mode === 'add') {
+      runner.createClientRecord(payload);
+    } else {
+      runner.updateClientRecord(payload);
+    }
   }
 
   function handleServiceSubmit(e) { 

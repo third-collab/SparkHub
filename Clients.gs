@@ -245,11 +245,12 @@ function createClientRecord(p) {
     newRow[24] = "[]";
     newRow[25] = "Onboarding";
 
-    // CORE ACTION: Write to sheet first!
+    // CORE ACTION: Write to sheet first, then FLUSH to guarantee read availability
     sheet.appendRow(newRow); 
+    SpreadsheetApp.flush(); 
+    
     var targetRow = sheet.getLastRow() - 1;
 
-    // POST-SAVE ACTIONS (Wrapped in internal try/catch so they don't break the record creation)
     try {
       var conf = getClientsModuleConfig().data; 
       var targetRole = conf.clientRole || "Client";
@@ -262,7 +263,6 @@ function createClientRecord(p) {
       
       SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
       
-      // Announcement Logic
       if (typeof getUsersList === 'function') {
         var staff = getUsersList().data.filter(function(u){ return u.status === 'Active' && u.email; });
         if (staff.length > 0) {
@@ -283,73 +283,49 @@ function createClientRecord(p) {
 
 function updateClientRecord(p) {
   try {
-    const sheet = getClientsSheet();
-    const data = sheet.getDataRange().getValues();
-    const rowIndex = parseInt(p.rowIndex, 10);
-    const oldRow = data[rowIndex];
+    var sheet = getClientsSheet();
+    var rowIdx = parseInt(p.rowIndex);
+    if (!rowIdx || rowIdx < 2) return { error: "Invalid row index." };
+
+    var data = sheet.getDataRange().getValues();
+    var row = data[rowIdx];
+    if (!row) return { error: "Record not found." };
+
+    var addl = {};
+    try { addl = JSON.parse(p.addlFields || "{}"); } catch(e){}
+    var brand = addl.brand_name || p.companyName;
+
+    row[2] = p.companyName; 
+    row[3] = p.address;
+    row[4] = p.companyEmail; 
+    row[5] = p.companyPhone; 
+    row[6] = p.website;
+    row[7] = p.pFirstName; 
+    row[8] = p.pLastName; 
+    row[9] = p.pEmail;
+    row[10] = p.pPhone;
+    row[11] = p.services; 
+    row[12] = p.rate; 
+    row[13] = p.termUnit; 
+    row[14] = p.termCount;
+    row[16] = p.startDate; 
+    row[18] = p.expDate; 
+    row[23] = p.addlFields || "{}"; 
+    row[25] = p.status;
+
+    // CORE ACTION: Update sheet, then FLUSH to guarantee read availability
+    sheet.getRange(rowIdx + 1, 1, 1, 26).setValues([row]);
+    SpreadsheetApp.flush(); 
     
-    if (!oldRow) throw new Error("Could not find record at row " + rowIndex);
+    try {
+      var sysName = getSystemSettings().systemName || "SparkHub";
+      var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "systemName": sysName };
+      SystemEvent.emit("Clients", "UPDATE", "Client Updated", "INFO", brand, "Profile updated.", p.pEmail || "no-reply@local", dataMap);
+    } catch(postError) {}
 
-    // 1. Detect Status Change for Event Broker
-    const oldStatus = oldRow[25];
-    const newStatus = p.status;
-    const hasStatusChanged = (oldStatus !== newStatus);
-
-    // 2. Prepare the Updated Row Array (Maintaining 26-column schema)
-    const newRow = [...oldRow]; 
-    while(newRow.length < 26) newRow.push("");
-
-    newRow[2]  = p.companyName; 
-    newRow[3]  = p.address;
-    newRow[4]  = p.companyEmail; 
-    newRow[5]  = p.companyPhone; 
-    newRow[6]  = p.website; 
-    newRow[7]  = p.pFirstName; 
-    newRow[8]  = p.pLastName; 
-    newRow[9]  = p.pEmail;
-    newRow[10] = p.pPhone; 
-    newRow[11] = p.services; 
-    newRow[12] = p.rate; 
-    newRow[13] = p.termUnit; 
-    newRow[14] = p.termCount; 
-    newRow[16] = p.currentStartDate;
-    newRow[18] = p.currentExpDate;
-    
-    // Handle End Date logic: Store original if first time, else update latest
-    if (!oldRow[19]) { 
-      newRow[19] = p.endDate; 
-      newRow[20] = p.endDate; 
-    } else { 
-      newRow[20] = p.endDate; 
-    }
-    
-    newRow[22] = p.remarks; 
-    newRow[23] = p.addlFields; 
-    newRow[25] = p.status;            
-
-    // 3. Physical Write to Sheet (rowIndex + 1 for 1-based indexing)
-    sheet.getRange(rowIndex + 1, 1, 1, newRow.length).setValues([newRow]);
-
-    // 4. Emit Status Change Event if applicable
-    if (hasStatusChanged) {
-      const brand = p.companyName || "Unknown Brand";
-      SystemEvent.emit(
-        "Clients", 
-        "STATUS_CHANGE", 
-        "Client Status Updated", 
-        "WARN", 
-        brand, 
-        `Status changed from ${oldStatus} to ${newStatus}.`,
-        p.pEmail || "system",
-        { oldStatus: oldStatus, newStatus: newStatus }
-      );
-    }
-
-    return { success: true, message: "Client record updated successfully." };
-
+    return { success: true, rowIndex: rowIdx };
   } catch (e) {
-    console.error("updateClientRecord error: " + e.message);
-    return { error: "Update failed: " + e.message };
+    return { error: "Backend error: " + e.message };
   }
 }
 
