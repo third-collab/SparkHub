@@ -114,8 +114,8 @@ function seedClientsTemplates(extWrapperName, intWrapperName) {
  * ========================================================================
  */
 
-function getClientsList() {
-  try {
+function getClientsList() { 
+  try { 
     var sheet = getClientsSheet();
     var data = sheet.getDataRange().getValues(); var clients = [];
     for (var i = 1; i < data.length; i++) {
@@ -198,13 +198,17 @@ function saveServiceRecord(p) {
     var sheet = getClientsDb().getSheetByName("Services");
     if (p.rowIndex) { 
       sheet.getRange(parseInt(p.rowIndex,10)+1, 3, 1, 3).setValues([[p.name, p.description, p.status]]); 
+      
+      SpreadsheetApp.flush(); // <--- FIX: Forces the database save to complete immediately
       return { success: true };
     } else { 
-      sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]); 
+      sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]);
+      
+      SpreadsheetApp.flush(); // <--- FIX: Forces the database save to complete immediately
       return { success: true };
     }
   } catch(e) { 
-    return { error: e.message }; 
+    return { error: e.message };
   }
 }
 
@@ -336,11 +340,11 @@ function updateClientRecord(p) {
  */
 
 function getClientsDb() { 
-  var id = PropertiesService.getScriptProperties().getProperty('CLIENTS_DB_ID'); 
+  var id = PropertiesService.getScriptProperties().getProperty('CLIENTS_DB_ID');
   return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.openById(setupClientsDatabase().dbId); 
 }
 
-function getClientsSheet() { 
+function getClientsSheet() {
   var ss = getClientsDb(); 
   var s = ss.getSheetByName("Clients"); 
   return s ? s : ss.insertSheet("Clients"); 
