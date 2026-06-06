@@ -5,10 +5,48 @@
   SYNC STATUS: Fully Synchronized with Clients.gs
 -->
 <style>
+  /* --- Note Engine & Audit CSS --- */
+  .op-note-container { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.25s; border-left: 4px solid #cbd5e1; position: relative; }
+  .op-note-container:hover { border-color: var(--brand-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+  .note-handle { cursor: grab; color: #cbd5e1; padding: 5px; font-size: 20px; margin-right: 15px; }
+  .note-text-content { font-size: 14px; line-height: 1.6; color: #334155; flex: 1; cursor: pointer; }
+  .note-meta-line { font-size: 11px; color: #94a3b8; margin-top: 15px; padding-top: 10px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+  
+  .history-audit-entry { margin-bottom: 30px; border-left: 4px solid var(--brand-primary); padding-left: 20px; }
+  .history-diff-table { width: 100%; font-size: 13px; border-collapse: collapse; margin-top: 12px; background: #fff; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .history-diff-table th { background: #f1f5f9; color: #475569; padding: 12px; text-align: left; border: 1px solid #e2e8f0; }
+  .history-diff-table td { padding: 12px; border: 1px solid #e2e8f0; vertical-align: top; }
+  .diff-old-txt { color: #b91c1c; text-decoration: line-through; background: #fef2f2; padding: 2px 4px; border-radius: 3px; }
+  .diff-new-txt { color: #15803d; background: #f0fdf4; font-weight: 600; padding: 2px 4px; border-radius: 3px; }
+  
+  /* --- Read-Only Accordion CSS --- */
+  .ro-grid-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; margin-top: 15px; }
+  .ro-data-group { background: #fff; padding: 15px; border: 1px solid #f1f5f9; border-radius: 8px; }
+  .ro-data-label { color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 700; margin-bottom: 5px; }
+  .ro-data-value { font-size: 14px; color: #0f172a; font-weight: 500; }
+  .ro-json-table { width: 100%; font-size: 13px; border-collapse: collapse; margin-top: 10px; }
+  .ro-json-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; text-align: left; font-size: 11px; text-transform: uppercase; color: #64748b; }
+  .ro-json-table td { padding: 8px; border: 1px solid #e2e8f0; }
+
+  /* --- Dynamic Fields & Settings Layouts --- */
   .row-remove-btn { position: absolute; top: 10px; right: 10px; background: #fee2e2; color: #ef4444; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; }
   .ql-container.ql-snow { border: 1px solid #cbd5e1 !important; border-radius: 0 0 6px 6px; background:#fff; min-height: 120px;}
   .ql-toolbar.ql-snow { border: 1px solid #cbd5e1 !important; border-radius: 6px 6px 0 0; background: var(--brand-bg); }
-  .accordion-grp-row { display:flex; gap:15px; align-items:center; background:#fff; border:1px solid #e2e8f0; padding:15px; border-radius:8px; margin-bottom:10px; }
+  
+  .accordion-grp-row { display:block; background:#fff; border:1px solid #cbd5e1; padding:25px; border-radius:12px; margin-bottom:25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+  .fields-container { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 50px;}
+  .core-row { background: #fff; border: 1px dashed #94a3b8; display:flex; justify-content:space-between; align-items:center; padding: 12px 20px; border-radius: 8px; }
+  .cf-row { background: #fff; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; position: relative; }
+
+  /* --- Searchable Multi-Select UI Component Specs --- */
+  .searchable-multiselect-wrapper { position: relative; width: 100%; }
+  .multiselect-toggle-box { background: #fff; border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; color: #334155; display: flex; justify-content: space-between; align-items: center; min-height: 40px; box-sizing: border-box; }
+  .multiselect-dropdown-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 2100; margin-top: 4px; padding: 12px; max-height: 280px; overflow-y: auto; box-sizing: border-box; }
+  .multiselect-search-input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
+  .multiselect-search-input:focus { outline: none; border-color: var(--brand-primary); }
+  .multiselect-options-list { display: flex; flex-direction: column; gap: 4px; }
+  .multiselect-item-label { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; color: #334155; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
+  .multiselect-item-label:hover { background: #f1f5f9; }
 </style>
 
 <template class="module-card-template" data-category="operational" data-perm-category="Clients" data-perm-action="View Clients">
@@ -31,11 +69,8 @@
 
     <div id="ro-clients-core-config" style="background:#fff; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
   
-    <h4 class="settings-section-header">Form Accordions</h4>
+    <h4 class="settings-section-header">Form Accordions & Layout Hierarchy</h4>
     <div id="ro-clients-accordions" style="background:var(--brand-bg); padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom: 20px;"></div>
-    
-    <h4 class="settings-section-header">Custom Fields</h4>
-    <div id="ro-clients-fields" style="background:var(--brand-bg); padding:20px; border-radius:8px; border:1px solid #e2e8f0;"></div>
   </div>
 </template>
 
@@ -51,14 +86,13 @@
       <select id="edt-client-role-select" class="form-control" style="max-width: 400px;"></select>
     </div>
     
-    <h4 class="settings-section-header">Form Accordion Groups</h4>
-    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Define the logical sections of your client onboarding forms. Default groups cannot be removed.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h4 class="settings-section-header">Form Accordion Groups & Fields Workspace</h4>
+      <button type="button" class="btn-add-row" onclick="addAccordionGroupRow()">+ Add Accordion Group</button>
+    </div>
+    <p style="font-size: 13px; color: #64748b; margin-top:-10px; margin-bottom: 25px;">Define form steps and arrange system fields or add localized custom controls directly inside each section block. System fields cannot be deleted.</p>
+    
     <div id="edt-accordions-container" style="margin-bottom:20px;"></div>
-    <button type="button" class="btn-add-row" onclick="addAccordionGroupRow()">+ Add Accordion Group</button>
-
-    <h4 class="settings-section-header" style="margin-top:40px;">Dynamic Custom Fields</h4>
-    <div id="edt-clients-custom-fields-container" style="display:flex; flex-direction:column; gap:15px; margin-bottom:20px;"></div>
-    <button type="button" class="btn-add-row" onclick="addClientCustomFieldRow()">+ Add Custom Field</button>
     
     <div style="margin-top: 40px; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 20px;">
       <button type="button" class="btn-primary" onclick="handleSaveClientsConfig(event)" style="padding: 12px 30px;">Save Configuration</button>
@@ -93,7 +127,7 @@
             <th>Primary Contact</th>
             <th>Account Manager</th>
             <th>Status</th>
-            <th style="text-align:right;">Action</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="clientTableBody">
@@ -111,7 +145,7 @@
             <th>Service Name</th>
             <th>Description</th>
             <th>Status</th>
-            <th style="text-align:right;">Action</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="servicesTableBody"></tbody>
@@ -120,8 +154,84 @@
   </div>
 </div>
 
-<div id="dynamicClientFormView" class="container" style="display: none;">
+<div id="readOnlyClientView" class="container" style="display: none;">
   <button class="btn-dash-back" onclick="switchView('clientListView')">&#8592; Back to Registry</button>
+  <div class="form-wrapper">
+    <div id="ro-client-overlay" class="global-loading-overlay">
+      <div class="global-overlay-content">
+        <div class="spinner-core"></div>
+        <span>Opening Master Record...</span>
+      </div>
+    </div>
+    
+    <div id="ro-header-bar" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 30px;">
+       <div>
+          <h1 id="ro-title" style="margin:0; font-size: 32px; color: var(--brand-dark); font-weight: 900; letter-spacing: -1px;"></h1>
+          <p id="ro-subtitle" style="margin:10px 0 0 0; color:#64748b; font-size:18px; font-weight: 500;"></p>
+          <div id="ro-status-badge" style="margin-top:18px;"></div>
+       </div>
+       <div style="display:flex; gap:15px;">
+          <button id="ro-folder-btn" class="btn-edit" style="border-color:#cbd5e1; color:#475569; padding: 12px 24px;">Open Assets</button>
+          <button id="ro-edit-btn" class="btn-primary" style="padding: 12px 30px; font-weight: 700;">Edit Details</button>
+       </div>
+    </div>
+
+    <div class="tab-nav" style="margin-bottom: 35px;">
+      <button type="button" class="tab-btn active" id="btn-ro-details" onclick="navigateClientTab('ro', 'details')">Client Details</button>
+      <button type="button" class="tab-btn" id="btn-ro-opnotes" onclick="navigateClientTab('ro', 'opnotes')">Operational Notes</button>
+      <button type="button" class="tab-btn" id="btn-ro-history" onclick="navigateClientTab('ro', 'history')">Change History</button>
+    </div>
+
+    <div id="ro-details" class="tab-content" style="display: block;">
+       <div id="ro-accordions-render-target"></div>
+    </div>
+
+    <div id="ro-opnotes" class="tab-content" style="display: none;">
+      <div id="ro-opnotes-list" style="min-height: 200px;"></div>
+      <div id="ro-add-note-trigger" onclick="showQuickNoteInput()" style="background: #fff; border: 2px dashed #cbd5e1; padding: 30px; margin-top: 30px; border-radius: 12px; cursor: pointer; text-align: center; color: var(--brand-primary); font-weight: 800; font-size: 15px;">+ Append New Operational Note</div>
+      <div id="ro-quick-note-area" style="display: none; gap:15px; margin-top: 30px; background: #fff; padding: 30px; border-radius: 12px; border: 1px solid #e2e8f0; align-items: center;">
+        <input type="text" id="ro-quick-note-input" class="form-control" placeholder="Type operational note here..." style="flex:1; height: 50px;">
+        <button class="btn-primary" onclick="addQuickOpNote()" style="height: 50px; padding: 0 30px;">Save Note</button>
+        <button class="btn-reset-filters" onclick="hideQuickNoteInput()" style="height: 50px;">Cancel</button>
+      </div>
+    </div>
+
+    <div id="ro-history" class="tab-content" style="display: none;">
+       <div id="ro-history-list" style="margin-top:25px;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="readOnlyServiceView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="switchView('clientListView'); switchClientMasterTab('services');">&#8592; Back to Registry</button>
+  <div class="form-wrapper">
+    <div id="ro-header-bar-srv" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 30px;">
+       <div>
+          <h1 id="ro-srv-title" style="margin:0; font-size: 32px; color: var(--brand-dark); font-weight: 900; letter-spacing: -1px;"></h1>
+          <div id="ro-srv-status-badge" style="margin-top:18px;"></div>
+       </div>
+       <div style="display:flex; gap:15px;">
+          <button id="ro-srv-edit-btn" class="btn-primary" style="padding: 12px 30px; font-weight: 700;">Edit Service</button>
+       </div>
+    </div>
+
+    <div class="tab-nav" style="margin-bottom: 35px;">
+      <button type="button" class="tab-btn active" id="btn-ro-srv-overview" onclick="navigateClientTab('ro-srv', 'overview')">Service Details</button>
+    </div>
+
+    <div id="ro-srv-overview" class="tab-content" style="display: block;">
+       <div class="ro-grid-row" style="grid-template-columns: 1fr;">
+          <div class="ro-data-group">
+             <h4 class="ro-data-label">Description</h4>
+             <p id="ro-srv-desc-content" style="line-height: 1.6; color: #334155; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"></p>
+          </div>
+       </div>
+    </div>
+  </div>
+</div>
+
+<div id="dynamicClientFormView" class="container" style="display: none;">
+  <button class="btn-dash-back" onclick="handleClientsFormCancelAction()">&#8592; Back to Details</button>
   <div class="form-wrapper">
     <div id="dyn-client-overlay" class="global-loading-overlay">
       <div class="global-overlay-content">
@@ -129,21 +239,35 @@
         <span id="dyn-overlay-text">Loading...</span>
       </div>
     </div>
-    <h2 id="dyn-form-title" style="margin-top: 0; color: var(--brand-dark);">Onboard Client</h2>
+    <h2 id="dyn-form-title" style="margin-top: 0; color: var(--brand-dark);">Edit Details</h2>
     <form id="dynamicClientForm" onsubmit="handleDynamicSubmit(event)" novalidate>
       <input type="hidden" id="dyn-mode">
       <input type="hidden" id="dyn-rowIndex">
+      
       <div id="dyn-accordions-render-target"></div>
+      
+      <div id="dyn-opnotes-section" style="display:none;">
+        <button type="button" class="accordion" onclick="toggleAccordion(this)">Operational Note Management Workspace</button>
+        <div class="panel">
+          <div style="margin-top:15px; background:#f8fafc; padding:25px; border-radius:12px; border:1px solid #e2e8f0;">
+             <label style="font-weight:800; font-size:14px;">Append New Operational Note</label>
+             <textarea id="edt-new-op-note" class="form-control" style="margin-top:12px; height:100px; font-size:14px;"></textarea>
+             <button type="button" class="btn-primary" style="margin-top:20px; width:100%;" onclick="addOpNoteAction()">Post to Operational Log</button>
+          </div>
+          <div id="edt-opnotes-list" style="margin-top:30px; min-height:100px;"></div>
+        </div>
+      </div>
+
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 40px; gap:20px;">
-        <button type="button" class="btn-reset-filters" onclick="switchView('clientListView')" style="padding: 12px 30px;">Cancel</button>
-        <button type="submit" class="btn-primary" id="dyn-submit-btn" style="padding: 12px 50px;">Save Profile</button>
+        <button type="button" class="btn-reset-filters" onclick="handleClientsFormCancelAction()" style="padding: 12px 30px;">Cancel</button>
+        <button type="submit" class="btn-primary" id="dyn-submit-btn" style="padding: 12px 50px;">Save Details</button>
       </div>
     </form>
   </div>
 </div>
 
 <div id="serviceFormView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="switchView('clientListView'); switchClientMasterTab('services');">&#8592; Back to Registry</button>
+  <button class="btn-dash-back" id="srv-back-btn" onclick="switchView('readOnlyServiceView')">&#8592; Back to Service Profile</button>
   <div class="form-wrapper">
     <div id="service-form-overlay" class="global-loading-overlay">
       <div class="global-overlay-content">
@@ -179,828 +303,1150 @@
 
 <script>
   /* ========================================================================
-     1. GLOBAL STATE
+     1. GLOBAL CONFIGURATIONS & DICTIONARIES
      ======================================================================== */
   var GLOBAL_CLIENTS_DATA = []; 
   var CLIENTS_CONFIG = { accordionGroups: [], customFields: [] }; 
   var GLOBAL_SERVICES = []; 
   var ACTIVE_QUILLS = {};
+  var GLOBAL_OP_NOTES = [];
+  window.CURRENT_VIEW_CLIENT_DATA = null;
+  window.CLIENTS_FORM_ORIGIN = 'list'; // Track navigation state origin context
+  window.SYSTEM_LOOKUP_CACHE = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
+
+  // Master dictionary mapping core platform database columns (Asset Folder Link added)
+  var CORE_FIELD_DICTIONARY = {
+    "core_companyName": { label: "Company Name *", type: "text" },
+    "core_status": { label: "Status", type: "select" },
+    "core_address": { label: "Address", type: "text" },
+    "core_companyEmail": { label: "Company Email", type: "email" },
+    "core_companyPhone": { label: "Company Phone", type: "text" },
+    "core_website": { label: "Website", type: "url" },
+    "core_assetFolderLink": { label: "Asset Folder Link", type: "url" },
+    "core_pFirstName": { label: "First Name *", type: "text" },
+    "core_pLastName": { label: "Last Name *", type: "text" },
+    "core_pEmail": { label: "Email *", type: "email" },
+    "core_pPhone": { label: "Phone", type: "text" },
+    "core_startDate": { label: "Start Date *", type: "date" },
+    "core_expDate": { label: "Expiration Date *", type: "date" },
+    "core_origStartDate": { label: "Original Start Date", type: "date" },
+    "core_currentStartDate": { label: "Current Start Date", type: "date" },
+    "core_origExpDate": { label: "Original Expiration Date", type: "date" },
+    "core_currentExpDate": { label: "Current Expiration Date", type: "date" },
+    "core_origEndDate": { label: "Original End Date", type: "date" },
+    "core_latestEndDate": { label: "Latest End Date", type: "date" },
+    "core_rate": { label: "Rate ($)", type: "number" },
+    "core_termUnit": { label: "Term Unit", type: "select" },
+    "core_termCount": { label: "Term Count", type: "number" },
+    "core_services": { label: "Services Included", type: "checkbox-group" }
+  };
+
+  // Fallback layout mappings (Asset Folder Link hardcoded into Client Details)
+  var DEFAULT_GROUP_LAYOUTS = {
+    "grp_client": ["core_companyName", "core_status", "core_address", "core_companyEmail", "core_companyPhone", "core_website", "core_assetFolderLink"],
+    "grp_contact": ["core_pFirstName", "core_pLastName", "core_pEmail", "core_pPhone"],
+    "grp_contract": [
+      "core_startDate", "core_expDate", 
+      "core_origStartDate", "core_currentStartDate", 
+      "core_origExpDate", "core_currentExpDate", 
+      "core_origEndDate", "core_latestEndDate", 
+      "core_rate", "core_termUnit", "core_termCount", "core_services"
+    ]
+  };
+
+  // 4-Tier Matrix Entity Relationships Definition Table
+  var MODULE_ENTITY_MATRIX = {
+    "users": [
+      { id: "user", label: "Users" },
+      { id: "role", label: "Roles" }
+    ],
+    "templates": [
+      { id: "template", label: "Templates" },
+      { id: "wrapper", label: "Wrappers" }
+    ],
+    "clients": [
+      { id: "client", label: "Clients" },
+      { id: "service", label: "Services" }
+    ],
+    "logs": [
+      { id: "event", label: "Logs" }
+    ]
+  };
 
   /* ========================================================================
-     2. BOOTSTRAPPERS
+     2. LIFECYCLE INITIALIZERS & CACHE MANAGERS
      ======================================================================== */
-  (function fetchClientConfigEagerly() {
-    google.script.run.withSuccessHandler(res => { 
-      if (res.success) CLIENTS_CONFIG = res.data; 
+  (function initializeModuleEagerly() {
+    google.script.run.withSuccessHandler(function(res) { 
+      if (res.success) { CLIENTS_CONFIG = res.data; }
     }).getClientsModuleConfig();
+    populateLookupCache();
   })();
-
-  document.addEventListener('click', function(e) {
-    if (e.target && e.target.id === 'btn-set-ro-clients') renderRoClientsConfig();
-    if (e.target && e.target.id === 'btn-set-edt-clients') renderEdtClientsConfig();
-  });
 
   function initClientsModule() { 
     switchView('clientListView'); 
-    
-    google.script.run.withSuccessHandler(res => { 
+    google.script.run.withSuccessHandler(function(res) { 
       GLOBAL_SERVICES = res.data || []; 
-      
       loadClientsTable(); 
       renderServicesTable();
-
-      // NEW: If the dynamic form is currently being built or is open, re-sync the services
-      var serviceContainer = document.getElementById('dyn-core-services');
-      if (serviceContainer && GLOBAL_SERVICES.length > 0) {
-        serviceContainer.innerHTML = GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => 
-          `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}"> ${s.name}</label>`
-        ).join('');
-      }
     }).getServicesList();
   }
 
+  function populateLookupCache() {
+    google.script.run.withSuccessHandler(function(data) {
+      if(data && data.users) {
+        window.SYSTEM_LOOKUP_CACHE.users = data.users.map(u => ({ id: u.username, name: u.name }));
+      }
+      if(data && data.templates) {
+        window.SYSTEM_LOOKUP_CACHE.templates = data.templates.map(t => ({ id: t.name, name: t.name }));
+      }
+    }).getSystemDynamicLookups();
+
+    google.script.run.withSuccessHandler(function(res) {
+      window.SYSTEM_LOOKUP_CACHE.roles = (res || []).map(r => ({ id: r.name, name: r.name }));
+    }).getRolesList();
+
+    google.script.run.withSuccessHandler(function(res) {
+      window.SYSTEM_LOOKUP_CACHE.services = (res && res.data || []).map(s => ({ id: s.name, name: s.name }));
+    }).getServicesList();
+
+    google.script.run.withSuccessHandler(function(res) {
+      window.SYSTEM_LOOKUP_CACHE.clients = (res && res.data || []).map(c => ({ id: c.clientId, name: c.brandName }));
+    }).getClientsList();
+    
+    window.SYSTEM_LOOKUP_CACHE.wrappers = [{ id: "System Default", name: "System Default" }, { id: "Minimalist", name: "Minimalist" }];
+  }
+
+  function toggleAccordion(el) { 
+    el.classList.toggle("active"); 
+    var panel = el.nextElementSibling; 
+    panel.style.display = (panel.style.display === "block") ? "none" : "block"; 
+  }
+  
+  function navigateClientTab(prefix, tabId) {
+    var viewId = (prefix === 'ro') ? 'readOnlyClientView' : (prefix === 'ro-srv' ? 'readOnlyServiceView' : 'dynamicClientFormView');
+    var container = document.getElementById(viewId);
+    if (!container) return;
+    
+    container.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    
+    var target = document.getElementById(prefix + '-' + tabId); 
+    var btn = document.getElementById('btn-' + prefix + '-' + tabId);
+    if (target) target.style.display = 'block'; 
+    if (btn) btn.classList.add('active');
+  }
+
   /* ========================================================================
-     3. DATA LOADERS
+     3. DATATABLE RENDERERS & FILTER ENGINES
      ======================================================================== */
   function loadClientsTable() {
     var tbody = document.getElementById('clientTableBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color:#64748b;">Loading brands...</td></tr>';
-
-    google.script.run.withSuccessHandler(res => { 
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">Loading records...</td></tr>';
+    google.script.run.withSuccessHandler(function(res) { 
       GLOBAL_CLIENTS_DATA = res.data || []; 
       applyClientFilters(); 
     }).getClientsList();
   }
 
-  /**
-   * Handles the physical rendering of the services table.
-   */
-  function renderServicesTable() {
-    var tbody = document.getElementById('servicesTableBody');
-    if (!tbody) return;
-    
-    if (GLOBAL_SERVICES.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">No services defined.</td></tr>';
-      return;
-    }
-    
-    tbody.innerHTML = GLOBAL_SERVICES.map(s => `
-      <tr>
-        <td><strong>${s.name}</strong></td>
-        <td>${s.description}</td>
-        <td>${s.status}</td>
-        <td style="text-align:right;">
-          <button class="btn-edit" onclick="openServiceForm(${s.rowIndex})">Edit</button>
-        </td>
-      </tr>
-    `).join(''); 
-  }
-
-  // Legacy wrapper to maintain compatibility
-  function loadServicesTable() {
-    renderServicesTable();
-  }
-
-  /* ========================================================================
-     4. DATA MANIPULATION
-     ======================================================================== */
   function applyClientFilters() {
-    var s = document.getElementById('client-filter-search').value.toLowerCase(); 
-    var t = document.getElementById('clientTableBody'); 
-    t.innerHTML = '';
+    var search = document.getElementById('client-filter-search').value.toLowerCase(); 
+    var tbody = document.getElementById('clientTableBody'); 
+    tbody.innerHTML = '';
     
-    var f = GLOBAL_CLIENTS_DATA.filter(c => c.brandName.toLowerCase().includes(s));
-    
-    if (f.length === 0) { 
-      t.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color:#64748b;">No clients found.</td></tr>'; 
+    var records = GLOBAL_CLIENTS_DATA.filter(c => String(c.brandName || "").toLowerCase().includes(search));
+    if (records.length === 0) { 
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">No matching records found.</td></tr>'; 
       return; 
     }
     
-    f.forEach(c => {
-      t.innerHTML += `
-        <tr style="cursor:pointer;" onclick="openDynamicForm('edit', ${c.rowIndex})">
+    records.forEach(c => {
+      tbody.innerHTML += `
+        <tr style="cursor:pointer;" onclick="window.CLIENTS_FORM_ORIGIN='ro'; openReadOnlyClient(${c.rowIndex})">
           <td><strong>${c.brandName}</strong></td>
           <td>${c.pFirstName} ${c.pLastName}</td>
           <td><span class="badge" style="background:#f1f5f9; color:#475569;">${c.acctMgr}</span></td>
-          <td><span class="badge badge-${(c.status).toLowerCase()}">${c.status}</span></td>
-          <td style="text-align:right;">
-            <button class="btn-edit" onclick="openDynamicForm('edit', ${c.rowIndex}); event.stopPropagation();">Edit</button>
+          <td><span class="badge badge-${String(c.status).toLowerCase()}">${c.status}</span></td>
+          <td>
+            <button class="btn-edit" onclick="window.CLIENTS_FORM_ORIGIN='list'; openDynamicForm('edit', ${c.rowIndex}); event.stopPropagation();">Edit</button>
           </td>
-        </tr>
-      `;
+        </tr>`;
     });
+  }
+
+  function renderServicesTable() {
+    var tbody = document.getElementById('servicesTableBody'); 
+    if (!tbody) return;
+    if (GLOBAL_SERVICES.length === 0) { 
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px; color:#94a3b8;">No services defined.</td></tr>'; 
+      return; 
+    }
+    tbody.innerHTML = GLOBAL_SERVICES.map(s => `
+      <tr style="cursor:pointer;" onclick="openReadOnlyService(${s.rowIndex})">
+        <td><strong>${s.name}</strong></td>
+        <td>${s.description}</td>
+        <td><span class="badge badge-${String(s.status).toLowerCase()}">${s.status}</span></td>
+        <td>
+          <button class="btn-edit" onclick="openServiceForm(${s.rowIndex}); event.stopPropagation();">Edit</button>
+        </td>
+      </tr>`).join(''); 
   }
 
   /* ========================================================================
-     5. RENDERERS
+     4A. READ-ONLY DETAILS DASHBOARD SYSTEM RENDERERS
      ======================================================================== */
-  function renderRoClientsConfig() {
-    document.getElementById('ro-clients-core-config').innerHTML = `
-      <p style="margin:0;">
-        <strong>Default Role Provisioned to Clients:</strong> 
-        <span class="badge" style="background:var(--brand-primary); color:#fff; font-size:13px; padding:5px 12px; margin-left: 10px;">
-          ${CLIENTS_CONFIG.clientRole || "Client"}
-        </span>
-      </p>
-    `;
-    
-    document.getElementById('ro-clients-accordions').innerHTML = CLIENTS_CONFIG.accordionGroups.map(g => `
-      <span class="badge" style="margin-right:10px; margin-bottom: 10px; display:inline-block; background:${g.isDefault ? '#dbeafe' : '#f1f5f9'}; color:${g.isDefault ? '#1e40af' : '#475569'}; border: 1px solid ${g.isDefault ? '#bfdbfe' : '#e2e8f0'}; padding: 8px 15px; font-size: 13px;">
-        ${g.label} ${g.isDefault ? '<span style="opacity:0.6; font-size:11px; margin-left:5px;">(Default)</span>' : ''}
-      </span>
-    `).join('');
-    
-    var fldsList = document.getElementById('ro-clients-fields');
-    if (CLIENTS_CONFIG.customFields.length === 0) {
-      fldsList.innerHTML = '<p style="color:#94a3b8; font-style:italic; margin:0;">No custom fields configured.</p>';
-    } else {
-      fldsList.innerHTML = `
-        <table class="history-diff-table" style="margin-top:0;">
-          <thead>
-            <tr>
-              <th>Field Label</th>
-              <th>Type</th>
-              <th>Group Assignment</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${CLIENTS_CONFIG.customFields.map(f => {
-              var grp = CLIENTS_CONFIG.accordionGroups.find(g => g.id === f.groupId); 
-              return `
-                <tr>
-                  <td><strong>${f.label}</strong></td>
-                  <td><span class="badge" style="background:#e2e8f0; color:#475569;">${f.type}</span></td>
-                  <td>${grp ? grp.label : 'Unassigned'}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-    }
+  function getCoreFieldRoHtml(id, data, addl) {
+     var formatDateString = (val) => (val && val !== 'N/A') ? new Date(val).toLocaleDateString() : 'N/A';
+     switch(id) {
+       case 'core_companyName': return `<div class="ro-data-group"><div class="ro-data-label">Company Name</div><div class="ro-data-value">${data.companyName || 'N/A'}</div></div>`;
+       case 'core_status': return `<div class="ro-data-group"><div class="ro-data-label">Status</div><div class="ro-data-value">${data.status || 'N/A'}</div></div>`;
+       case 'core_address': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Address</div><div class="ro-data-value">${data.address || 'N/A'}</div></div>`;
+       case 'core_companyEmail': return `<div class="ro-data-group"><div class="ro-data-label">Company Email</div><div class="ro-data-value">${data.companyEmail || 'N/A'}</div></div>`;
+       case 'core_companyPhone': return `<div class="ro-data-group"><div class="ro-data-label">Company Phone</div><div class="ro-data-value">${data.companyPhone || 'N/A'}</div></div>`;
+       case 'core_website': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Website</div><div class="ro-data-value"><a href="${data.website}" target="_blank" style="color:var(--brand-primary);">${data.website || 'N/A'}</a></div></div>`;
+       case 'core_assetFolderLink': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Asset Folder Link</div><div class="ro-data-value">${addl.core_assetFolderLink ? `<a href="${addl.core_assetFolderLink}" target="_blank" style="color:var(--brand-primary); word-break:break-all;">${addl.core_assetFolderLink}</a>` : 'No custom asset directory linked.'}</div></div>`;
+       
+       case 'core_pFirstName': return `<div class="ro-data-group"><div class="ro-data-label">First Name</div><div class="ro-data-value">${data.pFirstName || 'N/A'}</div></div>`;
+       case 'core_pLastName': return `<div class="ro-data-group"><div class="ro-data-label">Last Name</div><div class="ro-data-value">${data.pLastName || 'N/A'}</div></div>`;
+       case 'core_pEmail': return `<div class="ro-data-group"><div class="ro-data-label">Primary Email</div><div class="ro-data-value">${data.pEmail || 'N/A'}</div></div>`;
+       case 'core_pPhone': return `<div class="ro-data-group"><div class="ro-data-label">Primary Phone</div><div class="ro-data-value">${data.pPhone || 'N/A'}</div></div>`;
+       
+       case 'core_startDate': return `<div class="ro-data-group"><div class="ro-data-label">Start Date</div><div class="ro-data-value">${formatDateString(data.currentStartDate)}</div></div>`;
+       case 'core_expDate': return `<div class="ro-data-group"><div class="ro-data-label">Expiration Date</div><div class="ro-data-value">${formatDateString(data.currentExpDate)}</div></div>`;
+       
+       case 'core_origStartDate': return `<div class="ro-data-group"><div class="ro-data-label">Original Start Date</div><div class="ro-data-value">${formatDateString(data.origStartDate)}</div></div>`;
+       case 'core_currentStartDate': return `<div class="ro-data-group"><div class="ro-data-label">Current Start Date</div><div class="ro-data-value">${formatDateString(data.currentStartDate)}</div></div>`;
+       case 'core_origExpDate': return `<div class="ro-data-group"><div class="ro-data-label">Original Expiration Date</div><div class="ro-data-value">${formatDateString(data.origExpDate)}</div></div>`;
+       case 'core_currentExpDate': return `<div class="ro-data-group"><div class="ro-data-label">Current Expiration Date</div><div class="ro-data-value">${formatDateString(data.currentExpDate)}</div></div>`;
+       case 'core_origEndDate': return `<div class="ro-data-group"><div class="ro-data-label">Original End Date</div><div class="ro-data-value">${formatDateString(data.origEndDate)}</div></div>`;
+       case 'core_latestEndDate': return `<div class="ro-data-group"><div class="ro-data-label">Latest End Date</div><div class="ro-data-value">${formatDateString(data.latestEndDate)}</div></div>`;
+       
+       case 'core_rate': return `<div class="ro-data-group"><div class="ro-data-label">Rate</div><div class="ro-data-value">$${data.rate || '0.00'}</div></div>`;
+       case 'core_termUnit': return `<div class="ro-data-group"><div class="ro-data-label">Term</div><div class="ro-data-value">${data.termCount || '1'} ${data.termUnit || ''}</div></div>`;
+       case 'core_termCount': return ''; 
+       case 'core_services': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Services Included</div><div class="ro-data-value">${data.services || 'None'}</div></div>`;
+       default: return '';
+     }
   }
 
-  function renderEdtClientsConfig() {
-    google.script.run.withSuccessHandler(res => { 
-      document.getElementById('edt-client-role-select').innerHTML = (res || []).map(r => `
-        <option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>
-          ${r.name}
-        </option>
-      `).join(''); 
+  function openReadOnlyClient(rowIndex) {
+    switchView('readOnlyClientView');
+    document.getElementById('ro-title').innerText = ""; 
+    document.getElementById('ro-subtitle').innerText = ""; 
+    document.getElementById('ro-accordions-render-target').innerHTML = "";
+    document.getElementById('ro-client-overlay').style.display = 'flex';
+    navigateClientTab('ro', 'details');
+
+    google.script.run.withSuccessHandler(function(data) {
+      document.getElementById('ro-client-overlay').style.display = 'none';
+      if(!data || data.error) return;
       
-      // Command the MASTER overlay to turn off
-      if(typeof toggleSettingsOverlay === 'function') {
-        toggleSettingsOverlay('edt-settings-overlay', false);
+      window.CURRENT_VIEW_CLIENT_DATA = data.data;
+      var client = data.data;
+      
+      document.getElementById('ro-title').innerText = client.brandName || client.companyName;
+      document.getElementById('ro-subtitle').innerText = client.companyName || "";
+      document.getElementById('ro-status-badge').innerHTML = `<span class="badge badge-${(client.status || "active").toLowerCase()}">${client.status}</span>`;
+      
+      // Dynamic button hook handles matching state logic vectors cleanly
+      document.getElementById('ro-edit-btn').onclick = () => {
+         window.CLIENTS_FORM_ORIGIN = 'ro';
+         openDynamicForm('edit', client.rowIndex);
+      };
+      
+      var addl = {}; 
+      try { addl = JSON.parse(client.addlFields || "{}"); } catch(e) {}
+      
+      // Set folder redirection path if available
+      var folderBtn = document.getElementById('ro-folder-btn');
+      if (addl.core_assetFolderLink) {
+         folderBtn.disabled = false;
+         folderBtn.style.opacity = '1';
+         folderBtn.onclick = () => window.open(addl.core_assetFolderLink, '_blank');
+      } else {
+         folderBtn.disabled = true;
+         folderBtn.style.opacity = '0.4';
+         folderBtn.onclick = null;
       }
       
-    }).getRolesList();
-    
-    var accContainer = document.getElementById('edt-accordions-container'); 
-    accContainer.innerHTML = '';
-    CLIENTS_CONFIG.accordionGroups.forEach(g => addAccordionGroupRow(g));
-    
-    var fldContainer = document.getElementById('edt-clients-custom-fields-container'); 
-    fldContainer.innerHTML = '';
-    CLIENTS_CONFIG.customFields.forEach(f => addClientCustomFieldRow(f));
-  }
-
-  function addAccordionGroupRow(data = { id: 'grp_' + Math.random().toString(36).substr(2, 9), label: '', isDefault: false }) {
-    var c = document.getElementById('edt-accordions-container'); 
-    var row = document.createElement('div'); 
-    row.className = 'accordion-grp-row'; 
-    row.style.alignItems = 'flex-end'; 
-    row.dataset.id = data.id; 
-    row.dataset.def = data.isDefault;
-    
-    var html = `
-      <div style="flex:1;">
-        <label style="display:block; font-size:13px; font-weight:bold; color:#475569; margin-bottom:8px;">
-          Group Label ${data.isDefault ? '<span style="color:#3b82f6; font-weight:normal; margin-left:5px;">(System Default)</span>' : ''}
-        </label>
-        <input type="text" class="acc-label form-control" value="${data.label}" oninput="refreshCustomFieldGroupDropdowns()" ${data.isDefault ? 'readonly style="background:#f1f5f9; cursor:not-allowed;"' : ''}>
-      </div>
-    `;
-    
-    // Add Up/Down arrows and Remove button
-    if (!data.isDefault) {
-      html += `
-        <div style="padding-bottom: 2px; display:flex; gap:5px;">
-          <button type="button" onclick="moveDomRow(this, -1)" style="padding: 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; color:#475569; cursor:pointer;">▲</button>
-          <button type="button" onclick="moveDomRow(this, 1)" style="padding: 10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; color:#475569; cursor:pointer;">▼</button>
-          <button type="button" onclick="this.parentElement.parentElement.remove(); refreshCustomFieldGroupDropdowns();" style="color:#ef4444; border:1px solid #fee2e2; border-radius:6px; background:#fff; padding: 10px 20px; cursor:pointer;">Remove</button>
-        </div>
-      `;
-    }
-    
-    row.innerHTML = html; 
-    c.appendChild(row); 
-    setTimeout(refreshCustomFieldGroupDropdowns, 100);
-  }
-
-  function addClientCustomFieldRow(data = {}) {
-    var c = document.getElementById('edt-clients-custom-fields-container'); 
-    var row = document.createElement('div'); 
-    row.className = 'dynamic-json-row cf-row';
-    row.style.position = 'relative'; // Required for absolute positioning of buttons
-    
-    // ADDED file-single and file-multiple
-    var typeOpts = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `
-      <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
-    `).join('');
-    
-    var isSelect = data.type === 'select';
-    var isFile = data.type && data.type.startsWith('file-');
-    var optsDisplay = (isSelect || isFile) ? 'block' : 'none'; 
-    var optsLabel = isFile ? 'Allowed Extensions (e.g., .pdf, .png) - Leave blank for all' : 'Dropdown Options (Comma separated)';
-    var jsonDisplay = data.type === 'json' ? 'block' : 'none';
-    
-    row.innerHTML = `
-      <div style="position: absolute; top: 10px; right: 10px; display:flex; gap:5px;">
-        <button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:none; border-radius:4px; cursor:pointer; width:28px; height:28px; color:#475569;">▲</button>
-        <button type="button" onclick="moveDomRow(this, 1)" style="background:#f1f5f9; border:none; border-radius:4px; cursor:pointer; width:28px; height:28px; color:#475569;">▼</button>
-        <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#fee2e2; color:#ef4444; border:none; border-radius:4px; width:28px; height:28px; cursor:pointer; font-weight:bold;">&times;</button>
-      </div>
-      
-      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr; gap:12px; align-items:end; margin-top:20px;">
-        <div class="form-group">
-          <label>Field Label</label>
-          <input type="text" class="cf-label form-control" value="${data.label || ''}" onchange="this.parentElement.nextElementSibling.querySelector('.cf-id').value = this.value.toLowerCase().replace(/[^a-z0-9]/g, '_')">
-        </div>
-        <div class="form-group">
-          <label>Unique ID</label>
-          <input type="text" class="cf-id form-control" value="${data.id || ''}" readonly style="background:#f1f5f9;">
-        </div>
-        <div class="form-group">
-          <label>Field Type</label>
-          <select class="cf-type form-control" onchange="toggleCfOpts(this)">${typeOpts}</select>
-        </div>
-        <div class="form-group">
-          <label>Required</label>
-          <select class="cf-req form-control">
-            <option value="false">No</option>
-            <option value="true" ${data.required ? 'selected' : ''}>Yes</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Assign to Group</label>
-          <select class="cf-grp form-control" data-selected="${data.groupId || ''}"></select>
-        </div>
-      </div>
-      <div class="form-group cf-opts-grp" style="margin-top:10px; display:${optsDisplay};">
-        <label class="cf-opts-lbl">${optsLabel}</label>
-        <input type="text" class="cf-opts form-control" value="${(isSelect || isFile) ? (data.options || '') : ''}">
-      </div>
-      <div class="form-group cf-json-grp" style="margin-top:15px; display:${jsonDisplay}; border:1px dashed #cbd5e1; padding:15px; border-radius:8px; background:#fff;">
-        <label style="color:var(--brand-primary); font-weight:bold; margin-bottom:10px; display:block;">JSON Sub-Field Definitions</label>
-        <div class="json-subfields-container" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;"></div>
-        <button type="button" class="btn-add-row" onclick="addJsonSubfieldRow(this.previousElementSibling)" style="font-size:12px; padding:6px 15px;">+ Add Sub-Field</button>
-      </div>
-    `;
-    
-    c.appendChild(row); 
-    refreshCustomFieldGroupDropdowns();
-
-    if (data.type === 'json' && data.options) { 
-      try { 
-        JSON.parse(data.options).forEach(s => addJsonSubfieldRow(row.querySelector('.json-subfields-container'), s)); 
-      } catch (e) {} 
-    }
-  }
-
-  function addJsonSubfieldRow(container, data = { label: '', type: 'text', options: '' }) {
-    var row = document.createElement('div'); 
-    row.className = 'json-sf-row'; 
-    row.style.display = 'flex'; 
-    row.style.gap = '10px'; 
-    row.style.alignItems = 'flex-end'; 
-    row.style.background = 'var(--brand-bg)'; 
-    row.style.padding = '10px'; 
-    row.style.borderRadius = '6px'; 
-    row.style.border = '1px solid #e2e8f0';
-    
-    var types = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'file-single', 'file-multiple'].map(t => `
-      <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
-    `).join('');
-    
-    var isOptType = data.type === 'select' || data.type?.startsWith('file-');
-    
-    row.innerHTML = `
-      <div style="flex:2;">
-        <label style="font-size:11px;">Sub-Field Label</label>
-        <input type="text" class="sf-label form-control" style="font-size:13px; padding:6px;" value="${data.label}">
-      </div>
-      <div style="flex:1;">
-        <label style="font-size:11px;">Type</label>
-        <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="var n=this.parentElement.nextElementSibling; n.style.display = (this.value==='select' || this.value.startsWith('file-'))?'block':'none'; n.querySelector('label').innerText = this.value.startsWith('file-') ? 'Allowed Extensions' : 'Dropdown Options';">${types}</select>
-      </div>
-      <div style="flex:2; display:${isOptType ? 'block' : 'none'};">
-        <label style="font-size:11px;">${data.type?.startsWith('file-') ? 'Allowed Extensions' : 'Dropdown Options'}</label>
-        <input type="text" class="sf-opts form-control" style="font-size:13px; padding:6px;" value="${data.options || ''}">
-      </div>
-      
-      <div style="display:flex; gap:3px;">
-        <button type="button" onclick="moveDomRow(this, -1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:4px 6px; color:#475569; font-size:10px;">▲</button>
-        <button type="button" onclick="moveDomRow(this, 1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:4px 6px; color:#475569; font-size:10px;">▼</button>
-        <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#fee2e2; border:1px solid #f87171; color:#ef4444; border-radius:4px; cursor:pointer; padding:4px 8px; font-weight:bold;">&times;</button>
-      </div>
-    `;
-    container.appendChild(row);
-  }
-  
-  function buildDynamicForm(mode, data) {
-    var target = document.getElementById('dyn-accordions-render-target'); 
-    target.innerHTML = '';
-    
-    var addl = {}; 
-    try { addl = JSON.parse(data.addlFields || "{}"); } catch (e) {}
-    var srvArr = (data.services || "").split(',').map(s => s.trim());
-    
-    CLIENTS_CONFIG.accordionGroups.forEach((grp, idx) => {
-      var html = `
-        <button type="button" class="accordion ${idx === 0 ? 'active' : ''}" onclick="toggleAccordion(this)">
-          ${grp.label}
-        </button>
-        <div class="panel" style="display: ${idx === 0 ? 'block' : 'none'}; padding-top:15px;">
-      `;
-
-      // Wrapper forcing 2-column max but allowing spanning
-      html += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">`;
-      
-      if (grp.id === 'grp_client') {
-        html += `
-          <div class="form-group">
-            <label>Company Name *</label>
-            <input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName || ''}" required>
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="dyn-core-status" class="form-control dyn-core">
-              <option value="Onboarding" ${data.status === 'Onboarding' ? 'selected' : ''}>Onboarding</option>
-              <option value="Active" ${data.status === 'Active' ? 'selected' : ''}>Active</option>
-            </select>
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Address</label>
-            <input type="text" id="dyn-core-address" class="form-control dyn-core" value="${data.address || ''}">
-          </div>
-          <div class="form-group">
-            <label>Company Email</label>
-            <input type="email" id="dyn-core-companyEmail" class="form-control dyn-core" value="${data.companyEmail || ''}">
-          </div>
-          <div class="form-group">
-            <label>Company Phone</label>
-            <input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone || ''}">
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Website</label>
-            <input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website || ''}">
-          </div>
-        `;
-      }
-      
-      if (grp.id === 'grp_contact') {
-        html += `
-          <div class="form-group"><label>First Name *</label><input type="text" id="dyn-core-pFirstName" class="form-control dyn-core" value="${data.pFirstName || ''}" required></div>
-          <div class="form-group"><label>Last Name *</label><input type="text" id="dyn-core-pLastName" class="form-control dyn-core" value="${data.pLastName || ''}" required></div>
-          <div class="form-group"><label>Email *</label><input type="email" id="dyn-core-pEmail" class="form-control dyn-core" value="${data.pEmail || ''}" required></div>
-          <div class="form-group"><label>Phone</label><input type="text" id="dyn-core-pPhone" class="form-control dyn-core" value="${data.pPhone || ''}"></div>
-        `;
-      }
-      
-      if (grp.id === 'grp_contract') {
-        var startVal = mode === 'edit' ? (data.currentStartDate ? new Date(data.currentStartDate).toISOString().split('T')[0] : '') : '';
-        var expVal = mode === 'edit' ? (data.currentExpDate ? new Date(data.currentExpDate).toISOString().split('T')[0] : '') : '';
-
-        html += `
-          <div class="form-group"><label>Start Date *</label><input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${startVal}" required></div>
-          <div class="form-group"><label>Expiration Date *</label><input type="date" id="dyn-core-expDate" class="form-control dyn-core" value="${expVal}" required></div>
-          <div class="form-group"><label>Rate ($)</label><input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}"></div>
-          <div class="form-group">
-            <label>Term Unit</label>
-            <select id="dyn-core-termUnit" class="form-control dyn-core" onchange="handleTermUnitChange(this)">
-              <option value="Days" ${data.termUnit === 'Days' ? 'selected' : ''}>Days</option>
-              <option value="Weeks" ${data.termUnit === 'Weeks' ? 'selected' : ''}>Weeks</option>
-              <option value="Months" ${data.termUnit === 'Months' ? 'selected' : ''}>Months</option>
-              <option value="Years" ${data.termUnit === 'Years' ? 'selected' : ''}>Years</option>
-              <option value="One-time" ${data.termUnit === 'One-time' ? 'selected' : ''}>One-time</option>
-            </select>
-          </div>
-          <div class="form-group"><label>Term Count</label><input type="number" id="dyn-core-termCount" class="form-control dyn-core" value="${data.termCount || '1'}"></div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Services Included</label>
-            <div class="checkbox-group" id="dyn-core-services" style="display:flex; flex-wrap:wrap; gap:15px; margin-top:5px;">
-              ${GLOBAL_SERVICES.length > 0 
-                ? GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => `<label><input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name) ? 'checked' : ''}> ${s.name}</label>`).join('') 
-                : '<span style="color:#94a3b8; font-style:italic;">Loading available services...</span>'}
-            </div>
-          </div>
-        `;
-      }
-
-      // Dynamic Custom Fields Logic (Uniform 2-Column enforcement)
-      var cFields = CLIENTS_CONFIG.customFields.filter(f => f.groupId === grp.id);
-      cFields.forEach(f => {
-        var val = addl[f.id] !== undefined ? addl[f.id] : '';
-        // Expansion Rule: Occupy full row for large content types
-        var spanStyle = (f.type === 'json' || f.type === 'richtext' || f.type === 'textarea' || f.type === 'longtext') ? 'grid-column: 1 / -1;' : '';
+      var html = '';
+      CLIENTS_CONFIG.accordionGroups.forEach((grp, idx) => {
+        var cls = idx === 0 ? 'active' : '';
+        var style = idx === 0 ? 'block' : 'none';
         
-        html += `<div class="form-group" style="${spanStyle}"><label>${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
+        html += `<button type="button" class="accordion ${cls}" onclick="toggleAccordion(this)">${grp.label}</button>
+                 <div class="panel" style="display:${style}; padding-top:15px; padding-bottom:15px;"><div class="ro-grid-row">`;
         
-        if (f.type === 'longtext') {
-          html += `<input type="text" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="longtext" value="${val}" ${f.required ? 'required' : ''}>`;
-        } else if (f.type === 'select') {
-          if (f.options && f.options.startsWith('SYS_LOOKUP:')) {
-            html += `<select id="dyn-cf-${f.id}" class="form-control dyn-cf dynamic-lookup" data-id="${f.id}" data-type="select" data-lookup="${f.options}" data-value="${val}" ${f.required ? 'required' : ''}><option value="">Loading...</option></select>`;
-          } else {
-            var o = (f.options || "").split(','); 
-            var optionsHtml = o.map(x => `<option value="${x.trim()}" ${val === x.trim() ? 'selected' : ''}>${x.trim()}</option>`).join('');
-            html += `<select id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="select"><option value="">Select...</option>${optionsHtml}</select>`; 
-          }
-        } else if (f.type === 'textarea') { 
-          html += `<textarea id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="textarea" style="height:80px;" ${f.required ? 'required' : ''}>${val}</textarea>`; 
-        } else if (f.type === 'richtext') { 
-          html += `<div id="editor-${f.id}" style="min-height:120px;">${val}</div><input type="hidden" id="dyn-cf-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="richtext">`; 
-        } else if (f.type === 'json') { 
-          var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
-          html += `<div id="json-rep-${f.id}" class="dyn-cf" data-id="${f.id}" data-type="json"></div><button type="button" class="btn-add-row" onclick="addRepeaterRow('json-rep-${f.id}', '${encodedOptions}')">+ Add Item</button>`; 
-        } else { 
-          html += `<input type="${f.type}" id="dyn-cf-${f.id}" class="form-control dyn-cf" data-id="${f.id}" data-type="${f.type}" value="${val}" ${f.required ? 'required' : ''}>`; 
-        }
-        html += `</div>`;
+        var layout = grp.layout || DEFAULT_GROUP_LAYOUTS[grp.id] || [];
+        var customFieldIds = CLIENTS_CONFIG.customFields.filter(f => f.groupId === grp.id).map(f => f.id);
+        customFieldIds.forEach(id => { if(!layout.includes(id)) layout.push(id); });
+
+        layout.forEach(fId => {
+           if (fId.startsWith('core_')) {
+              html += getCoreFieldRoHtml(fId, client, addl);
+           } else {
+              var cf = CLIENTS_CONFIG.customFields.find(x => x.id === fId);
+              if (cf) {
+                var val = addl[cf.id] !== undefined ? addl[cf.id] : 'N/A';
+                var gridSpan = (['json','richtext','textarea','longtext'].includes(cf.type)) ? 'grid-column: 1 / -1;' : '';
+                html += `<div class="ro-data-group" style="${gridSpan}"><div class="ro-data-label">${cf.label}</div>`;
+                
+                if (cf.type === 'json') {
+                   var arr = []; try { arr = typeof val === 'string' ? JSON.parse(val) : val; } catch(e){}
+                   if(!arr || arr.length === 0) {
+                     html += `<div class="ro-data-value" style="color:#94a3b8; font-style:italic;">No records found.</div>`;
+                   } else {
+                     html += `<table class="ro-json-table"><thead><tr>`;
+                     if(arr[0]) { for(var k in arr[0]) html += `<th>${k}</th>`; }
+                     html += `</tr></thead><tbody>`;
+                     arr.forEach(item => {
+                        html += `<tr>`;
+                        for(var k in item) html += `<td>${item[k]}</td>`;
+                        html += `</tr>`;
+                     });
+                     html += `</tbody></table>`;
+                   }
+                } else if (cf.type === 'richtext') {
+                   html += `<div class="ro-data-value" style="background:#f8fafc; padding:15px; border-radius:6px; border:1px solid #e2e8f0;">${val !== 'N/A' && val !== '' ? val : 'No content.'}</div>`;
+                } else {
+                   html += `<div class="ro-data-value">${val === '' ? 'N/A' : val}</div>`;
+                }
+                html += `</div>`;
+              }
+           }
+        });
+        html += `</div></div>`; 
       });
-      
-      html += `</div></div>`; // Close grid and panel
-      target.innerHTML += html;
-    });
-
-    // Post-Render Initialize components
-    CLIENTS_CONFIG.customFields.filter(f => f.type === 'richtext').forEach(f => { 
-      ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); 
-    });
-    if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
+      document.getElementById('ro-accordions-render-target').innerHTML = html;
+      renderOpNotesList(client.operationalNotes);
+      renderHistoryTab(client.history);
+    }).getClientById(rowIndex);
   }
 
-  function addRepeaterRow(containerId, encodedSfDef, existingObj = {}) {
-    var c = document.getElementById(containerId); 
-    if (!c) return;
+  /* ========================================================================
+     4B. OPERATIONAL ENGINE SUB-SYSTEMS
+     ======================================================================== */
+  function renderOpNotesList(json) {
+    var container = document.getElementById('ro-opnotes-list'); if (!container) return;
+    var notes = []; try { notes = JSON.parse(json || "[]"); } catch(e){}
+    var html = ''; 
+    notes.forEach((n, i) => {
+      html += `
+        <div class="op-note-container" draggable="true" ondragstart="dragOpNoteStart(event, ${i})" ondragover="dragOpNoteOver(event)" ondrop="dropOpNote(event, ${i})">
+           <div id="note-view-${i}" style="display:flex; align-items:center;">
+              <div class="note-handle">&#9776;</div>
+              <div class="note-text-content" onclick="editOpNote(${i})">${n.content}</div>
+              <button style="background:none; border:none; color:#ef4444; font-size:11px; cursor:pointer; font-weight:700;" onclick="removeOpNoteAt(${i})">Remove</button>
+           </div>
+           <div id="note-edit-${i}" style="display:none; align-items:center; gap: 10px;">
+              <input type="text" id="note-input-${i}" class="form-control" value="${n.content.replace(/"/g, '&quot;')}" style="flex:1; height:45px;">
+              <button class="btn-primary" onclick="saveOpNoteEdit(${i})" style="padding:10px 20px;">Save</button>
+              <button class="btn-reset-filters" onclick="document.getElementById('note-view-${i}').style.display='flex'; document.getElementById('note-edit-${i}').style.display='none';">Cancel</button>
+           </div>
+           <div class="note-meta-line"><span>By: <strong>${n.editor}</strong></span><span>${new Date(n.timestamp).toLocaleString()}</span></div>
+        </div>`;
+    });
+    container.innerHTML = html || '<p style="text-align:center; color:#94a3b8; padding:50px; font-style:italic;">No notes available.</p>';
+  }
+
+  function removeOpNoteAt(idx) {
+    if(!confirm('Delete this note?')) return;
+    var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
+    notes.splice(idx,1);
+    window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+    renderOpNotesList(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
+    google.script.run.updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function saveOpNoteEdit(idx) {
+    var val = document.getElementById('note-input-'+idx).value.trim(); if (!val) return;
+    var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
+    notes[idx].content = val; notes[idx].timestamp = new Date().toISOString();
+    window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+    google.script.run.withSuccessHandler(() => openReadOnlyClient(window.CURRENT_VIEW_CLIENT_DATA.rowIndex)).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function dragOpNoteStart(e, i) { draggedOpNoteIndex = i; e.dataTransfer.effectAllowed = 'move'; }
+  function dragOpNoteOver(e) { e.preventDefault(); }
+  function dropOpNote(e, targetI) {
+    e.preventDefault(); if (draggedOpNoteIndex === null || draggedOpNoteIndex === targetI) return;
+    var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
+    var target = notes.splice(draggedOpNoteIndex, 1)[0]; notes.splice(targetI, 0, target);
+    window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+    renderOpNotesList(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
+    google.script.run.updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function showQuickNoteInput() { document.getElementById('ro-add-note-trigger').style.display = 'none'; document.getElementById('ro-quick-note-area').style.display = 'flex'; }
+  function hideQuickNoteInput() { document.getElementById('ro-add-note-trigger').style.display = 'block'; document.getElementById('ro-quick-note-area').style.display = 'none'; }
+  function addQuickOpNote() {
+    var text = document.getElementById('ro-quick-note-input').value.trim(); if(!text) return;
+    var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
+    notes.push({ content: text, editor: typeof CURRENT_USERNAME !== 'undefined' ? CURRENT_USERNAME : "System", timestamp: new Date().toISOString() });
+    window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+    google.script.run.withSuccessHandler(function() { hideQuickNoteInput(); document.getElementById('ro-quick-note-input').value=""; openReadOnlyClient(window.CURRENT_VIEW_CLIENT_DATA.rowIndex); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function renderHistoryTab(json) {
+    var container = document.getElementById('ro-history-list'); if (!container) return;
+    try {
+      var logs = JSON.parse(json || "[]"); 
+      if (logs.length === 0) { container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:40px;">No change history recorded.</p>'; return; }
+      container.innerHTML = '';
+      logs.forEach(entry => {
+        var html = `<div class="history-audit-entry"><div style="font-size:13px; color:#475569; font-weight:bold; margin-bottom:12px;">${new Date(entry.timestamp).toLocaleString()} &bull; Edited by <strong>${entry.editor || 'System'}</strong></div><table class="history-diff-table"><thead><tr><th style="width:30%;">Field</th><th style="width:35%;">Old Value</th><th style="width:35%;">New Value</th></tr></thead><tbody>`;
+        entry.changes.forEach(ch => { html += `<tr><td style="font-weight:700; color:#1e293b;">${ch.field}</td><td class="diff-old-txt">${ch.old || '(empty)'}</td><td class="diff-new-txt">${ch.new || '(empty)'}</td></tr>`; });
+        html += '</tbody></table></div>'; container.innerHTML += html;
+      });
+    } catch(e) { container.innerHTML = '<p>Error loading history logs.</p>'; }
+  }
+
+  function openReadOnlyService(rowIndex) {
+    switchView('readOnlyServiceView'); navigateClientTab('ro-srv', 'overview');
+    var s = GLOBAL_SERVICES.find(x => x.rowIndex == rowIndex); if (!s) return;
+    document.getElementById('ro-srv-title').innerText = s.name;
+    document.getElementById('ro-srv-status-badge').innerHTML = `<span class="badge badge-${(s.status || "active").toLowerCase()}">${s.status}</span>`;
+    document.getElementById('ro-srv-desc-content').innerText = s.description || "No description provided.";
+    document.getElementById('ro-srv-edit-btn').onclick = () => openServiceForm(rowIndex);
+  }
+
+  /* ========================================================================
+     5. DYNAMIC COMPILER (CRASH DEFENSIVELY PATCHED & ASSET LINK INTERACTS)
+     ======================================================================== */
+  function getCoreFieldEditHtml(id, data, mode, srvArr, addl) {
+    var formatIso = (val) => (val) ? new Date(val).toISOString().split('T')[0] : '';
+    switch(id) {
+      case 'core_companyName': return `<div class="form-group"><label>Company Name *</label><input type="text" id="dyn-core-companyName" class="form-control dyn-core" value="${data.companyName || ''}" required></div>`;
+      case 'core_status': return `<div class="form-group"><label>Status</label><select id="dyn-core-status" class="form-control dyn-core"><option value="Onboarding" ${data.status === 'Onboarding' ? 'selected' : ''}>Onboarding</option><option value="Active" ${data.status === 'Active' ? 'selected' : ''}>Active</option><option value="Inactive" ${data.status === 'Inactive' ? 'selected' : ''}>Inactive</option></select></div>`;
+      case 'core_address': return `<div class="form-group" style="grid-column: 1 / -1;"><label>Address</label><input type="text" id="dyn-core-address" class="form-control dyn-core" value="${data.address || ''}"></div>`;
+      case 'core_companyEmail': return `<div class="form-group"><label>Company Email</label><input type="email" id="dyn-core-companyEmail" class="form-control dyn-core" value="${data.companyEmail || ''}"></div>`;
+      case 'core_companyPhone': return `<div class="form-group"><label>Company Phone</label><input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone || ''}"></div>`;
+      case 'core_website': return `<div class="form-group" style="grid-column: 1 / -1;"><label>Website</label><input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website || ''}"></div>`;
+      case 'core_assetFolderLink': 
+        var linkVal = addl.core_assetFolderLink || '';
+        return `<div class="form-group" style="grid-column: 1 / -1;"><label>Asset Folder Link</label><input type="url" id="dyn-cf-core_assetFolderLink" class="form-control dyn-cf" data-id="core_assetFolderLink" data-type="url" value="${linkVal}"></div>`;
+      
+      case 'core_pFirstName': return `<div class="form-group"><label>First Name *</label><input type="text" id="dyn-core-pFirstName" class="form-control dyn-core" value="${data.pFirstName || ''}" required></div>`;
+      case 'core_pLastName': return `<div class="form-group"><label>Last Name *</label><input type="text" id="dyn-core-pLastName" class="form-control dyn-core" value="${data.pLastName || ''}" required></div>`;
+      case 'core_pEmail': return `<div class="form-group"><label>Email *</label><input type="email" id="dyn-core-pEmail" class="form-control dyn-core" value="${data.pEmail || ''}" required></div>`;
+      case 'core_pPhone': return `<div class="form-group"><label>Phone</label><input type="text" id="dyn-core-pPhone" class="form-control dyn-core" value="${data.pPhone || ''}"></div>`;
+      
+      case 'core_startDate': return `<div class="form-group"><label>Start Date *</label><input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${formatIso(data.currentStartDate)}" required></div>`;
+      case 'core_expDate': return `<div class="form-group"><label>Expiration Date *</label><input type="date" id="dyn-core-expDate" class="form-control dyn-core" value="${formatIso(data.currentExpDate)}" required></div>`;
+      
+      case 'core_origStartDate': return `<div class="form-group"><label>Original Start Date</label><input type="date" id="dyn-core-origStartDate" class="form-control dyn-core" value="${formatIso(data.origStartDate)}"></div>`;
+      case 'core_currentStartDate': return `<div class="form-group"><label>Current Start Date</label><input type="date" id="dyn-core-currentStartDate" class="form-control dyn-core" value="${formatIso(data.currentStartDate)}"></div>`;
+      case 'core_origExpDate': return `<div class="form-group"><label>Original Expiration Date</label><input type="date" id="dyn-core-origExpDate" class="form-control dyn-core" value="${formatIso(data.origExpDate)}"></div>`;
+      case 'core_currentExpDate': return `<div class="form-group"><label>Current Expiration Date</label><input type="date" id="dyn-core-currentExpDate" class="form-control dyn-core" value="${formatIso(data.currentExpDate)}"></div>`;
+      case 'core_origEndDate': return `<div class="form-group"><label>Original End Date</label><input type="date" id="dyn-core-origEndDate" class="form-control dyn-core" value="${formatIso(data.origEndDate)}"></div>`;
+      case 'core_latestEndDate': return `<div class="form-group"><label>Latest End Date</label><input type="date" id="dyn-core-latestEndDate" class="form-control dyn-core" value="${formatIso(data.latestEndDate)}"></div>`;
+      
+      case 'core_rate': return `<div class="form-group"><label>Rate ($)</label><input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}"></div>`;
+      case 'core_termUnit': return `<div class="form-group"><label>Term Unit</label><select id="dyn-core-termUnit" class="form-control dyn-core" onchange="handleTermUnitChange(this)"><option value="Days" ${data.termUnit === 'Days' ? 'selected' : ''}>Days</option><option value="Weeks" ${data.termUnit === 'Weeks' ? 'selected' : ''}>Weeks</option><option value="Months" ${data.termUnit === 'Months' ? 'selected' : ''}>Months</option><option value="Years" ${data.termUnit === 'Years' ? 'selected' : ''}>Years</option><option value="One-time" ${data.termUnit === 'One-time' ? 'selected' : ''}>One-time</option></select></div>`;
+      case 'core_termCount': return `<div class="form-group"><label>Term Count</label><input type="number" id="dyn-core-termCount" class="form-control dyn-core" value="${data.termCount || '1'}"></div>`;
+      case 'core_services': 
+        var servicesHtml = GLOBAL_SERVICES.length > 0 ? GLOBAL_SERVICES.filter(s => s.status === 'Active').map(s => `<label style="margin-right:15px; display:inline-flex; align-items:center; gap:6px;"><input type="checkbox" class="dyn-srv-cb" value="${s.name}" ${srvArr.includes(s.name) ? 'checked' : ''}> ${s.name}</label>`).join('') : '<span style="color:#94a3b8; font-style:italic;">No active services available.</span>';
+        return `<div class="form-group" style="grid-column: 1 / -1;"><label>Services Included</label><div class="checkbox-group" id="dyn-core-services" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">${servicesHtml}</div></div>`;
+      default: return '';
+    }
+  }
+
+  function buildDynamicForm(mode, data) {
+    var target = document.getElementById('dyn-accordions-render-target'); target.innerHTML = '';
+    var addl = {}; try { if(data && data.addlFields) addl = JSON.parse(data.addlFields || "{}"); } catch(e){}
+    var srvArr = (data && data.services || "").split(',').map(s => s.trim());
     
-    var subfields = []; 
-    try { subfields = JSON.parse(decodeURIComponent(escape(atob(encodedSfDef)))); } catch (e) {}
+    if(!CLIENTS_CONFIG || !CLIENTS_CONFIG.accordionGroups) return;
+
+    CLIENTS_CONFIG.accordionGroups.forEach((grp, idx) => {
+      var cls = idx === 0 ? 'active' : ''; var style = idx === 0 ? 'block' : 'none';
+      var html = `<button type="button" class="accordion ${cls}" onclick="toggleAccordion(this)">${grp.label}</button>
+                  <div class="panel" style="display:${style}; padding-top:15px;"><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(350px, 1fr)); gap:20px;">`;
+      
+      var layout = grp.layout || DEFAULT_GROUP_LAYOUTS[grp.id] || [];
+      var customFieldIds = (CLIENTS_CONFIG.customFields || []).filter(f => f.groupId === grp.id).map(f => f.id);
+      customFieldIds.forEach(id => { if(!layout.includes(id)) layout.push(id); });
+
+      layout.forEach(fId => {
+         if (fId.startsWith('core_')) { 
+           html += getCoreFieldEditHtml(fId, data, mode, srvArr, addl); 
+         } else {
+            var cf = (CLIENTS_CONFIG.customFields || []).find(x => x.id === fId);
+            if (cf) {
+              var val = addl[cf.id] !== undefined ? addl[cf.id] : '';
+              var gridSpan = (['json','richtext','textarea','longtext'].includes(cf.type)) ? 'grid-column: 1 / -1;' : '';
+              html += `<div class="form-group" style="${gridSpan}"><label>${cf.label}${cf.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
+              
+              if (cf.type === 'longtext') {
+                html += `<input type="text" id="dyn-cf-${cf.id}" class="form-control dyn-cf" data-id="${cf.id}" data-type="longtext" value="${val}" ${cf.required ? 'required' : ''}>`;
+              } else if (cf.type === 'select') {
+                if (cf.options && cf.options.startsWith('SYS_LOOKUP:')) {
+                   html += renderRuntimeLookupWidget(cf, val);
+                } else {
+                   var opts = (cf.options || "").split(',').map(o => `<option value="${o.trim()}" ${val === o.trim() ? 'selected' : ''}>${o.trim()}</option>`).join('');
+                   html += `<select id="dyn-cf-${cf.id}" class="form-control dyn-cf" data-id="${cf.id}" data-type="select"><option value="">Select...</option>${opts}</select>`;
+                }
+              } else if (cf.type === 'textarea') {
+                html += `<textarea id="dyn-cf-${cf.id}" class="form-control dyn-cf" data-id="${cf.id}" data-type="textarea" style="height:80px;" ${cf.required ? 'required' : ''}>${val}</textarea>`;
+              } else if (cf.type === 'richtext') {
+                html += `<div id="editor-${cf.id}" style="min-height:120px;"></div><input type="hidden" id="dyn-cf-${cf.id}" class="dyn-cf" data-id="${cf.id}" data-type="richtext">`;
+              } else if (cf.type === 'json') {
+                var enc = btoa(unescape(encodeURIComponent(cf.options || "[]")));
+                html += `<div id="json-rep-${cf.id}" class="dyn-cf" data-id="${cf.id}" data-type="json"></div><button type="button" class="btn-add-row" onclick="addRepeaterRow('json-rep-${cf.id}', '${enc}')">+ Add Item</button>`;
+              } else {
+                html += `<input type="${cf.type}" id="dyn-cf-${cf.id}" class="form-control dyn-cf" data-id="${cf.id}" data-type="${cf.type}" value="${val}" ${cf.required ? 'required' : ''}>`;
+              }
+              html += `</div>`;
+            }
+         }
+      });
+      html += `</div></div>`; target.innerHTML += html;
+    });
+
+    (CLIENTS_CONFIG.customFields || []).filter(f => f.type === 'richtext').forEach(f => {
+      ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); if (addl[f.id]) ACTIVE_QUILLS[f.id].root.innerHTML = addl[f.id];
+    });
+
+    (CLIENTS_CONFIG.customFields || []).filter(f => f.type === 'json').forEach(f => {
+      var enc = btoa(unescape(encodeURIComponent(f.options || "[]"))); var parsed = [];
+      try { if(addl[f.id]) { parsed = (typeof addl[f.id] === 'string') ? JSON.parse(addl[f.id]) : addl[f.id]; if(typeof parsed === 'string') parsed = JSON.parse(parsed); } } catch(e){}
+      if (Array.isArray(parsed)) { parsed.forEach(item => addRepeaterRow('json-rep-' + f.id, enc, item)); }
+    });
+    
+    initializeRuntimeDropdownPanels();
+  }
+
+  function renderRuntimeLookupWidget(cf, currentVal) {
+    var configuration = cf.options.split(':');
+    var targetVectorKey = configuration[2] || '';
+    
+    // CRASH PROTECTED: Enforce safe array vectors validation definitions dynamically
+    var vectors = window.SYSTEM_LOOKUP_CACHE[targetVectorKey + 's'] || [];
+    if (!Array.isArray(vectors)) vectors = [];
+    
+    var checkedValues = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
+    
+    var rowsHtml = vectors.map(v => {
+       var checkState = checkedValues.includes(v.id) ? 'checked' : '';
+       return `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb" value="${v.id}" ${checkState} onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`;
+    }).join('');
+
+    return `
+      <div class="searchable-multiselect-wrapper runtime-lookup-engine" data-id="${cf.id}">
+         <div class="multiselect-toggle-box" onclick="toggleMultiselectPanelElement(this)">
+            <span class="ms-display-label">${checkedValues.length ? checkedValues.join(', ') : 'Select options...'}</span>
+            <span>▼</span>
+         </div>
+         <div class="multiselect-dropdown-panel">
+            <input type="text" class="multiselect-search-input" placeholder="Search..." onkeyup="filterMultiselectOptionsPanel(this)">
+            <div class="multiselect-options-list">${rowsHtml}</div>
+         </div>
+         <input type="hidden" id="dyn-cf-${cf.id}" class="dyn-cf runtime-ms-hidden-sink" data-id="${cf.id}" data-type="select" value="${currentVal || ''}">
+      </div>`;
+  }
+
+  function initializeRuntimeDropdownPanels() {
+     document.addEventListener('click', function(e) {
+        if(!e.target.closest('.searchable-multiselect-wrapper')) {
+           document.querySelectorAll('.multiselect-dropdown-panel').forEach(p => p.style.display = 'none');
+        }
+     });
+  }
+
+  function toggleMultiselectPanelElement(box) {
+     var panel = box.nextElementSibling;
+     var open = panel.style.display === 'block';
+     document.querySelectorAll('.multiselect-dropdown-panel').forEach(p => p.style.display = 'none');
+     panel.style.display = open ? 'none' : 'block';
+  }
+
+  function filterMultiselectOptionsPanel(input) {
+     var search = input.value.toLowerCase();
+     var labels = input.nextElementSibling.querySelectorAll('.multiselect-item-label');
+     labels.forEach(l => {
+        var txt = l.innerText.toLowerCase();
+        l.style.display = txt.includes(search) ? 'flex' : 'none';
+     });
+  }
+
+  function syncRuntimeMultiselectPayload(cb) {
+     var wrapper = cb.closest('.searchable-multiselect-wrapper');
+     var checked = Array.from(wrapper.querySelectorAll('.runtime-ms-cb:checked')).map(c => c.value);
+     wrapper.querySelector('.ms-display-label').innerText = checked.length ? checked.join(', ') : 'Select options...';
+     wrapper.querySelector('.runtime-ms-hidden-sink').value = checked.join(', ');
+  }
+
+  function addRepeaterRow(containerId, encDef, currentObj = {}) {
+    var c = document.getElementById(containerId); if(!c) return;
+    var subfields = []; try { subfields = JSON.parse(decodeURIComponent(escape(atob(encDef)))); } catch(e){}
     if (subfields.length === 0) return;
 
-    var row = document.createElement('div'); 
-    row.className = 'dynamic-json-row';
-    
-    var inputs = subfields.map(sf => {
-      var safeK = sf.label.replace(/[^a-zA-Z0-9]/g, '_');
-      var val = existingObj[safeK] !== undefined ? existingObj[safeK] : '';
-      var inputHtml = '';
-      // Expansion logic for repeater subfields
-      var spanStyle = (sf.type === 'textarea' || sf.type === 'longtext' || sf.type === 'address') ? 'grid-column: 1 / -1;' : '';
+    var div = document.createElement('div'); div.className = 'dynamic-json-row';
+    var fieldsHtml = subfields.map(sf => {
+      var key = sf.label.replace(/[^a-zA-Z0-9]/g, '_'); var val = currentObj[key] !== undefined ? currentObj[key] : '';
+      var inlineSpan = (['textarea','longtext','address'].includes(sf.type)) ? 'grid-column: 1 / -1;' : '';
+      var widget = `<input type="${sf.type==='longtext'?'text':sf.type}" class="form-control rep-input" data-key="${key}" value="${val}">`;
       
-      if (sf.type === 'select') {
-        if (sf.options && sf.options.startsWith('SYS_LOOKUP:')) {
-          inputHtml = `<select class="form-control rep-input dynamic-lookup" data-key="${safeK}" data-lookup="${sf.options}" data-value="${val}"><option value="">Loading...</option></select>`;
-        } else {
-          var opts = (sf.options || '').split(',').map(o => `<option value="${o.trim()}" ${val === o.trim() ? 'selected' : ''}>${o.trim()}</option>`).join(''); 
-          inputHtml = `<select class="form-control rep-input" data-key="${safeK}"><option value="">Select...</option>${opts}</select>`; 
-        }
-      } else if (sf.type === 'textarea') { 
-        inputHtml = `<textarea class="form-control rep-input" data-key="${safeK}" style="height:60px;">${val}</textarea>`; 
-      } else { 
-        inputHtml = `<input type="${sf.type === 'longtext' ? 'text' : sf.type}" class="form-control rep-input" data-key="${safeK}" value="${val}">`; 
+      if(sf.type === 'select') {
+         if(sf.options && sf.options.startsWith('SYS_LOOKUP:')) {
+            var parts = sf.options.split(':'); var cachingKey = parts[2] || '';
+            var systemVectors = window.SYSTEM_LOOKUP_CACHE[cachingKey + 's'] || [];
+            if (!Array.isArray(systemVectors)) systemVectors = [];
+            var options = systemVectors.map(v => `<option value="${v.id}" ${val===v.id?'selected':''}>${v.name}</option>`).join('');
+            widget = `<select class="form-control rep-input" data-key="${key}"><option value="">Select...</option>${options}</select>`;
+         } else {
+            var options = sf.options.split(',').map(o => `<option value="${o.trim()}" ${val===o.trim()?'selected':''}>${o.trim()}</option>`).join('');
+            widget = `<select class="form-control rep-input" data-key="${key}"><option value="">Select...</option>${options}</select>`;
+         }
+      } else if (sf.type === 'textarea') {
+         widget = `<textarea class="form-control rep-input" data-key="${key}" style="height:60px;">${val}</textarea>`;
       }
-      
-      return `<div class="form-group" style="${spanStyle}"><label>${sf.label}</label>${inputHtml}</div>`;
+      return `<div class="form-group" style="${inlineSpan}"><label>${sf.label}</label>${widget}</div>`;
     }).join('');
     
-    // Enforce 350px min-width to ensure maximum 2 fields per row in the repeater
-    row.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button><div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap:15px; padding-right: 30px;">${inputs}</div>`;
-    
-    c.appendChild(row);
-    if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
+    div.innerHTML = `<button type="button" class="row-remove-btn" onclick="this.parentElement.remove()">&times;</button>
+                     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(350px, 1fr)); gap:15px; padding-right:30px;">${fieldsHtml}</div>`;
+    c.appendChild(div);
   }
 
   /* ========================================================================
-     6. VIEW ROUTERS & FORM OPENERS
+     6. FORM CANCEL & SUBMISSION PROCESSORS (ORIGIN-AWARE ARRAYS)
      ======================================================================== */
-  function openEditClientsConfig() {
-    toggleModuleEdit('clients', true);
-    
-    // Command the MASTER overlay to turn on with custom text
-    if(typeof toggleSettingsOverlay === 'function') {
-      toggleSettingsOverlay('edt-settings-overlay', true, 'Loading Configuration...');
-    }
-    
-    renderEdtClientsConfig(); 
-  }
-  
-  function switchClientMasterTab(tab) {
-    var bV = document.getElementById('cm-tab-brands');
-    var sV = document.getElementById('cm-tab-services');
-    var act = document.getElementById('client-action-btns');
-    
-    document.querySelectorAll('#clientListView .tab-btn').forEach(b => b.classList.remove('active'));
-    
-    if (tab === 'brands') { 
-      bV.style.display = 'block'; 
-      sV.style.display = 'none'; 
-      document.getElementById('btn-tab-brands').classList.add('active'); 
-      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openDynamicForm('add')" data-perm-category="Clients" data-perm-action="Onboard Clients">+ Onboard New Client</button>`; 
-    } else { 
-      bV.style.display = 'none'; 
-      sV.style.display = 'block'; 
-      document.getElementById('btn-tab-services').classList.add('active'); 
-      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openServiceForm()" data-perm-category="Clients" data-perm-action="Manage Services">+ Define New Service</button>`; 
-      loadServicesTable(); 
-    }
-    
-    if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
-  }
-
-  function openDynamicForm(mode, rowIndex = null) {
-    document.getElementById('dynamicClientForm').reset(); 
-    ACTIVE_QUILLS = {};
-    document.getElementById('dyn-mode').value = mode; 
-    document.getElementById('dyn-rowIndex').value = rowIndex || '';
-    document.getElementById('dyn-form-title').innerText = mode === 'add' ? "Onboard Client" : "Edit Profile";
-    
-    switchView('dynamicClientFormView');
-    
-    if (mode === 'edit') {
-      document.getElementById('dyn-client-overlay').style.display = 'flex';
-      google.script.run.withSuccessHandler(res => { 
-        document.getElementById('dyn-client-overlay').style.display = 'none'; 
-        buildDynamicForm(mode, res.data); 
-      }).getClientById(rowIndex);
-    } else { 
-      buildDynamicForm(mode, {}); 
-    }
-  }
-
-  function openServiceForm(rowIndex = null) { 
-    document.getElementById('srvForm').reset(); 
-    document.getElementById('srv-rowIndex').value = rowIndex || ''; 
-    
-    if (rowIndex) { 
-      var s = GLOBAL_SERVICES.find(x => x.rowIndex == rowIndex); 
-      if (s) { 
-        document.getElementById('srv-name').value = s.name; 
-        document.getElementById('srv-desc').value = s.description; 
-        document.getElementById('srv-status').value = s.status; 
-      } 
-    } 
-    
-    document.getElementById('srvFormTitle').innerText = rowIndex ? "Edit Service Definition" : "Define New Service"; 
-    switchView('serviceFormView'); 
-  }
-
-  /* ========================================================================
-     7. SUBMIT HANDLERS
-     ======================================================================== */
-  function handleSaveClientsConfig(e) {
-    if (e) e.preventDefault();
-    
-    // 1. Gather Accordion Groups
-    const accordionGroups = [];
-    document.querySelectorAll('.accordion-grp-row').forEach(row => {
-      accordionGroups.push({ 
-        id: row.dataset.id, 
-        label: row.querySelector('.acc-label').value, 
-        isDefault: row.dataset.def === 'true' 
-      });
-    });
-    
-    // 2. Gather Custom Fields (with JSON subfield support)
-    const customFields = [];
-    document.querySelectorAll('.cf-row').forEach(row => {
-      var type = row.querySelector('.cf-type').value;
-      var optionsStr = "";
-      
-      // FIX: If it is a JSON field, loop through its specific subfield rows!
-      if (type === 'json') {
-        var subfields = [];
-        row.querySelectorAll('.json-sf-row').forEach(sfRow => {
-          subfields.push({
-            label: sfRow.querySelector('.sf-label').value,
-            type: sfRow.querySelector('.sf-type').value,
-            options: sfRow.querySelector('.sf-opts').value
-          });
-        });
-        optionsStr = JSON.stringify(subfields);
-      } else {
-        // Otherwise, just grab the standard options box
-        optionsStr = row.querySelector('.cf-opts') ? row.querySelector('.cf-opts').value : "";
-      }
-
-      customFields.push({
-        label: row.querySelector('.cf-label').value, 
-        id: row.querySelector('.cf-id').value, 
-        type: type,
-        required: row.querySelector('.cf-req').value === 'true', 
-        groupId: row.querySelector('.cf-grp').value,
-        options: optionsStr
-      });
-    });
-    
-    // 3. Build Payload & Save
-    const payload = { 
-      clientRole: document.getElementById('edt-client-role-select').value, 
-      accordionGroups: accordionGroups, 
-      customFields: customFields 
-    };
-    
-    const btn = e.target;
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = "Saving Configuration...";
-
-    google.script.run
-      .withSuccessHandler(res => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        if (res.success) {
-          CLIENTS_CONFIG = payload;
-          toggleModuleEdit('clients', false);
-          renderRoClientsConfig();
-          if(typeof showToast === 'function') showToast("Success", "Clients configuration saved locally.", "success");
-        } else {
-          if(typeof showToast === 'function') showToast("Error", res.error || "Failed to save.", "danger");
-        }
-      })
-      .withFailureHandler(err => {
-        btn.disabled = false; 
-        btn.innerHTML = originalText;
-        if(typeof showToast === 'function') showToast("Critical Error", err.message, "danger");
-      })
-      .saveClientsModuleConfig(payload);
+  function handleClientsFormCancelAction() {
+     if (window.CLIENTS_FORM_ORIGIN === 'ro' && window.CURRENT_VIEW_CLIENT_DATA) {
+        openReadOnlyClient(window.CURRENT_VIEW_CLIENT_DATA.rowIndex);
+     } else {
+        switchView('clientListView');
+        loadClientsTable();
+     }
   }
 
   function handleDynamicSubmit(e) {
     e.preventDefault(); 
-    var btn = document.getElementById('dyn-submit-btn'); 
-    btn.disabled = true; 
-    btn.innerText = "Processing...";
-    
+    var btn = document.getElementById('dyn-submit-btn'); btn.disabled = true; btn.innerText = "Processing...";
     var mode = document.getElementById('dyn-mode').value;
     
     var payload = { 
       rowIndex: document.getElementById('dyn-rowIndex').value, 
-      companyName: document.getElementById('dyn-core-companyName').value, 
-      address: document.getElementById('dyn-core-address').value, 
-      companyEmail: document.getElementById('dyn-core-companyEmail').value, 
-      companyPhone: document.getElementById('dyn-core-companyPhone').value, 
-      website: document.getElementById('dyn-core-website').value, 
-      pFirstName: document.getElementById('dyn-core-pFirstName').value, 
-      pLastName: document.getElementById('dyn-core-pLastName').value, 
-      pEmail: document.getElementById('dyn-core-pEmail').value, 
-      pPhone: document.getElementById('dyn-core-pPhone').value,
+      companyName: document.getElementById('dyn-core-companyName') ? document.getElementById('dyn-core-companyName').value : '', 
+      address: document.getElementById('dyn-core-address') ? document.getElementById('dyn-core-address').value : '', 
+      companyEmail: document.getElementById('dyn-core-companyEmail') ? document.getElementById('dyn-core-companyEmail').value : '', 
+      companyPhone: document.getElementById('dyn-core-companyPhone') ? document.getElementById('dyn-core-companyPhone').value : '', 
+      website: document.getElementById('dyn-core-website') ? document.getElementById('dyn-core-website').value : '', 
+      pFirstName: document.getElementById('dyn-core-pFirstName') ? document.getElementById('dyn-core-pFirstName').value : '', 
+      pLastName: document.getElementById('dyn-core-pLastName') ? document.getElementById('dyn-core-pLastName').value : '', 
+      pEmail: document.getElementById('dyn-core-pEmail') ? document.getElementById('dyn-core-pEmail').value : '', 
+      pPhone: document.getElementById('dyn-core-pPhone') ? document.getElementById('dyn-core-pPhone').value : '',
       startDate: document.getElementById('dyn-core-startDate') ? document.getElementById('dyn-core-startDate').value : '', 
       expDate: document.getElementById('dyn-core-expDate') ? document.getElementById('dyn-core-expDate').value : '', 
+      
+      origStartDate: document.getElementById('dyn-core-origStartDate') ? document.getElementById('dyn-core-origStartDate').value : '',
+      currentStartDate: document.getElementById('dyn-core-currentStartDate') ? document.getElementById('dyn-core-currentStartDate').value : '',
+      origExpDate: document.getElementById('dyn-core-origExpDate') ? document.getElementById('dyn-core-origExpDate').value : '',
+      currentExpDate: document.getElementById('dyn-core-currentExpDate') ? document.getElementById('dyn-core-currentExpDate').value : '',
+      origEndDate: document.getElementById('dyn-core-origEndDate') ? document.getElementById('dyn-core-origEndDate').value : '',
+      latestEndDate: document.getElementById('dyn-core-latestEndDate') ? document.getElementById('dyn-core-latestEndDate').value : '',
+      
       rate: document.getElementById('dyn-core-rate') ? document.getElementById('dyn-core-rate').value : '',
-      termUnit: document.getElementById('dyn-core-termUnit').value, 
-      termCount: document.getElementById('dyn-core-termCount').value, 
-      status: document.getElementById('dyn-core-status').value 
+      termUnit: document.getElementById('dyn-core-termUnit') ? document.getElementById('dyn-core-termUnit').value : '', 
+      termCount: document.getElementById('dyn-core-termCount') ? document.getElementById('dyn-core-termCount').value : '1', 
+      status: document.getElementById('dyn-core-status') ? document.getElementById('dyn-core-status').value : 'Active', 
+      operationalNotes: JSON.stringify(GLOBAL_OP_NOTES)
     };
     
     payload.services = Array.from(document.querySelectorAll('.dyn-srv-cb:checked')).map(cb => cb.value).join(', ');
     
     var addl = {};
     document.querySelectorAll('.dyn-cf').forEach(el => {
-      var id = el.dataset.id; 
-      var type = el.dataset.type;
-      
-      if (type === 'richtext') { 
-        addl[id] = ACTIVE_QUILLS[id].root.innerHTML; 
-      } else if (type === 'json') { 
-        var arr = []; 
-        el.querySelectorAll('.dynamic-json-row').forEach(r => { 
-          var obj = {}; 
-          r.querySelectorAll('.rep-input').forEach(i => obj[i.dataset.key] = i.value); 
-          arr.push(obj); 
-        });
-        addl[id] = JSON.stringify(arr);
-      } else { 
-        addl[id] = el.value; 
-      }
+      var id = el.dataset.id; var type = el.dataset.type;
+      if (type === 'richtext') { addl[id] = ACTIVE_QUILLS[id].root.innerHTML; } 
+      else if (type === 'json') { 
+        var dataRows = []; el.querySelectorAll('.dynamic-json-row').forEach(r => { var item = {}; r.querySelectorAll('.rep-input').forEach(i => { item[i.dataset.key] = i.value; }); dataRows.push(item); }); 
+        addl[id] = JSON.stringify(dataRows); 
+      } else { addl[id] = el.value; }
     });
-    
     payload.addlFields = JSON.stringify(addl);
 
-    var action = mode === 'add' ? createClientRecord : updateClientRecord;
-    
-    google.script.run
-      .withSuccessHandler(res => { 
-        btn.disabled = false; 
-        btn.innerText = "Save Profile"; 
-        if (res.success) { 
-          loadClientsTable(); 
-          switchView('clientListView'); 
-          if (typeof showSystemModal === 'function') showSystemModal("Success", "Profile saved."); 
-        } else { 
-          if (typeof showSystemModal === 'function') showSystemModal("Error", res.error); 
-        } 
-      })
-      .withFailureHandler(err => {
-        btn.disabled = false;
-        btn.innerText = "Save Profile";
-        if (typeof showSystemModal === 'function') {
-          showSystemModal("Critical Server Error", err.message);
-        } else {
-          alert("Server Error: " + err.message);
-        }
-      })(payload);
+    // FIXED: Formatted processing success handlers to align precisely with strict AI Origin-Aware specifications
+    if (mode === 'add') {
+      google.script.run
+        .withSuccessHandler(function(res) { btn.disabled = false; btn.innerText = "Save Details"; if(res.success){ loadClientsTable(); switchView('clientListView'); } else { alert(res.error); } })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; alert(err.message); })
+        .createClientRecord(payload);
+    } else {
+      google.script.run
+        .withSuccessHandler(function(res) { 
+           btn.disabled = false; btn.innerText = "Save Details"; 
+           if(res.success){ 
+              loadClientsTable(); 
+              if (window.CLIENTS_FORM_ORIGIN === 'ro') { openReadOnlyClient(payload.rowIndex); } else { switchView('clientListView'); }
+           } else { alert(res.error); } 
+        })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; alert(err.message); })
+        .updateClientRecord(payload);
+    }
   }
 
   function handleServiceSubmit(e) { 
     e.preventDefault(); 
-    var payload = { 
-      rowIndex: document.getElementById('srv-rowIndex').value, 
-      name: document.getElementById('srv-name').value, 
-      description: document.getElementById('srv-desc').value, 
-      status: document.getElementById('srv-status').value 
-    }; 
-    
-    google.script.run.withSuccessHandler(res => { 
-      if (res.success) { 
-        loadServicesTable(); 
-        switchView('clientListView'); 
-        switchClientMasterTab('services'); 
-      } 
-    }).saveServiceRecord(payload); 
+    var payload = { rowIndex: document.getElementById('srv-rowIndex').value, name: document.getElementById('srv-name').value, description: document.getElementById('srv-desc').value, status: document.getElementById('srv-status').value }; 
+    google.script.run.withSuccessHandler(function(res) { if (res.success) { loadServicesTable(); if (payload.rowIndex) { openReadOnlyService(payload.rowIndex); } else { switchView('clientListView'); switchClientMasterTab('services'); } } }).saveServiceRecord(payload); 
   }
 
-  /* ========================================================================
-     8. UI HELPERS
-     ======================================================================== */
-  function moveDomRow(btn, direction) {
-    var row = btn.closest('.accordion-grp-row, .cf-row, .json-sf-row');
-    var container = row.parentElement;
-    
-    if (direction === -1 && row.previousElementSibling) {
-      container.insertBefore(row, row.previousElementSibling); // Move Up
-    } else if (direction === 1 && row.nextElementSibling) {
-      container.insertBefore(row.nextElementSibling, row); // Move Down
-    }
-    // Refresh group dropdowns just in case an accordion was moved
-    if (typeof refreshCustomFieldGroupDropdowns === 'function') refreshCustomFieldGroupDropdowns();
-  }
-
-  function toggleCfOpts(sel) {
-    var row = sel.closest('.cf-row'); 
-    var optGrp = row.querySelector('.cf-opts-grp'); 
-    var optLbl = row.querySelector('.cf-opts-lbl');
-    var jsonGrp = row.querySelector('.cf-json-grp');
-    
-    if (sel.value === 'select') { 
-      optGrp.style.display = 'block'; 
-      optLbl.innerText = 'Dropdown Options (Comma separated)';
-      jsonGrp.style.display = 'none'; 
-    } else if (sel.value.startsWith('file-')) {
-      optGrp.style.display = 'block'; 
-      optLbl.innerText = 'Allowed Extensions (e.g., .pdf, .png) - Leave blank for all';
-      jsonGrp.style.display = 'none'; 
-    } else if (sel.value === 'json') { 
-      optGrp.style.display = 'none'; 
-      jsonGrp.style.display = 'block'; 
-      var c = jsonGrp.querySelector('.json-subfields-container'); 
-      if (c.children.length === 0) addJsonSubfieldRow(c); 
+  function switchClientMasterTab(tab) {
+    var bV = document.getElementById('cm-tab-brands'); var sV = document.getElementById('cm-tab-services'); var act = document.getElementById('client-action-btns');
+    document.querySelectorAll('#clientListView .tab-btn').forEach(b => b.classList.remove('active'));
+    if (tab === 'brands') { 
+      bV.style.display = 'block'; sV.style.display = 'none'; document.getElementById('btn-tab-brands').classList.add('active'); 
+      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openDynamicForm('add')" data-perm-category="Clients" data-perm-action="Onboard Clients">+ Onboard New Client</button>`; 
     } else { 
-      optGrp.style.display = 'none'; 
-      jsonGrp.style.display = 'none'; 
+      bV.style.display = 'none'; sV.style.display = 'block'; document.getElementById('btn-tab-services').classList.add('active'); 
+      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openServiceForm()" data-perm-category="Clients" data-perm-action="Manage Services">+ Define New Service</button>`; 
+      loadServicesTable(); 
     }
+    if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
   }
 
-  function refreshCustomFieldGroupDropdowns() {
-    var opts = Array.from(document.querySelectorAll('.accordion-grp-row')).map(r => `
-      <option value="${r.dataset.id}">${r.querySelector('.acc-label').value}</option>
-    `).join('');
-    
-    document.querySelectorAll('.cf-grp').forEach(sel => { 
-      var val = sel.value || sel.dataset.selected; 
-      sel.innerHTML = opts; 
-      if (val) sel.value = val; 
-    });
+  function openServiceForm(rowIndex = null) { 
+    document.getElementById('srvForm').reset(); document.getElementById('srv-rowIndex').value = rowIndex || ''; 
+    var backBtn = document.getElementById('srv-back-btn');
+    if (rowIndex) { backBtn.onclick = () => openReadOnlyService(rowIndex); backBtn.innerHTML = '&#8592; Back to Service Profile'; } 
+    else { backBtn.onclick = () => { switchView('clientListView'); switchClientMasterTab('services'); }; backBtn.innerHTML = '&#8592; Back to Registry'; }
+
+    if (rowIndex) { 
+      var s = GLOBAL_SERVICES.find(x => x.rowIndex == rowIndex); 
+      if (s) { document.getElementById('srv-name').value = s.name; document.getElementById('srv-desc').value = s.description; document.getElementById('srv-status').value = s.status; } 
+    } 
+    document.getElementById('srvFormTitle').innerText = rowIndex ? "Edit Service Definition" : "Define New Service"; 
+    switchView('serviceFormView'); 
   }
 
   function handleTermUnitChange(el) {
-    var tc = document.getElementById('dyn-core-termCount');
-    if (!tc) return;
-    
-    if (el.value === 'One-time') { 
-      tc.value = '1'; 
-      tc.readOnly = true; 
-      tc.style.background = '#f1f5f9'; 
-    } else { 
-      tc.readOnly = false; 
-      tc.style.background = '#fff'; 
-    }
+    var tc = document.getElementById('dyn-core-termCount'); if (!tc) return;
+    if (el.value === 'One-time') { tc.value = '1'; tc.readOnly = true; tc.style.background = '#f1f5f9'; } else { tc.readOnly = false; tc.style.background = '#fff'; }
   }
 
-  function toggleAccordion(el) { 
-    el.classList.toggle("active"); 
-    var p = el.nextElementSibling; 
-    p.style.display = (p.style.display === "block") ? "none" : "block"; 
+  /* ========================================================================
+     7. SETTINGS COMPONENT BUILDERS (SYMMETRICAL LAYOUT SHAPES RESTORED)
+     ======================================================================== */
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'btn-set-ro-clients') { renderRoClientsConfig(); }
+    if (e.target && e.target.id === 'btn-set-edt-clients') { renderEdtClientsConfig(); }
+  });
+
+  function renderRoClientsConfig() {
+    document.getElementById('ro-clients-core-config').innerHTML = `<p style="margin:0;"><strong>Default Role Provisioned to Clients:</strong> <span class="badge" style="background:var(--brand-primary); color:#fff; font-size:13px; padding:5px 12px; margin-left:10px;">${CLIENTS_CONFIG.clientRole || "Client"}</span></p>`;
+    var container = document.getElementById('ro-clients-accordions'); container.innerHTML = '';
+    
+    CLIENTS_CONFIG.accordionGroups.forEach(g => {
+      var html = `<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:20px; margin-bottom:15px;">
+                  <h4 style="margin-top:0; border-bottom:1px solid #f1f5f9; padding-bottom:10px; color:var(--brand-dark);">${g.label} ${g.isDefault ? '<span style="font-size:11px; font-weight:normal; color:#64748b; margin-left:10px;">(System Default)</span>' : ''}</h4>`;
+      
+      var layout = g.layout || DEFAULT_GROUP_LAYOUTS[g.id] || [];
+      var customFieldIds = CLIENTS_CONFIG.customFields.filter(f => f.groupId === g.id).map(f => f.id);
+      customFieldIds.forEach(id => { if (!layout.includes(id)) layout.push(id); });
+      
+      if (layout.length === 0) { html += `<p style="color:#94a3b8; font-style:italic; font-size:13px; margin:0;">No fields configured.</p>`; } 
+      else {
+         html += `<table class="history-diff-table" style="margin-top:10px; table-layout: fixed; width: 100%;">
+                    <thead>
+                      <tr>
+                        <th style="width: 50%;">Field Label</th>
+                        <th style="width: 50%;">Field Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>`;
+         layout.forEach(fId => {
+            if (fId.startsWith('core_')) {
+               var def = CORE_FIELD_DICTIONARY[fId]; if(def) html += `<tr><td><strong>${def.label.replace('*','')}</strong></td><td><span class="badge" style="background:#e2e8f0; color:#475569;">Core Field</span></td></tr>`;
+            } else {
+               var cf = CLIENTS_CONFIG.customFields.find(x => x.id === fId); 
+               if(cf) {
+                 html += `<tr><td><strong>${cf.label}</strong>`;
+                 if (cf.type === 'json' && cf.options) {
+                    try {
+                       var subfields = JSON.parse(cf.options);
+                       if (Array.isArray(subfields) && subfields.length > 0) {
+                          html += `<div style="margin-top:6px; font-size:11px; color:#64748b; padding-left:8px; border-left:2px solid #cbd5e1;">`;
+                          html += `Sub-fields: ` + subfields.map(sf => `<code style="background:#f1f5f9; padding:2px 4px; border-radius:4px; margin-right:4px;">${sf.label}</code>`).join('');
+                          html += `</div>`;
+                       }
+                    } catch(jsonErr){}
+                 }
+                 html += `</td><td><span class="badge" style="background:#f1f5f9; color:#475569;">${cf.type.toUpperCase()}</span></td></tr>`;
+               }
+            }
+         });
+         html += `</tbody></table>`;
+      }
+      html += `</div>`; container.innerHTML += html;
+    });
+  }
+
+  function renderEdtClientsConfig() {
+    if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Loading configuration...');
+    google.script.run.withSuccessHandler(function(res) { 
+      window.CLIENTS_ROLES_DATA = res || [];
+      document.getElementById('edt-client-role-select').innerHTML = window.CLIENTS_ROLES_DATA.map(r => `<option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>${r.name}</option>`).join(''); 
+      var container = document.getElementById('edt-accordions-container'); container.innerHTML = ''; 
+      CLIENTS_CONFIG.accordionGroups.forEach(g => addAccordionGroupRow(g));
+      if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
+    }).getRolesList();
+  }
+
+  function openEditClientsConfig() { toggleModuleEdit('clients', true); renderEdtClientsConfig(); }
+
+  function addAccordionGroupRow(data = {}) {
+    var c = document.getElementById('edt-accordions-container'); 
+    var id = data.id || 'grp_' + Math.random().toString(36).substr(2, 9); var isDef = data.isDefault || false;
+    var layout = data.layout || DEFAULT_GROUP_LAYOUTS[id] || [];
+    var div = document.createElement('div'); div.className = 'accordion-grp-row'; div.dataset.id = id; div.dataset.def = isDef;
+    
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; border-bottom:1px solid #e2e8f0; padding-bottom:15px;">
+        <div style="flex:1; padding-right:20px;">
+          <label style="display:block; font-size:13px; font-weight:bold; color:#475569; margin-bottom:8px;">Group Label</label>
+          <input type="text" class="acc-label form-control" value="${data.label || ''}" ${isDef ? 'readonly style="background:#f1f5f9; cursor:not-allowed;"' : ''}>
+        </div>
+        <div style="display:flex; gap:5px;">
+          <button type="button" onclick="moveDomRow(this, -1)" class="btn-cancel" style="padding:10px;">▲</button>
+          <button type="button" onclick="moveDomRow(this, 1)" class="btn-cancel" style="padding:10px;">▼</button>
+          ${!isDef ? `<button type="button" onclick="if(confirm('Delete group?')) this.closest('.accordion-grp-row').remove();" class="btn-cancel" style="color:#ef4444; border-color:#fecaca; background:#fff0f2;">Remove Group</button>` : ''}
+        </div>
+      </div>
+      <div class="fields-container"></div>
+      <button type="button" class="btn-add-row" onclick="addClientCustomFieldRow(this.previousElementSibling)" style="width:100%; border-style:dashed;">+ Add Custom Field to this Group</button>`;
+    
+    c.appendChild(div); var fieldsContainer = div.querySelector('.fields-container');
+    var assignedCustomFields = CLIENTS_CONFIG.customFields.filter(f => f.groupId === id);
+    var fieldsToRender = [...layout];
+    assignedCustomFields.map(f => f.id).forEach(cfId => { if (!fieldsToRender.includes(cfId)) fieldsToRender.push(cfId); });
+    
+    fieldsToRender.forEach(fId => {
+      if (fId.startsWith('core_')) { addCoreFieldRow(fieldsContainer, fId); } 
+      else { var cfData = assignedCustomFields.find(f => f.id === fId); if (cfData) addClientCustomFieldRow(fieldsContainer, cfData); }
+    });
+  }
+
+  function addCoreFieldRow(container, fieldId) {
+    var def = CORE_FIELD_DICTIONARY[fieldId]; if (!def) return;
+    var div = document.createElement('div'); div.className = 'core-row'; div.dataset.id = fieldId;
+    div.innerHTML = `
+      <div style="flex:1; display:flex; align-items:center;">
+        <strong style="color:#334155; font-size:14px;">${def.label.replace('*','')}</strong>
+        <span class="badge" style="background:#e2e8f0; color:#64748b; margin-left:15px; font-weight:600;">Core Field</span>
+      </div>
+      <div style="display:flex; gap:5px;">
+        <button type="button" onclick="moveDomRow(this, -1)" class="btn-cancel" style="padding:6px 10px; background:#fff;">▲</button>
+        <button type="button" onclick="moveDomRow(this, 1)" class="btn-cancel" style="padding:6px 10px; background:#fff;">▼</button>
+      </div>`;
+    container.appendChild(div);
+  }
+
+  function addClientCustomFieldRow(container, data = {}) {
+    var div = document.createElement('div'); div.className = 'cf-row'; 
+    var id = data.id || 'cf_' + Math.random().toString(36).substr(2, 9);
+    var typeOpts = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `<option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>`).join('');
+    
+    div.innerHTML = `
+      <div style="position:absolute; top:15px; right:15px; display:flex; gap:5px;">
+        <button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; width:30px; height:30px;">▲</button>
+        <button type="button" onclick="moveDomRow(this, 1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; width:30px; height:30px;">▼</button>
+        <button type="button" onclick="if(confirm('Delete this field?')) this.parentElement.parentElement.remove()" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:4px; width:30px; height:30px; font-weight:bold;">&times;</button>
+      </div>
+      <div style="display:flex; align-items:center; margin-bottom:15px;"><span class="badge" style="background:#dbeafe; color:#1e40af;">Custom Field</span></div>
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:12px; align-items:end; margin-bottom: 5px;">
+        <div class="form-group"><label>Field Label</label><input type="text" class="cf-label form-control" value="${data.label || ''}" onchange="syncFieldDatabaseKeyMapping(this)"></div>
+        <div class="form-group"><label>Field ID</label><input type="text" class="cf-id form-control" value="${id}" readonly style="background:#f1f5f9; font-family:monospace;"></div>
+        <div class="form-group"><label>Field Type</label><select class="cf-type form-control" onchange="adjustTierVisibilityOnLoad(this, this.value)">${typeOpts}</select></div>
+        <div class="form-group"><label>Required</label><select class="cf-req form-control"><option value="false">No</option><option value="true" ${data.required ? 'selected' : ''}>Yes</option></select></div>
+      </div>
+      
+      <div class="matrix-4tier-container" style="display:none; margin-top:15px;"></div>
+
+      <div class="form-group cf-json-grp" style="margin-top:15px; display:none; border:1px dashed #cbd5e1; padding:15px; border-radius:8px; background:#f8fafc;">
+        <label style="color:var(--brand-primary); font-weight:bold; margin-bottom:12px; display:block; font-size:13px;">JSON Sub-Fields Workspace</label>
+        <div class="json-subfields-container" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;"></div>
+        <button type="button" class="btn-add-row" onclick="addJsonSubfieldRow(this.previousElementSibling)" style="font-size:12px; padding:6px 15px;">+ Add Sub-Field Item</button>
+      </div>
+    `;
+    
+    container.appendChild(div); 
+    build4TierMatrixInterface(div.querySelector('.matrix-4tier-container'), data);
+    
+    if (data.type === 'json' && data.options) {
+      try { 
+        JSON.parse(data.options).forEach(s => addJsonSubfieldRow(div.querySelector('.json-subfields-container'), s)); 
+      } catch(e){}
+    }
+
+    adjustTierVisibilityOnLoad(div.querySelector('.cf-type'), data.type);
+  }
+
+  function syncFieldDatabaseKeyMapping(input) {
+     var container = input.closest('.cf-row');
+     var keyField = container.querySelector('.cf-id');
+     if(keyField.value.startsWith('cf_random') || keyField.value.startsWith('cf_')) {
+        keyField.value = 'cf_' + input.value.toLowerCase().replace(/[^a-z0-9]/g, '_');
+     }
+  }
+
+  function addJsonSubfieldRow(container, data = { label: '', type: 'text', options: '' }) {
+    var div = document.createElement('div'); div.className = 'json-sf-row'; div.style.display = 'flex'; div.style.flexWrap = 'wrap'; div.style.gap = '15px'; div.style.alignItems = 'flex-start'; div.style.background = '#fff'; div.style.padding = '15px'; div.style.borderRadius = '6px'; div.style.border = '1px solid #e2e8f0'; div.style.position = 'relative';
+    var types = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea'].map(t => `<option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>`).join('');
+    
+    div.innerHTML = `
+      <button type="button" class="row-remove-btn" style="top:5px; right:5px; width:22px; height:22px; font-size:14px;" onclick="this.parentElement.remove()">&times;</button>
+      <div style="flex:2; min-width:200px;">
+         <label style="display:block; margin-bottom:8px; font-size:12px; font-weight:600; color:#475569; padding-bottom: 4px;">Sub-Field Label</label>
+         <input type="text" class="sf-label form-control" style="font-size:13px; padding:6px;" value="${data.label}">
+      </div>
+      <div style="flex:1; min-width:150px;">
+         <label style="display:block; margin-bottom:8px; font-size:12px; font-weight:600; color:#475569; padding-bottom: 4px;">Type</label>
+         <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="toggleSfOpts(this)">${types}</select>
+      </div>
+      <div style="display:flex; gap:3px; align-items:flex-end; margin-bottom:2px; height:45px;"><button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:5px 8px; color:#475569; font-size:10px;">▲</button><button type="button" onclick="moveDomRow(this, 1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:5px 8px; color:#475569; font-size:10px;">▼</button></div>
+      <div class="sf-opts-grp" style="flex: 100%; margin-top:10px; display:none; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; background:#f8fafc;">
+         <label style="display:block; margin-bottom:6px; font-size:11px; font-weight:bold; color:#475569;">Custom Options (Comma Separated)</label>
+         <input type="text" class="sf-static-opts form-control" style="font-size:12px; padding:6px;" value="${data.type==='select' && !data.options.startsWith('SYS_LOOKUP:') ? data.options : ''}" placeholder="Option 1, Option 2...">
+      </div>
+    `;
+    container.appendChild(div);
+    toggleSfOpts(div.querySelector('.sf-type'));
+  }
+
+  /* ========================================================================
+     8. 4-TIER VISIBILITY & SYMMETRICAL RE-ALIGNMENT PROCESSORS
+     ======================================================================== */
+  function adjustTierVisibilityOnLoad(typeSelector, savedType) {
+     var row = typeSelector.closest('.cf-row');
+     var matrixContainer = row.querySelector('.matrix-4tier-container');
+     var jsonContainer = row.querySelector('.cf-json-grp');
+     
+     if (savedType === 'select') {
+        matrixContainer.style.display = 'block'; jsonContainer.style.display = 'none';
+     } else if (savedType === 'json') {
+        matrixContainer.style.display = 'none'; jsonContainer.style.display = 'block';
+        var subContainer = jsonContainer.querySelector('.json-subfields-container');
+        if (subContainer.children.length === 0) addJsonSubfieldRow(subContainer);
+     } else {
+        matrixContainer.style.display = 'none'; jsonContainer.style.display = 'none';
+     }
+  }
+
+  function toggleSfOpts(sel) {
+     var row = sel.closest('.json-sf-row'); var opts = row.querySelector('.sf-opts-grp');
+     opts.style.display = (sel.value === 'select') ? 'block' : 'none';
+  }
+
+  function build4TierMatrixInterface(targetWrapper, data) {
+     var optString = data.options || ''; var isLookup = optString.startsWith('SYS_LOOKUP:');
+     var sourceVal = isLookup ? 'system' : (data.type === 'select' && optString ? 'custom' : '');
+     var modVal = ''; var entityVal = ''; var itemsChecked = [];
+     
+     if (isLookup) {
+        var elements = optString.split(':'); modVal = elements[1] || ''; entityVal = elements[2] || '';
+        if (elements[3]) itemsChecked = elements[3].split(',').map(x => x.trim());
+     }
+
+     var moduleOptions = Object.keys(MODULE_ENTITY_MATRIX).map(m => `<option value="${m}" ${modVal===m?'selected':''}>${m.charAt(0).toUpperCase() + m.slice(1)} Module</option>`).join('');
+
+     // FIXED: Extracted fields directly into the primary grid container stream to allow left-to-right alignment rows perfectly
+     targetWrapper.innerHTML = `
+      <div style="border:1px dashed #cbd5e1; padding:20px; border-radius:8px; background:#f8fafc; box-sizing: border-box;">
+        <label style="color:var(--brand-primary); font-weight:800; font-size:12px; text-transform:uppercase; margin-bottom:15px; display:block; letter-spacing:0.5px;">Data Lookup Mapping</label>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; align-items:start;">
+           
+           <div class="form-group"><label style="font-size:11px; font-weight:700;">Data Source</label>
+              <select class="tier1-source-type form-control" onchange="evaluateTier1Mutation(this)">
+                 <option value="">Select Source...</option>
+                 <option value="custom" ${sourceVal==='custom'?'selected':''}>Custom Options</option>
+                 <option value="system" ${sourceVal==='system'?'selected':''}>System Data</option>
+              </select>
+           </div>
+
+           <div class="form-group tier2-el" style="display:none;"><label style="font-size:11px; font-weight:700;">Module Source</label>
+              <select class="tier2-module form-control" onchange="evaluateTier2Mutation(this)">
+                 <option value="">Select Module...</option>${moduleOptions}
+              </select>
+           </div>
+
+           <div class="form-group tier3-el" style="display:none;"><label style="font-size:11px; font-weight:700;">Entity Selection</label>
+              <select class="tier3-entity form-control" onchange="evaluateTier3Mutation(this)"><option value="">Select Entity...</option></select>
+           </div>
+
+           <div class="form-group static-el" style="display:none; grid-column: span 2;"><label style="font-size:11px; font-weight:700;">Comma separated options</label>
+              <input type="text" class="tier-static-opts form-control" value="${sourceVal==='custom'?optString:''}" placeholder="Option 1, Option 2, Option 3...">
+           </div>
+
+           <div class="form-group tier4-el" style="display:none; grid-column: span 3;"><label style="font-size:11px; font-weight:700;">Value Selection</label>
+              <div class="searchable-multiselect-wrapper tier4-multiselect-container"></div>
+           </div>
+        </div>
+      </div>`;
+
+      if (sourceVal === 'system') {
+         executeMatrixCascadePopulation(targetWrapper, modVal, entityVal, itemsChecked);
+      } else if (sourceVal === 'custom') {
+         targetWrapper.querySelector('.static-el').style.display = 'block';
+      }
+  }
+
+  function evaluateTier1Mutation(tier1Sel) {
+     var block = tier1Sel.closest('.matrix-4tier-container');
+     var t2 = block.querySelector('.tier2-el'); var t3 = block.querySelector('.tier3-el');
+     var t4 = block.querySelector('.tier4-el'); var sb = block.querySelector('.static-el');
+     
+     if (tier1Sel.value === 'system') {
+        t2.style.display = 'block'; sb.style.display = 'none';
+        block.querySelector('.tier2-module').value = ''; t3.style.display = 'none'; t4.style.display = 'none';
+     } else if (tier1Sel.value === 'custom') {
+        sb.style.display = 'block'; t2.style.display = 'none'; t3.style.display = 'none'; t4.style.display = 'none';
+     } else {
+        t2.style.display = 'none'; t3.style.display = 'none'; t4.style.display = 'none'; sb.style.display = 'none';
+     }
+  }
+
+  function evaluateTier2Mutation(tier2Sel) {
+     var block = tier2Sel.closest('.matrix-4tier-container');
+     var modKey = tier2Sel.value; var t3Block = block.querySelector('.tier3-el');
+     var t3Sel = block.querySelector('.tier3-entity'); var t4Block = block.querySelector('.tier4-el');
+     
+     t4Block.style.display = 'none'; if (!modKey) { t3Block.style.display = 'none'; return; }
+     
+     var entities = MODULE_ENTITY_MATRIX[modKey] || [];
+     t3Sel.innerHTML = '<option value="">Select Entity...</option>' + entities.map(e => `<option value="${e.id}">${e.label}</option>`).join('');
+     t3Block.style.display = 'block';
+  }
+
+  function evaluateTier3Mutation(tier3Sel) {
+     var block = tier3Sel.closest('.matrix-4tier-container');
+     var modKey = block.querySelector('.tier2-module').value; var entKey = tier3Sel.value;
+     var t4Block = block.querySelector('.tier4-el');
+     
+     if(!modKey || !entKey) { t4Block.style.display = 'none'; return; } t4Block.style.display = 'block';
+     
+     var vectors = window.SYSTEM_LOOKUP_CACHE[entKey + 's'] || [];
+     buildTier4SearchableCheckboxDropdown(block.querySelector('.tier4-multiselect-container'), vectors, []);
+  }
+
+  function executeMatrixCascadePopulation(wrapper, modVal, entVal, checkedArr) {
+     wrapper.querySelector('.tier2-el').style.display = 'block';
+     wrapper.querySelector('.tier2-module').value = modVal;
+     
+     var t3Block = wrapper.querySelector('.tier3-el'); var t3Sel = wrapper.querySelector('.tier3-entity');
+     var entities = MODULE_ENTITY_MATRIX[modVal] || [];
+     t3Sel.innerHTML = '<option value="">Select Entity...</option>' + entities.map(e => `<option value="${e.id}" ${entVal===e.id?'selected':''}>${e.label}</option>`).join('');
+     t3Block.style.display = 'block';
+     
+     var t4Block = wrapper.querySelector('.tier4-el'); t4Block.style.display = 'block';
+     var vectors = window.SYSTEM_LOOKUP_CACHE[entVal + 's'] || [];
+     buildTier4SearchableCheckboxDropdown(wrapper.querySelector('.tier4-multiselect-container'), vectors, checkedArr);
+  }
+
+  function buildTier4SearchableCheckboxDropdown(targetContainer, vectors, checkedArr) {
+     var rowsHtml = vectors.map(v => {
+        var isChecked = checkedArr.includes(v.id) ? 'checked' : '';
+        return `<label class="multiselect-item-label"><input type="checkbox" class="tier4-checkbox-node" value="${v.id}" ${isChecked} onchange="syncTier4SelectionLabel(this)"> ${v.name}</label>`;
+     }).join('');
+
+     targetContainer.innerHTML = `
+        <div class="multiselect-toggle-box" onclick="toggleTier4PanelDisplay(this)">
+           <span class="t4-display-text-label">${checkedArr.length ? checkedArr.join(', ') : 'Select Options...'}</span>
+           <span>▼</span>
+        </div>
+        <div class="multiselect-dropdown-panel" style="position:relative; box-shadow:none; border-top:none;">
+           <input type="text" class="multiselect-search-input" placeholder="Search options..." onkeyup="filterTier4ItemsPanel(this)">
+           <div class="multiselect-options-list">${rowsHtml || '<span style="padding:10px; font-style:italic; font-size:12px; color:#94a3b8;">No options available.</span>'}</div>
+        </div>`;
+  }
+
+  function toggleTier4PanelDisplay(box) {
+     var panel = box.nextElementSibling;
+     panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+  }
+
+  function filterTier4ItemsPanel(input) {
+     var query = input.value.toLowerCase();
+     var items = input.nextElementSibling.querySelectorAll('.multiselect-item-label');
+     items.forEach(i => { i.style.display = i.innerText.toLowerCase().includes(query) ? 'flex' : 'none'; });
+  }
+
+  function syncTier4SelectionLabel(cb) {
+     var container = cb.closest('.tier4-multiselect-container');
+     var checked = Array.from(container.querySelectorAll('.tier4-checkbox-node:checked')).map(x => x.value);
+     container.querySelector('.t4-display-text-label').innerText = checked.length ? checked.join(', ') : 'Select Options...';
+  }
+
+  /* ========================================================================
+     9. PERSISTENCE ENGINE PAYLOAD ROUTERS
+     ======================================================================== */
+  function handleSaveClientsConfig(e) {
+    if (e) e.preventDefault();
+    const accordionGroups = []; const customFields = []; var executionCrashed = false;
+
+    document.querySelectorAll('.accordion-grp-row').forEach(function(groupRow) {
+      var groupId = groupRow.dataset.id; var groupLabel = groupRow.querySelector('.acc-label').value.trim();
+      var isDef = groupRow.dataset.def === 'true'; var layout = [];
+      if(!groupLabel) { alert("All groups must have a label."); executionCrashed = true; return; }
+
+      groupRow.querySelectorAll('.fields-container > div').forEach(function(fieldRow) {
+        if (fieldRow.classList.contains('core-row')) {
+           layout.push(fieldRow.dataset.id);
+        } else if (fieldRow.classList.contains('cf-row')) {
+           var label = fieldRow.querySelector('.cf-label').value.trim();
+           var cfId = fieldRow.querySelector('.cf-id').value.trim();
+           var type = fieldRow.querySelector('.cf-type').value;
+           var req = fieldRow.querySelector('.cf-req').value === 'true';
+           
+           if(!label || !cfId) { alert("Custom fields require a label and unique ID."); executionCrashed = true; return; }
+           layout.push(cfId); var finalOptionsStr = '';
+
+           if (type === 'select') {
+              var mBlock = fieldRow.querySelector('.matrix-4tier-container');
+              var tier1Mode = mBlock.querySelector('.tier1-source-type').value;
+              if (tier1Mode === 'system') {
+                 var t2Mod = mBlock.querySelector('.tier2-module').value; var t3Ent = mBlock.querySelector('.tier3-entity').value;
+                 var chosenVals = Array.from(mBlock.querySelectorAll('.tier4-checkbox-node:checked')).map(c => c.value).join(',');
+                 if(!t2Mod || !t3Ent) { alert(`Field [${label}] has an incomplete lookup configuration.`); executionCrashed = true; return; }
+                 finalOptionsStr = `SYS_LOOKUP:${t2Mod}:${t3Ent}:${chosenVals}`;
+              } else { finalOptionsStr = mBlock.querySelector('.tier-static-opts').value.trim(); }
+           } else if (type === 'json') {
+              var subfields = [];
+              fieldRow.querySelectorAll('.json-sf-row').forEach(sfRow => {
+                 var sfType = sfRow.querySelector('.sf-type').value; var sfOptions = '';
+                 if(sfType === 'select') sfOptions = sfRow.querySelector('.sf-static-opts').value.trim();
+                 subfields.push({ label: sfRow.querySelector('.sf-label').value.trim(), type: sfType, options: sfOptions });
+              });
+              finalOptionsStr = JSON.stringify(subfields);
+           }
+           customFields.push({ id: cfId, label: label, type: type, required: req, groupId: groupId, options: finalOptionsStr });
+        }
+      });
+      accordionGroups.push({ id: groupId, label: groupLabel, isDefault: isDef, layout: layout });
+    });
+
+    if(executionCrashed) return;
+
+    const payload = { clientRole: document.getElementById('edt-client-role-select').value, accordionGroups: accordionGroups, customFields: customFields };
+    const btn = e.target; var originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = "Saving Configuration...";
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+         btn.disabled = false; btn.innerHTML = originalText;
+         if(res.success) {
+            CLIENTS_CONFIG = payload; toggleModuleEdit('clients', false); renderRoClientsConfig();
+            if(typeof showToast === 'function') showToast("Success", "Configuration saved.", "success");
+         } else { alert(res.error || "Failed to save configuration."); }
+      })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.innerHTML = originalText; alert(err.message); })
+      .saveClientsModuleConfig(payload);
+  }
+
+  function moveDomRow(btn, direction) {
+    var row = btn.closest('.accordion-grp-row, .cf-row, .core-row, .json-sf-row'); var container = row.parentElement;
+    if (direction === -1 && row.previousElementSibling) { container.insertBefore(row, row.previousElementSibling); } 
+    else if (direction === 1 && row.nextElementSibling) { container.insertBefore(row.nextElementSibling, row); }
   }
 </script>
 <!-- [SPARKHUB INTEGRITY ANCHOR: END] -->

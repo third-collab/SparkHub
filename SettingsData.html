@@ -277,7 +277,7 @@
   /* ========================================================================
      6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
-  function navigateClientTab(shell, tabId) {
+  /*function navigateClientTab(shell, tabId) {
     document.querySelectorAll('.tab-content').forEach(el => {
       el.style.display = 'none';
     });
@@ -289,6 +289,27 @@
     }
 
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-${targetId}`);
+    if (activeBtn) activeBtn.classList.add('active');
+  }*/
+
+  function navigateSettingsTab(shell, tabId) {
+    // FIX: Scope the hiding behavior strictly to the active Settings View so it doesn't break other modules
+    var containerId = (shell === 'set-ro') ? 'readOnlySettingsView' : 'editSettingsView';
+    var container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.querySelectorAll('.tab-content').forEach(el => {
+      el.style.display = 'none';
+    });
+
+    const targetId = shell + '-' + tabId;
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+      targetEl.style.display = 'block';
+    }
+
+    container.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.getElementById(`btn-${targetId}`);
     if (activeBtn) activeBtn.classList.add('active');
   }
@@ -303,11 +324,11 @@
       
       document.getElementById('readOnlySettingsView').style.display = 'none';
       document.getElementById('editSettingsView').style.display = 'block';
-      navigateClientTab('set-edt', moduleName);
+      navigateSettingsTab('set-edt', moduleName); // FIX: Updated Function Call
     } else {
       document.getElementById('editSettingsView').style.display = 'none';
       document.getElementById('readOnlySettingsView').style.display = 'block';
-      navigateClientTab('set-ro', moduleName);
+      navigateSettingsTab('set-ro', moduleName); // FIX: Updated Function Call
     }
   }
 
