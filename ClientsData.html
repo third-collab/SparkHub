@@ -722,6 +722,25 @@
     CLIENTS_CONFIG.customFields.filter(f => f.type === 'richtext').forEach(f => { 
       ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); 
     });
+
+    CLIENTS_CONFIG.customFields.filter(f => f.type === 'json').forEach(f => {
+      var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
+      var existingData = [];
+      try {
+        if (addl[f.id]) {
+          existingData = typeof addl[f.id] === 'string' ? JSON.parse(addl[f.id]) : addl[f.id];
+          // Handle double-stringified migrations gracefully
+          if (typeof existingData === 'string') existingData = JSON.parse(existingData);
+        }
+      } catch(e) { console.warn("Could not parse JSON data for", f.id, e); }
+      
+      if (Array.isArray(existingData)) {
+        existingData.forEach(item => {
+          addRepeaterRow('json-rep-' + f.id, encodedOptions, item);
+        });
+      }
+    });
+    
     if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
   }
 

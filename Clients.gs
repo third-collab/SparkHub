@@ -288,8 +288,9 @@ function createClientRecord(p) {
 function updateClientRecord(p) {
   try {
     var sheet = getClientsSheet();
-    var rowIdx = parseInt(p.rowIndex);
-    if (!rowIdx || rowIdx < 2) return { error: "Invalid row index." };
+    var rowIdx = parseInt(p.rowIndex, 10);
+    // FIX: Accept rowIdx >= 1 since array index 1 corresponds to spreadsheet Row 2!
+    if (isNaN(rowIdx) || rowIdx < 1) return { error: "Invalid row index." };
 
     var data = sheet.getDataRange().getValues();
     var row = data[rowIdx];
@@ -304,13 +305,13 @@ function updateClientRecord(p) {
     row[4] = p.companyEmail; 
     row[5] = p.companyPhone; 
     row[6] = p.website;
-    row[7] = p.pFirstName; 
+    row[7] = p.pFirstName;
     row[8] = p.pLastName; 
     row[9] = p.pEmail;
     row[10] = p.pPhone;
     row[11] = p.services; 
     row[12] = p.rate; 
-    row[13] = p.termUnit; 
+    row[13] = p.termUnit;
     row[14] = p.termCount;
     row[16] = p.startDate; 
     row[18] = p.expDate; 
