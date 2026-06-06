@@ -47,6 +47,12 @@
   .multiselect-options-list { display: flex; flex-direction: column; gap: 4px; }
   .multiselect-item-label { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; color: #334155; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
   .multiselect-item-label:hover { background: #f1f5f9; }
+
+  /* Enforce visibility overrides to prevent panel layout clipping on absolute dropdown vectors */
+  .panel { overflow: visible !important; }
+  
+  /* Layout margins prevent custom JSON labels from sticking to fields */
+  .json-sf-row label { display: block !important; margin-bottom: 8px !important; font-weight: 600 !important; color: #475569 !important; }
 </style>
 
 <template class="module-card-template" data-category="operational" data-perm-category="Clients" data-perm-action="View Clients">
@@ -88,7 +94,7 @@
     
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h4 class="settings-section-header">Form Accordion Groups & Fields Workspace</h4>
-      <button type="button" class="btn-add-row" onclick="addAccordionGroupRow()">+ Add Accordion Group</button>
+      <button type="button" class="btn-add-row" onclick="addAccordionGroupRow({}, true)">+ Add Accordion Group</button>
     </div>
     <p style="font-size: 13px; color: #64748b; margin-top:-10px; margin-bottom: 25px;">Define form steps and arrange system fields or add localized custom controls directly inside each section block. System fields cannot be deleted.</p>
     
@@ -111,13 +117,25 @@
       <button type="button" class="tab-btn perm-protected" id="btn-tab-services" data-perm-category="Clients" data-perm-action="Manage Services" onclick="switchClientMasterTab('services')">Service Definitions</button>
     </div>
     <div id="client-action-btns">
-      <button class="btn-primary perm-protected" onclick="openDynamicForm('add')" data-perm-category="Clients" data-perm-action="Onboard Clients">+ Onboard New Client</button>
+      <button class="btn-primary perm-protected" onclick="window.CLIENTS_FORM_ORIGIN='list'; openDynamicForm('add', null, 'list')" data-perm-category="Clients" data-perm-action="Onboard Clients">+ Onboard New Client</button>
     </div>
   </div>
   
   <div id="cm-tab-brands" style="display:block;">
     <div class="filter-wrapper">
-      <input type="text" id="client-filter-search" class="filter-input" placeholder="Search..." onkeyup="applyClientFilters()">
+      <input type="text" id="client-filter-search" class="filter-input" placeholder="Search clients by name or context..." onkeyup="applyClientFilters()">
+      <button class="btn-filter-toggle" onclick="toggleFilter('client-adv')">Filters</button>
+      <div id="client-adv" class="filter-advanced">
+        <div class="custom-dropdown">
+          <button type="button" class="dropdown-btn" onclick="toggleDropdown('client-status-drop')">Status ▼</button>
+          <div class="dropdown-content" id="client-status-drop">
+            <label><input type="checkbox" class="client-filter-status-cb" value="Active" checked onchange="applyClientFilters()"> Active</label>
+            <label><input type="checkbox" class="client-filter-status-cb" value="Onboarding" checked onchange="applyClientFilters()"> Onboarding</label>
+            <label><input type="checkbox" class="client-filter-status-cb" value="Inactive" onchange="applyClientFilters()"> Inactive</label>
+          </div>
+        </div>
+        <button type="button" class="btn-reset-filters" onclick="resetClientFilters()">Reset</button>
+      </div>
     </div>
     <div class="table-container">
       <table>
@@ -160,7 +178,7 @@
     <div id="ro-client-overlay" class="global-loading-overlay">
       <div class="global-overlay-content">
         <div class="spinner-core"></div>
-        <span>Opening Master Record...</span>
+        <span>Loading Client Data...</span>
       </div>
     </div>
     
@@ -200,6 +218,18 @@
        <div id="ro-history-list" style="margin-top:25px;"></div>
     </div>
   </div>
+
+  <div id="note-confirm-modal" class="system-overlay" style="display:none; z-index: 10005;">
+    <div class="overlay-card" style="max-width: 400px; padding: 30px;">
+      <h3>Confirm Deletion</h3>
+      <p style="margin: 15px 0 25px; font-size: 14px; color: #475569;">Are you sure you want to permanently delete this operational note? This action will update the historical narrative trail immediately.</p>
+      <input type="hidden" id="delete-note-index-target">
+      <div style="display:flex; justify-content:flex-end; gap:15px;">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('note-confirm-modal').style.display='none'">Cancel</button>
+        <button type="button" class="btn-primary" onclick="executeOpNoteDeletionAsync()">Confirm</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="readOnlyServiceView" class="container" style="display: none;">
@@ -231,35 +261,24 @@
 </div>
 
 <div id="dynamicClientFormView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="handleClientsFormCancelAction()">&#8592; Back to Details</button>
+  <button id="dyn-client-back-btn" class="btn-dash-back">&#8592; Back to Registry</button>
   <div class="form-wrapper">
     <div id="dyn-client-overlay" class="global-loading-overlay">
       <div class="global-overlay-content">
         <div class="spinner-core"></div>
-        <span id="dyn-overlay-text">Loading...</span>
+        <span id="dyn-overlay-text">Loading Details...</span>
       </div>
     </div>
     <h2 id="dyn-form-title" style="margin-top: 0; color: var(--brand-dark);">Edit Details</h2>
     <form id="dynamicClientForm" onsubmit="handleDynamicSubmit(event)" novalidate>
       <input type="hidden" id="dyn-mode">
       <input type="hidden" id="dyn-rowIndex">
+      <input type="hidden" id="dyn-client-source">
       
       <div id="dyn-accordions-render-target"></div>
-      
-      <div id="dyn-opnotes-section" style="display:none;">
-        <button type="button" class="accordion" onclick="toggleAccordion(this)">Operational Note Management Workspace</button>
-        <div class="panel">
-          <div style="margin-top:15px; background:#f8fafc; padding:25px; border-radius:12px; border:1px solid #e2e8f0;">
-             <label style="font-weight:800; font-size:14px;">Append New Operational Note</label>
-             <textarea id="edt-new-op-note" class="form-control" style="margin-top:12px; height:100px; font-size:14px;"></textarea>
-             <button type="button" class="btn-primary" style="margin-top:20px; width:100%;" onclick="addOpNoteAction()">Post to Operational Log</button>
-          </div>
-          <div id="edt-opnotes-list" style="margin-top:30px; min-height:100px;"></div>
-        </div>
-      </div>
 
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 40px; gap:20px;">
-        <button type="button" class="btn-reset-filters" onclick="handleClientsFormCancelAction()" style="padding: 12px 30px;">Cancel</button>
+        <button type="button" id="dyn-client-cancel-btn" class="btn-reset-filters">Cancel</button>
         <button type="submit" class="btn-primary" id="dyn-submit-btn" style="padding: 12px 50px;">Save Details</button>
       </div>
     </form>
@@ -311,10 +330,9 @@
   var ACTIVE_QUILLS = {};
   var GLOBAL_OP_NOTES = [];
   window.CURRENT_VIEW_CLIENT_DATA = null;
-  window.CLIENTS_FORM_ORIGIN = 'list'; // Track navigation state origin context
+  window.CLIENTS_FORM_ORIGIN = 'list';
   window.SYSTEM_LOOKUP_CACHE = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
 
-  // Master dictionary mapping core platform database columns (Asset Folder Link added)
   var CORE_FIELD_DICTIONARY = {
     "core_companyName": { label: "Company Name *", type: "text" },
     "core_status": { label: "Status", type: "select" },
@@ -329,19 +347,21 @@
     "core_pPhone": { label: "Phone", type: "text" },
     "core_startDate": { label: "Start Date *", type: "date" },
     "core_expDate": { label: "Expiration Date *", type: "date" },
-    "core_origStartDate": { label: "Original Start Date", type: "date" },
-    "core_currentStartDate": { label: "Current Start Date", type: "date" },
-    "core_origExpDate": { label: "Original Expiration Date", type: "date" },
-    "core_currentExpDate": { label: "Current Expiration Date", type: "date" },
-    "core_origEndDate": { label: "Original End Date", type: "date" },
-    "core_latestEndDate": { label: "Latest End Date", type: "date" },
+    "core_origEndDate": { label: "End Date", type: "date" },
     "core_rate": { label: "Rate ($)", type: "number" },
     "core_termUnit": { label: "Term Unit", type: "select" },
     "core_termCount": { label: "Term Count", type: "number" },
     "core_services": { label: "Services Included", type: "checkbox-group" }
   };
 
-  // Fallback layout mappings (Asset Folder Link hardcoded into Client Details)
+  // Fixed contract layout properties strip immutable tracking indices completely
+  var DEFAULT_GROUP_LAYOUTS = {
+    "grp_client": ["core_companyName", "core_status", "core_address", "core_companyEmail", "core_companyPhone", "core_website", "core_assetFolderLink"],
+    "grp_contact": ["core_pFirstName", "core_pLastName", "core_pEmail", "core_pPhone"],
+    "grp_contract": ["core_startDate", "core_expDate", "core_origEndDate", "core_rate", "core_termUnit", "core_termCount", "core_services"]
+  };
+
+  // Fallback layout mappings
   var DEFAULT_GROUP_LAYOUTS = {
     "grp_client": ["core_companyName", "core_status", "core_address", "core_companyEmail", "core_companyPhone", "core_website", "core_assetFolderLink"],
     "grp_contact": ["core_pFirstName", "core_pLastName", "core_pEmail", "core_pPhone"],
@@ -354,7 +374,7 @@
     ]
   };
 
-  // 4-Tier Matrix Entity Relationships Definition Table
+  // 4-Tier Lookup Matrix Module Relationships Blueprint
   var MODULE_ENTITY_MATRIX = {
     "users": [
       { id: "user", label: "Users" },
@@ -378,7 +398,7 @@
      ======================================================================== */
   (function initializeModuleEagerly() {
     google.script.run.withSuccessHandler(function(res) { 
-      if (res.success) { CLIENTS_CONFIG = res.data; }
+      if (res && res.success) { CLIENTS_CONFIG = res.data; }
     }).getClientsModuleConfig();
     populateLookupCache();
   })();
@@ -451,10 +471,16 @@
 
   function applyClientFilters() {
     var search = document.getElementById('client-filter-search').value.toLowerCase(); 
+    var checkedStatuses = Array.from(document.querySelectorAll('.client-filter-status-cb:checked')).map(cb => cb.value);
     var tbody = document.getElementById('clientTableBody'); 
     tbody.innerHTML = '';
     
-    var records = GLOBAL_CLIENTS_DATA.filter(c => String(c.brandName || "").toLowerCase().includes(search));
+    var records = GLOBAL_CLIENTS_DATA.filter(c => {
+      var matchS = String(c.brandName || "").toLowerCase().includes(search) || String(c.companyName || "").toLowerCase().includes(search);
+      var matchSt = checkedStatuses.length === 0 || checkedStatuses.includes(c.status);
+      return matchS && matchSt;
+    });
+
     if (records.length === 0) { 
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#94a3b8;">No matching records found.</td></tr>'; 
       return; 
@@ -468,10 +494,16 @@
           <td><span class="badge" style="background:#f1f5f9; color:#475569;">${c.acctMgr}</span></td>
           <td><span class="badge badge-${String(c.status).toLowerCase()}">${c.status}</span></td>
           <td>
-            <button class="btn-edit" onclick="window.CLIENTS_FORM_ORIGIN='list'; openDynamicForm('edit', ${c.rowIndex}); event.stopPropagation();">Edit</button>
+            <button type="button" class="btn-edit" onclick="openDynamicForm('edit', ${c.rowIndex}, 'list', event)">Edit</button>
           </td>
         </tr>`;
     });
+  }
+
+  function resetClientFilters() {
+    document.getElementById('client-filter-search').value = '';
+    document.querySelectorAll('.client-filter-status-cb').forEach(cb => cb.checked = true);
+    applyClientFilters();
   }
 
   function renderServicesTable() {
@@ -487,13 +519,20 @@
         <td>${s.description}</td>
         <td><span class="badge badge-${String(s.status).toLowerCase()}">${s.status}</span></td>
         <td>
-          <button class="btn-edit" onclick="openServiceForm(${s.rowIndex}); event.stopPropagation();">Edit</button>
+          <button type="button" class="btn-edit" onclick="openServiceForm(${s.rowIndex}); event.stopPropagation();">Edit</button>
         </td>
       </tr>`).join(''); 
   }
+  
+  function loadServicesTable() {
+    google.script.run.withSuccessHandler(function(res) { 
+      GLOBAL_SERVICES = res.data || []; 
+      renderServicesTable();
+    }).getServicesList();
+  }
 
   /* ========================================================================
-     4A. READ-ONLY DETAILS DASHBOARD SYSTEM RENDERERS
+     4A. READ-ONLY ARCHITECTURE VIEW COMPILERS
      ======================================================================== */
   function getCoreFieldRoHtml(id, data, addl) {
      var formatDateString = (val) => (val && val !== 'N/A') ? new Date(val).toLocaleDateString() : 'N/A';
@@ -504,7 +543,7 @@
        case 'core_companyEmail': return `<div class="ro-data-group"><div class="ro-data-label">Company Email</div><div class="ro-data-value">${data.companyEmail || 'N/A'}</div></div>`;
        case 'core_companyPhone': return `<div class="ro-data-group"><div class="ro-data-label">Company Phone</div><div class="ro-data-value">${data.companyPhone || 'N/A'}</div></div>`;
        case 'core_website': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Website</div><div class="ro-data-value"><a href="${data.website}" target="_blank" style="color:var(--brand-primary);">${data.website || 'N/A'}</a></div></div>`;
-       case 'core_assetFolderLink': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Asset Folder Link</div><div class="ro-data-value">${addl.core_assetFolderLink ? `<a href="${addl.core_assetFolderLink}" target="_blank" style="color:var(--brand-primary); word-break:break-all;">${addl.core_assetFolderLink}</a>` : 'No custom asset directory linked.'}</div></div>`;
+       case 'core_assetFolderLink': return `<div class="ro-data-group" style="grid-column: 1 / -1;"><div class="ro-data-label">Asset Folder Link</div><div class="ro-data-value">${(addl && addl.core_assetFolderLink) ? `<a href="${addl.core_assetFolderLink}" target="_blank" style="color:var(--brand-primary); word-break:break-all;">${addl.core_assetFolderLink}</a>` : 'No custom directory linked.'}</div></div>`;
        
        case 'core_pFirstName': return `<div class="ro-data-group"><div class="ro-data-label">First Name</div><div class="ro-data-value">${data.pFirstName || 'N/A'}</div></div>`;
        case 'core_pLastName': return `<div class="ro-data-group"><div class="ro-data-label">Last Name</div><div class="ro-data-value">${data.pLastName || 'N/A'}</div></div>`;
@@ -548,18 +587,17 @@
       document.getElementById('ro-subtitle').innerText = client.companyName || "";
       document.getElementById('ro-status-badge').innerHTML = `<span class="badge badge-${(client.status || "active").toLowerCase()}">${client.status}</span>`;
       
-      // Dynamic button hook handles matching state logic vectors cleanly
-      document.getElementById('ro-edit-btn').onclick = () => {
+      // Aligns the origin context token cleanly onto standard 'ro' vectors
+      document.getElementById('ro-edit-btn').onclick = function(event) {
          window.CLIENTS_FORM_ORIGIN = 'ro';
-         openDynamicForm('edit', client.rowIndex);
+         openDynamicForm('edit', client.rowIndex, 'ro', event);
       };
       
       var addl = {}; 
-      try { addl = JSON.parse(client.addlFields || "{}"); } catch(e) {}
+      try { if(client.addlFields) addl = JSON.parse(client.addlFields || "{}"); } catch(e) {}
       
-      // Set folder redirection path if available
       var folderBtn = document.getElementById('ro-folder-btn');
-      if (addl.core_assetFolderLink) {
+      if (addl && addl.core_assetFolderLink) {
          folderBtn.disabled = false;
          folderBtn.style.opacity = '1';
          folderBtn.onclick = () => window.open(addl.core_assetFolderLink, '_blank');
@@ -570,7 +608,15 @@
       }
       
       var html = '';
-      CLIENTS_CONFIG.accordionGroups.forEach((grp, idx) => {
+      var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) 
+                   ? CLIENTS_CONFIG.accordionGroups 
+                   : [
+                       { id: "grp_client", label: "Client Details" },
+                       { id: "grp_contact", label: "Primary Contact" },
+                       { id: "grp_contract", label: "Contract Information" }
+                     ];
+
+      groups.forEach((grp, idx) => {
         var cls = idx === 0 ? 'active' : '';
         var style = idx === 0 ? 'block' : 'none';
         
@@ -578,14 +624,14 @@
                  <div class="panel" style="display:${style}; padding-top:15px; padding-bottom:15px;"><div class="ro-grid-row">`;
         
         var layout = grp.layout || DEFAULT_GROUP_LAYOUTS[grp.id] || [];
-        var customFieldIds = CLIENTS_CONFIG.customFields.filter(f => f.groupId === grp.id).map(f => f.id);
+        var customFieldIds = (CLIENTS_CONFIG.customFields || []).filter(f => f.groupId === grp.id).map(f => f.id);
         customFieldIds.forEach(id => { if(!layout.includes(id)) layout.push(id); });
 
         layout.forEach(fId => {
            if (fId.startsWith('core_')) {
               html += getCoreFieldRoHtml(fId, client, addl);
            } else {
-              var cf = CLIENTS_CONFIG.customFields.find(x => x.id === fId);
+              var cf = (CLIENTS_CONFIG.customFields || []).find(x => x.id === fId);
               if (cf) {
                 var val = addl[cf.id] !== undefined ? addl[cf.id] : 'N/A';
                 var gridSpan = (['json','richtext','textarea','longtext'].includes(cf.type)) ? 'grid-column: 1 / -1;' : '';
@@ -631,31 +677,131 @@
     var notes = []; try { notes = JSON.parse(json || "[]"); } catch(e){}
     var html = ''; 
     notes.forEach((n, i) => {
+      var updateTimeStr = n.updatedAt ? ` | <strong>Updated:</strong> ${new Date(n.updatedAt).toLocaleString()}` : '';
+      var updateAuthorStr = n.updatedBy ? ` | Last updated by <strong>${n.updatedBy}</strong>` : '';
       html += `
         <div class="op-note-container" draggable="true" ondragstart="dragOpNoteStart(event, ${i})" ondragover="dragOpNoteOver(event)" ondrop="dropOpNote(event, ${i})">
-           <div id="note-view-${i}" style="display:flex; align-items:center;">
+           <div id="note-view-${i}" style="display:flex; align-items:center; gap:10px;">
               <div class="note-handle">&#9776;</div>
-              <div class="note-text-content" onclick="editOpNote(${i})">${n.content}</div>
-              <button style="background:none; border:none; color:#ef4444; font-size:11px; cursor:pointer; font-weight:700;" onclick="removeOpNoteAt(${i})">Remove</button>
+              <div class="note-text-content">${n.content}</div>
+              <button type="button" class="btn-edit" style="padding:2px 8px; font-size:11px;" onclick="editOpNoteActionInline(${i})">Edit</button>
+              <button type="button" style="background:none; border:none; color:#ef4444; font-size:11px; cursor:pointer; font-weight:700;" onclick="triggerOpNoteDeleteLayover(${i})">Remove</button>
            </div>
            <div id="note-edit-${i}" style="display:none; align-items:center; gap: 10px;">
-              <input type="text" id="note-input-${i}" class="form-control" value="${n.content.replace(/"/g, '&quot;')}" style="flex:1; height:45px;">
-              <button class="btn-primary" onclick="saveOpNoteEdit(${i})" style="padding:10px 20px;">Save</button>
-              <button class="btn-reset-filters" onclick="document.getElementById('note-view-${i}').style.display='flex'; document.getElementById('note-edit-${i}').style.display='none';">Cancel</button>
+              <input type="text" id="note-input-${i}" class="form-control" value="${n.content.replace(/"/g, '&quot;')}" style="flex:1; height:38px; font-size:13px;">
+              <button class="btn-primary" onclick="saveOpNoteEditInline(${i})" style="padding:6px 15px; font-size:12px;">Save</button>
+              <button class="btn-reset-filters" onclick="document.getElementById('note-view-${i}').style.display='flex'; document.getElementById('note-edit-${i}').style.display='none';" style="padding:6px 15px; font-size:12px;">Cancel</button>
            </div>
-           <div class="note-meta-line"><span>By: <strong>${n.editor}</strong></span><span>${new Date(n.timestamp).toLocaleString()}</span></div>
+           <div class="note-meta-line"><span>By: <strong>${n.editor}</strong>${updateAuthorStr}</span><span>${new Date(n.timestamp).toLocaleString()}${updateTimeStr}</span></div>
         </div>`;
     });
     container.innerHTML = html || '<p style="text-align:center; color:#94a3b8; padding:50px; font-style:italic;">No notes available.</p>';
   }
 
+  function editOpNoteActionInline(idx) {
+     document.getElementById('note-view-' + idx).style.display = 'none';
+     document.getElementById('note-edit-' + idx).style.display = 'flex';
+  }
+
+  function saveOpNoteEditInline(idx) {
+     var val = document.getElementById('note-input-' + idx).value.trim(); if (!val) return;
+     
+     // Configures contextual parameters for background database logs entries
+     var overlay = document.getElementById('ro-client-overlay');
+     if (overlay) {
+        overlay.querySelector('span').innerText = "Saving Note...";
+        overlay.style.display = 'flex';
+     }
+     
+     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
+     notes[idx].content = val;
+     notes[idx].updatedAt = new Date().toISOString();
+     notes[idx].updatedBy = (typeof CURRENT_USERNAME !== 'undefined' && CURRENT_USERNAME) ? CURRENT_USERNAME : "System Admin";
+     
+     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+     google.script.run.withSuccessHandler(function(res) {
+        if (overlay) overlay.style.display = 'none';
+        if(res.success && res.data) {
+           window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
+           window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
+           renderOpNotesList(res.data.operationalNotes);
+           renderHistoryTab(res.data.history);
+        }
+     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function executeOpNoteDeletionAsync() {
+     var idx = parseInt(document.getElementById('delete-note-target-index').value, 10);
+     document.getElementById('note-delete-layover-modal').style.display = 'none';
+     
+     var overlay = document.getElementById('ro-client-overlay');
+     if (overlay) {
+        overlay.querySelector('span').innerText = "Saving Note...";
+        overlay.style.display = 'flex';
+     }
+     
+     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
+     notes.splice(idx,1);
+     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+     
+     google.script.run.withSuccessHandler(function(res) {
+        if (overlay) overlay.style.display = 'none';
+        if(res.success && res.data) {
+           window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
+           window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
+           renderOpNotesList(res.data.operationalNotes);
+           renderHistoryTab(res.data.history);
+        }
+     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function triggerOpNoteDeleteLayover(idx) {
+     document.getElementById('delete-note-index-target').value = idx;
+     document.getElementById('note-confirm-modal').style.display = 'flex';
+  }
+
+  function executeOpNoteDeletionAsync() {
+     var idx = parseInt(document.getElementById('delete-note-target-index').value, 10);
+     document.getElementById('note-delete-layover-modal').style.display = 'none';
+     
+     var overlay = document.getElementById('ro-client-overlay');
+     if (overlay) {
+        overlay.querySelector('span').innerText = "Saving Note...";
+        overlay.style.display = 'flex';
+     }
+     
+     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
+     notes.splice(idx,1);
+     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+     
+     google.script.run.withSuccessHandler(function(res) {
+        if (overlay) overlay.style.display = 'none';
+        if(res.success && res.data) {
+           window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
+           window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
+           renderOpNotesList(res.data.operationalNotes);
+           renderHistoryTab(res.data.history);
+        }
+     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
   function removeOpNoteAt(idx) {
     if(!confirm('Delete this note?')) return;
+    document.getElementById('ro-client-overlay').style.display = 'flex';
+    
     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
     notes.splice(idx,1);
     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
-    renderOpNotesList(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
-    google.script.run.updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+    
+    google.script.run.withSuccessHandler(function(res) {
+       document.getElementById('ro-client-overlay').style.display = 'none';
+       if(res.success && res.data) {
+          window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
+          window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
+          renderOpNotesList(res.data.operationalNotes);
+          renderHistoryTab(res.data.history);
+       }
+    }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
   function saveOpNoteEdit(idx) {
@@ -678,13 +824,51 @@
   }
 
   function showQuickNoteInput() { document.getElementById('ro-add-note-trigger').style.display = 'none'; document.getElementById('ro-quick-note-area').style.display = 'flex'; }
+
   function hideQuickNoteInput() { document.getElementById('ro-add-note-trigger').style.display = 'block'; document.getElementById('ro-quick-note-area').style.display = 'none'; }
+
   function addQuickOpNote() {
     var text = document.getElementById('ro-quick-note-input').value.trim(); if(!text) return;
+    var overlay = document.getElementById('ro-client-overlay');
+    if (overlay) {
+      overlay.querySelector('span').innerText = "Saving Note...";
+      overlay.style.display = 'flex';
+    }
+    
     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
     notes.push({ content: text, editor: typeof CURRENT_USERNAME !== 'undefined' ? CURRENT_USERNAME : "System", timestamp: new Date().toISOString() });
     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
-    google.script.run.withSuccessHandler(function() { hideQuickNoteInput(); document.getElementById('ro-quick-note-input').value=""; openReadOnlyClient(window.CURRENT_VIEW_CLIENT_DATA.rowIndex); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+    
+    google.script.run.withSuccessHandler(function(res) { 
+      document.getElementById('ro-client-overlay').style.display = 'none';
+      hideQuickNoteInput(); 
+      document.getElementById('ro-quick-note-input').value = ""; 
+      if(res.success && res.data) {
+         window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
+         window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
+         renderOpNotesList(res.data.operationalNotes);
+         renderHistoryTab(res.data.history);
+      }
+    }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+  }
+
+  function formatHistoryValue(val) {
+    if (!val || val === "(empty)") return '<span>"(empty)"</span>';
+    if (val.length > 200) {
+      var start = val.substring(0, 100);
+      var end = val.substring(val.length - 100);
+      var escaped = encodeURIComponent(val).replace(/'/g, "%27");
+      return `<span class="history-value-wrapper">"${start}<span class="history-ellipsis-trigger" style="color:var(--brand-primary); cursor:pointer; font-weight:bold; text-decoration:underline; padding:0 2px;" data-raw="${escaped}" onclick="expandHistoryTextInline(this)">...</span>${end}"</span>`;
+    }
+    return `<span>"${val}"</span>`;
+  }
+
+  function expandHistoryTextInline(element) {
+     var rawData = decodeURIComponent(element.getAttribute('data-raw'));
+     var wrapper = element.closest('.history-value-wrapper');
+     if (wrapper) {
+        wrapper.innerHTML = `"${rawData}"`;
+     }
   }
 
   function renderHistoryTab(json) {
@@ -694,11 +878,48 @@
       if (logs.length === 0) { container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:40px;">No change history recorded.</p>'; return; }
       container.innerHTML = '';
       logs.forEach(entry => {
-        var html = `<div class="history-audit-entry"><div style="font-size:13px; color:#475569; font-weight:bold; margin-bottom:12px;">${new Date(entry.timestamp).toLocaleString()} &bull; Edited by <strong>${entry.editor || 'System'}</strong></div><table class="history-diff-table"><thead><tr><th style="width:30%;">Field</th><th style="width:35%;">Old Value</th><th style="width:35%;">New Value</th></tr></thead><tbody>`;
-        entry.changes.forEach(ch => { html += `<tr><td style="font-weight:700; color:#1e293b;">${ch.field}</td><td class="diff-old-txt">${ch.old || '(empty)'}</td><td class="diff-new-txt">${ch.new || '(empty)'}</td></tr>`; });
-        html += '</tbody></table></div>'; container.innerHTML += html;
+        var html = `<div class="history-audit-entry" style="background:#fff; border:1px solid #e2e8f0; padding:20px; border-radius:8px; margin-bottom:15px; box-shadow:var(--shadow-sm);">
+                      <div style="font-size:13px; color:#64748b; font-weight:bold; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
+                        ${new Date(entry.timestamp).toLocaleString()} &bull; Action by: <strong>${entry.editor || 'System User'}</strong>
+                      </div>
+                      <ul style="margin:0; padding-left:20px; color:#334155; font-size:13.5px; line-height:1.6;">`;
+        
+        entry.changes.forEach(ch => { 
+           var line = '';
+           if (ch.type === "json") {
+             line += `<strong>${ch.field}:</strong> <em>changed</em> the following:<br>`;
+             ch.subChanges.forEach(sub => {
+               var actionKeyword = (sub.old === "") ? "added" : "edited";
+               var oldPart = (sub.old === "") ? "" : `from ${formatHistoryValue(sub.old)} `;
+               var newPart = (sub.old === "") ? formatHistoryValue(sub.new) : `to ${formatHistoryValue(sub.new)}`;
+               line += `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${sub.subField}: <strong>${ch.operator}</strong> <em>${actionKeyword}</em> ${oldPart}${newPart}<br>`;
+             });
+           } else if (ch.type === "note") {
+             if (ch.action === 'added') {
+               line += `<strong>${ch.operator}</strong> <em>added</em> an operational note: ${formatHistoryValue(ch.newVal)}`;
+             } else if (ch.action === 'deleted') {
+               line += `<strong>${ch.operator}</strong> <em>deleted</em> an operational note: ${formatHistoryValue(ch.oldVal)}`;
+             } else {
+               line += `<strong>${ch.operator}</strong> <em>edited</em> an operational note from ${formatHistoryValue(ch.oldVal)} to ${formatHistoryValue(ch.newVal)}`;
+             }
+           } else if (ch.type === "richtext") {
+             if (ch.action === 'added') {
+               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>added</em> "${ch.newVal}"`;
+             } else {
+               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>edited</em> from "${ch.oldVal}" to "${ch.newVal}"`;
+             }
+           } else {
+             if (ch.action === 'added') {
+               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>added</em> ${formatHistoryValue(ch.newVal)}`;
+             } else {
+               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>edited</em> from ${formatHistoryValue(ch.oldVal)} to ${formatHistoryValue(ch.newVal)}`;
+             }
+           }
+           html += `<li style="margin-bottom:6px; list-style-type:square;">${line}</li>`;
+        });
+        html += '</ul></div>'; container.innerHTML += html;
       });
-    } catch(e) { container.innerHTML = '<p>Error loading history logs.</p>'; }
+    } catch(e) { container.innerHTML = '<p>Error loading history narrative logs.</p>'; }
   }
 
   function openReadOnlyService(rowIndex) {
@@ -711,7 +932,7 @@
   }
 
   /* ========================================================================
-     5. DYNAMIC COMPILER (CRASH DEFENSIVELY PATCHED & ASSET LINK INTERACTS)
+     5. DYNAMIC TRANSACTION FORM BUILDER (PATCHED DEFENSIVELY & CRASH FIXED)
      ======================================================================== */
   function getCoreFieldEditHtml(id, data, mode, srvArr, addl) {
     var formatIso = (val) => (val) ? new Date(val).toISOString().split('T')[0] : '';
@@ -723,7 +944,7 @@
       case 'core_companyPhone': return `<div class="form-group"><label>Company Phone</label><input type="text" id="dyn-core-companyPhone" class="form-control dyn-core" value="${data.companyPhone || ''}"></div>`;
       case 'core_website': return `<div class="form-group" style="grid-column: 1 / -1;"><label>Website</label><input type="url" id="dyn-core-website" class="form-control dyn-core" value="${data.website || ''}"></div>`;
       case 'core_assetFolderLink': 
-        var linkVal = addl.core_assetFolderLink || '';
+        var linkVal = (addl && addl.core_assetFolderLink) || '';
         return `<div class="form-group" style="grid-column: 1 / -1;"><label>Asset Folder Link</label><input type="url" id="dyn-cf-core_assetFolderLink" class="form-control dyn-cf" data-id="core_assetFolderLink" data-type="url" value="${linkVal}"></div>`;
       
       case 'core_pFirstName': return `<div class="form-group"><label>First Name *</label><input type="text" id="dyn-core-pFirstName" class="form-control dyn-core" value="${data.pFirstName || ''}" required></div>`;
@@ -733,13 +954,9 @@
       
       case 'core_startDate': return `<div class="form-group"><label>Start Date *</label><input type="date" id="dyn-core-startDate" class="form-control dyn-core" value="${formatIso(data.currentStartDate)}" required></div>`;
       case 'core_expDate': return `<div class="form-group"><label>Expiration Date *</label><input type="date" id="dyn-core-expDate" class="form-control dyn-core" value="${formatIso(data.currentExpDate)}" required></div>`;
-      
-      case 'core_origStartDate': return `<div class="form-group"><label>Original Start Date</label><input type="date" id="dyn-core-origStartDate" class="form-control dyn-core" value="${formatIso(data.origStartDate)}"></div>`;
-      case 'core_currentStartDate': return `<div class="form-group"><label>Current Start Date</label><input type="date" id="dyn-core-currentStartDate" class="form-control dyn-core" value="${formatIso(data.currentStartDate)}"></div>`;
-      case 'core_origExpDate': return `<div class="form-group"><label>Original Expiration Date</label><input type="date" id="dyn-core-origExpDate" class="form-control dyn-core" value="${formatIso(data.origExpDate)}"></div>`;
-      case 'core_currentExpDate': return `<div class="form-group"><label>Current Expiration Date</label><input type="date" id="dyn-core-currentExpDate" class="form-control dyn-core" value="${formatIso(data.currentExpDate)}"></div>`;
-      case 'core_origEndDate': return `<div class="form-group"><label>Original End Date</label><input type="date" id="dyn-core-origEndDate" class="form-control dyn-core" value="${formatIso(data.origEndDate)}"></div>`;
-      case 'core_latestEndDate': return `<div class="form-group"><label>Latest End Date</label><input type="date" id="dyn-core-latestEndDate" class="form-control dyn-core" value="${formatIso(data.latestEndDate)}"></div>`;
+      case 'core_origEndDate':
+         var endVal = formatIso(data.latestEndDate || data.origEndDate);
+         return `<div class="form-group"><label>End Date</label><input type="date" id="dyn-core-endDate" class="form-control dyn-core" value="${endVal}"></div>`;
       
       case 'core_rate': return `<div class="form-group"><label>Rate ($)</label><input type="number" id="dyn-core-rate" class="form-control dyn-core" value="${data.rate || ''}"></div>`;
       case 'core_termUnit': return `<div class="form-group"><label>Term Unit</label><select id="dyn-core-termUnit" class="form-control dyn-core" onchange="handleTermUnitChange(this)"><option value="Days" ${data.termUnit === 'Days' ? 'selected' : ''}>Days</option><option value="Weeks" ${data.termUnit === 'Weeks' ? 'selected' : ''}>Weeks</option><option value="Months" ${data.termUnit === 'Months' ? 'selected' : ''}>Months</option><option value="Years" ${data.termUnit === 'Years' ? 'selected' : ''}>Years</option><option value="One-time" ${data.termUnit === 'One-time' ? 'selected' : ''}>One-time</option></select></div>`;
@@ -751,27 +968,85 @@
     }
   }
 
+  function openDynamicForm(mode, rowIndex = null, source = null, evt = null) {
+    if (evt) {
+      if (typeof evt.stopPropagation === 'function') evt.stopPropagation();
+      if (typeof evt.preventDefault === 'function') evt.preventDefault();
+    }
+    
+    document.getElementById('dynamicClientForm').reset(); 
+    ACTIVE_QUILLS = {}; 
+    GLOBAL_OP_NOTES = [];
+    
+    document.getElementById('dyn-mode').value = mode; 
+    document.getElementById('dyn-rowIndex').value = rowIndex || '';
+    document.getElementById('dyn-client-source').value = source || 'list';
+    document.getElementById('dyn-form-title').innerText = mode === 'add' ? "Onboard Client" : "Edit Details";
+    document.getElementById('dyn-submit-btn').innerText = "Save Details";
+    
+    switchView('dynamicClientFormView');
+    
+    // --- PROGRAMMATIC NAV ROUTING VECTOR PATTERNED AFTER USERS MODULE ---
+    var backBtn = document.getElementById('dyn-client-back-btn');
+    var cancelBtn = document.getElementById('dyn-client-cancel-btn');
+    
+    if (source === 'ro') {
+      if (backBtn) {
+        backBtn.innerHTML = '&#8592; Back to Details';
+        backBtn.onclick = function() { openReadOnlyClient(rowIndex); };
+      }
+      if (cancelBtn) {
+        cancelBtn.onclick = function() { openReadOnlyClient(rowIndex); };
+      }
+    } else {
+      if (backBtn) {
+        backBtn.innerHTML = '&#8592; Back to Registry';
+        backBtn.onclick = function() { switchView('clientListView'); loadClientsTable(); };
+      }
+      if (cancelBtn) {
+        cancelBtn.onclick = function() { switchView('clientListView'); loadClientsTable(); };
+      }
+    }
+
+    if (mode === 'edit') {
+      document.getElementById('dyn-client-overlay').style.display = 'flex';
+      google.script.run.withSuccessHandler(function(res) { 
+        document.getElementById('dyn-client-overlay').style.display = 'none'; 
+        if(!res || res.error) return;
+        buildDynamicForm(mode, res.data); 
+      }).getClientById(rowIndex);
+    } else { 
+      buildDynamicForm(mode, {}); 
+    }
+  }
+
   function buildDynamicForm(mode, data) {
     var target = document.getElementById('dyn-accordions-render-target'); target.innerHTML = '';
     var addl = {}; try { if(data && data.addlFields) addl = JSON.parse(data.addlFields || "{}"); } catch(e){}
     var srvArr = (data && data.services || "").split(',').map(s => s.trim());
     
-    if(!CLIENTS_CONFIG || !CLIENTS_CONFIG.accordionGroups) return;
+    var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) 
+                 ? CLIENTS_CONFIG.accordionGroups 
+                 : [
+                     { id: "grp_client", label: "Client Details" },
+                     { id: "grp_contact", label: "Primary Contact" },
+                     { id: "grp_contract", label: "Contract Information" }
+                   ];
 
-    CLIENTS_CONFIG.accordionGroups.forEach((grp, idx) => {
+    groups.forEach((grp, idx) => {
       var cls = idx === 0 ? 'active' : ''; var style = idx === 0 ? 'block' : 'none';
       var html = `<button type="button" class="accordion ${cls}" onclick="toggleAccordion(this)">${grp.label}</button>
                   <div class="panel" style="display:${style}; padding-top:15px;"><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(350px, 1fr)); gap:20px;">`;
       
       var layout = grp.layout || DEFAULT_GROUP_LAYOUTS[grp.id] || [];
-      var customFieldIds = (CLIENTS_CONFIG.customFields || []).filter(f => f.groupId === grp.id).map(f => f.id);
+      var customFieldIds = (CLIENTS_CONFIG && CLIENTS_CONFIG.customFields || []).filter(f => f.groupId === grp.id).map(f => f.id);
       customFieldIds.forEach(id => { if(!layout.includes(id)) layout.push(id); });
 
       layout.forEach(fId => {
          if (fId.startsWith('core_')) { 
            html += getCoreFieldEditHtml(fId, data, mode, srvArr, addl); 
          } else {
-            var cf = (CLIENTS_CONFIG.customFields || []).find(x => x.id === fId);
+            var cf = (CLIENTS_CONFIG && CLIENTS_CONFIG.customFields || []).find(x => x.id === fId);
             if (cf) {
               var val = addl[cf.id] !== undefined ? addl[cf.id] : '';
               var gridSpan = (['json','richtext','textarea','longtext'].includes(cf.type)) ? 'grid-column: 1 / -1;' : '';
@@ -803,15 +1078,17 @@
       html += `</div></div>`; target.innerHTML += html;
     });
 
-    (CLIENTS_CONFIG.customFields || []).filter(f => f.type === 'richtext').forEach(f => {
-      ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); if (addl[f.id]) ACTIVE_QUILLS[f.id].root.innerHTML = addl[f.id];
-    });
+    if (CLIENTS_CONFIG && CLIENTS_CONFIG.customFields) {
+      CLIENTS_CONFIG.customFields.filter(f => f.type === 'richtext').forEach(f => {
+        ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); if (addl[f.id]) ACTIVE_QUILLS[f.id].root.innerHTML = addl[f.id];
+      });
 
-    (CLIENTS_CONFIG.customFields || []).filter(f => f.type === 'json').forEach(f => {
-      var enc = btoa(unescape(encodeURIComponent(f.options || "[]"))); var parsed = [];
-      try { if(addl[f.id]) { parsed = (typeof addl[f.id] === 'string') ? JSON.parse(addl[f.id]) : addl[f.id]; if(typeof parsed === 'string') parsed = JSON.parse(parsed); } } catch(e){}
-      if (Array.isArray(parsed)) { parsed.forEach(item => addRepeaterRow('json-rep-' + f.id, enc, item)); }
-    });
+      CLIENTS_CONFIG.customFields.filter(f => f.type === 'json').forEach(f => {
+        var enc = btoa(unescape(encodeURIComponent(f.options || "[]"))); var parsed = [];
+        try { if(addl[f.id]) { parsed = (typeof addl[f.id] === 'string') ? JSON.parse(addl[f.id]) : addl[f.id]; if(typeof parsed === 'string') parsed = JSON.parse(parsed); } } catch(e){}
+        if (Array.isArray(parsed)) { parsed.forEach(item => addRepeaterRow('json-rep-' + f.id, enc, item)); }
+      });
+    }
     
     initializeRuntimeDropdownPanels();
   }
@@ -819,13 +1096,16 @@
   function renderRuntimeLookupWidget(cf, currentVal) {
     var configuration = cf.options.split(':');
     var targetVectorKey = configuration[2] || '';
-    
-    // CRASH PROTECTED: Enforce safe array vectors validation definitions dynamically
     var vectors = window.SYSTEM_LOOKUP_CACHE[targetVectorKey + 's'] || [];
     if (!Array.isArray(vectors)) vectors = [];
     
-    var checkedValues = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
+    // TIER 4 FILTERING: If configuration[3] specifies allowed sub-selections, filter the rows down immediately
+    if (configuration[3]) {
+       var allowedIds = configuration[3].split(',').map(x => x.trim());
+       vectors = vectors.filter(v => allowedIds.includes(v.id));
+    }
     
+    var checkedValues = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
     var rowsHtml = vectors.map(v => {
        var checkState = checkedValues.includes(v.id) ? 'checked' : '';
        return `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb" value="${v.id}" ${checkState} onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`;
@@ -839,7 +1119,7 @@
          </div>
          <div class="multiselect-dropdown-panel">
             <input type="text" class="multiselect-search-input" placeholder="Search..." onkeyup="filterMultiselectOptionsPanel(this)">
-            <div class="multiselect-options-list">${rowsHtml}</div>
+            <div class="multiselect-options-list">${rowsHtml || '<span style="padding:5px; color:#94a3b8; font-style:italic;">No mapped selections match criteria.</span>'}</div>
          </div>
          <input type="hidden" id="dyn-cf-${cf.id}" class="dyn-cf runtime-ms-hidden-sink" data-id="${cf.id}" data-type="select" value="${currentVal || ''}">
       </div>`;
@@ -909,20 +1189,38 @@
     c.appendChild(div);
   }
 
-  /* ========================================================================
-     6. FORM CANCEL & SUBMISSION PROCESSORS (ORIGIN-AWARE ARRAYS)
-     ======================================================================== */
-  function handleClientsFormCancelAction() {
-     if (window.CLIENTS_FORM_ORIGIN === 'ro' && window.CURRENT_VIEW_CLIENT_DATA) {
-        openReadOnlyClient(window.CURRENT_VIEW_CLIENT_DATA.rowIndex);
-     } else {
-        switchView('clientListView');
-        loadClientsTable();
-     }
+  function renderEditOpNotes() {
+    var c = document.getElementById('edt-opnotes-list'); if(!c) return;
+    c.innerHTML = GLOBAL_OP_NOTES.map((n, i) => `
+        <div class="dynamic-json-row">
+          <div style="flex:1;">
+            <input type="text" class="form-control" value="${n.content.replace(/"/g, '&quot;')}" onchange="GLOBAL_OP_NOTES[${i}].content=this.value">
+          </div>
+          <button type="button" style="color:#ef4444; border:none; background:none; cursor:pointer; font-weight:bold; margin-top:10px;" onclick="GLOBAL_OP_NOTES.splice(${i},1); renderEditOpNotes();">Delete Note</button>
+        </div>`).join('');
   }
+
+  function addOpNoteAction() {
+     var txt = document.getElementById('edt-new-op-note').value; if (!txt) return;
+     GLOBAL_OP_NOTES.push({ content: txt, editor: typeof CURRENT_USERNAME !== 'undefined' ? CURRENT_USERNAME : "System", timestamp: new Date().toISOString() });
+     document.getElementById('edt-new-op-note').value = ""; renderEditOpNotes();
+  }
+
+  /* ========================================================================
+     6. SUBMISSION PROCESSORS (ORIGIN-AWARE ARRAYS)
+     ======================================================================== */
 
   function handleDynamicSubmit(e) {
     e.preventDefault(); 
+    
+    // Triggers the standardized white-labeled onboarding overlay blocker
+    var overlay = document.getElementById('dyn-client-overlay');
+    var overlayTxt = document.getElementById('dyn-overlay-text');
+    if (overlay && overlayTxt) {
+       overlayTxt.innerText = "Saving Details...";
+       overlay.style.display = 'flex';
+    }
+    
     var btn = document.getElementById('dyn-submit-btn'); btn.disabled = true; btn.innerText = "Processing...";
     var mode = document.getElementById('dyn-mode').value;
     
@@ -939,19 +1237,14 @@
       pPhone: document.getElementById('dyn-core-pPhone') ? document.getElementById('dyn-core-pPhone').value : '',
       startDate: document.getElementById('dyn-core-startDate') ? document.getElementById('dyn-core-startDate').value : '', 
       expDate: document.getElementById('dyn-core-expDate') ? document.getElementById('dyn-core-expDate').value : '', 
-      
-      origStartDate: document.getElementById('dyn-core-origStartDate') ? document.getElementById('dyn-core-origStartDate').value : '',
-      currentStartDate: document.getElementById('dyn-core-currentStartDate') ? document.getElementById('dyn-core-currentStartDate').value : '',
-      origExpDate: document.getElementById('dyn-core-origExpDate') ? document.getElementById('dyn-core-origExpDate').value : '',
-      currentExpDate: document.getElementById('dyn-core-currentExpDate') ? document.getElementById('dyn-core-currentExpDate').value : '',
-      origEndDate: document.getElementById('dyn-core-origEndDate') ? document.getElementById('dyn-core-origEndDate').value : '',
-      latestEndDate: document.getElementById('dyn-core-latestEndDate') ? document.getElementById('dyn-core-latestEndDate').value : '',
-      
+      endDate: document.getElementById('dyn-core-endDate') ? document.getElementById('dyn-core-endDate').value : '',
       rate: document.getElementById('dyn-core-rate') ? document.getElementById('dyn-core-rate').value : '',
       termUnit: document.getElementById('dyn-core-termUnit') ? document.getElementById('dyn-core-termUnit').value : '', 
       termCount: document.getElementById('dyn-core-termCount') ? document.getElementById('dyn-core-termCount').value : '1', 
       status: document.getElementById('dyn-core-status') ? document.getElementById('dyn-core-status').value : 'Active', 
-      operationalNotes: JSON.stringify(GLOBAL_OP_NOTES)
+      
+      // FIXED: Sources the original database string array directly to prevent administrative wipes
+      operationalNotes: (window.CURRENT_VIEW_CLIENT_DATA && window.CURRENT_VIEW_CLIENT_DATA.operationalNotes) || "[]"
     };
     
     payload.services = Array.from(document.querySelectorAll('.dyn-srv-cb:checked')).map(cb => cb.value).join(', ');
@@ -967,7 +1260,8 @@
     });
     payload.addlFields = JSON.stringify(addl);
 
-    // FIXED: Formatted processing success handlers to align precisely with strict AI Origin-Aware specifications
+    var source = document.getElementById('dyn-client-source').value;
+
     if (mode === 'add') {
       google.script.run
         .withSuccessHandler(function(res) { btn.disabled = false; btn.innerText = "Save Details"; if(res.success){ loadClientsTable(); switchView('clientListView'); } else { alert(res.error); } })
@@ -979,7 +1273,11 @@
            btn.disabled = false; btn.innerText = "Save Details"; 
            if(res.success){ 
               loadClientsTable(); 
-              if (window.CLIENTS_FORM_ORIGIN === 'ro') { openReadOnlyClient(payload.rowIndex); } else { switchView('clientListView'); }
+              if (source === 'ro') { 
+                openReadOnlyClient(payload.rowIndex); 
+              } else { 
+                switchView('clientListView'); 
+              }
            } else { alert(res.error); } 
         })
         .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; alert(err.message); })
@@ -989,8 +1287,18 @@
 
   function handleServiceSubmit(e) { 
     e.preventDefault(); 
+    document.getElementById('service-form-overlay').style.display = 'flex';
     var payload = { rowIndex: document.getElementById('srv-rowIndex').value, name: document.getElementById('srv-name').value, description: document.getElementById('srv-desc').value, status: document.getElementById('srv-status').value }; 
-    google.script.run.withSuccessHandler(function(res) { if (res.success) { loadServicesTable(); if (payload.rowIndex) { openReadOnlyService(payload.rowIndex); } else { switchView('clientListView'); switchClientMasterTab('services'); } } }).saveServiceRecord(payload); 
+    google.script.run.withSuccessHandler(function(res) { 
+       if (res.success) { 
+         google.script.run.withSuccessHandler(function(srvRes) {
+            document.getElementById('service-form-overlay').style.display = 'none';
+            GLOBAL_SERVICES = srvRes.data || [];
+            renderServicesTable();
+            if (payload.rowIndex) { openReadOnlyService(payload.rowIndex); } else { switchView('clientListView'); switchClientMasterTab('services'); }
+         }).getServicesList();
+       } else { document.getElementById('service-form-overlay').style.display = 'none'; }
+    }).saveServiceRecord(payload); 
   }
 
   function switchClientMasterTab(tab) {
@@ -1027,7 +1335,7 @@
   }
 
   /* ========================================================================
-     7. SETTINGS COMPONENT BUILDERS (SYMMETRICAL LAYOUT SHAPES RESTORED)
+     7. SETTINGS COMPONENT BUILDERS (UI ALIGNMENTS SECURED)
      ======================================================================== */
   document.addEventListener('click', function(e) {
     if (e.target && e.target.id === 'btn-set-ro-clients') { renderRoClientsConfig(); }
@@ -1038,16 +1346,25 @@
     document.getElementById('ro-clients-core-config').innerHTML = `<p style="margin:0;"><strong>Default Role Provisioned to Clients:</strong> <span class="badge" style="background:var(--brand-primary); color:#fff; font-size:13px; padding:5px 12px; margin-left:10px;">${CLIENTS_CONFIG.clientRole || "Client"}</span></p>`;
     var container = document.getElementById('ro-clients-accordions'); container.innerHTML = '';
     
-    CLIENTS_CONFIG.accordionGroups.forEach(g => {
+    var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) 
+                 ? CLIENTS_CONFIG.accordionGroups 
+                 : [
+                     { id: "grp_client", label: "Client Details" },
+                     { id: "grp_contact", label: "Primary Contact" },
+                     { id: "grp_contract", label: "Contract Information" }
+                   ];
+
+    groups.forEach(g => {
       var html = `<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:20px; margin-bottom:15px;">
                   <h4 style="margin-top:0; border-bottom:1px solid #f1f5f9; padding-bottom:10px; color:var(--brand-dark);">${g.label} ${g.isDefault ? '<span style="font-size:11px; font-weight:normal; color:#64748b; margin-left:10px;">(System Default)</span>' : ''}</h4>`;
       
       var layout = g.layout || DEFAULT_GROUP_LAYOUTS[g.id] || [];
-      var customFieldIds = CLIENTS_CONFIG.customFields.filter(f => f.groupId === g.id).map(f => f.id);
+      var customFieldIds = (CLIENTS_CONFIG.customFields || []).filter(f => f.groupId === g.id).map(f => f.id);
       customFieldIds.forEach(id => { if (!layout.includes(id)) layout.push(id); });
       
       if (layout.length === 0) { html += `<p style="color:#94a3b8; font-style:italic; font-size:13px; margin:0;">No fields configured.</p>`; } 
       else {
+         // CLEANUP COMPLETE: Stray "export" prefix string has been completely wiped from this row generator line block below
          html += `<table class="history-diff-table" style="margin-top:10px; table-layout: fixed; width: 100%;">
                     <thead>
                       <tr>
@@ -1060,7 +1377,7 @@
             if (fId.startsWith('core_')) {
                var def = CORE_FIELD_DICTIONARY[fId]; if(def) html += `<tr><td><strong>${def.label.replace('*','')}</strong></td><td><span class="badge" style="background:#e2e8f0; color:#475569;">Core Field</span></td></tr>`;
             } else {
-               var cf = CLIENTS_CONFIG.customFields.find(x => x.id === fId); 
+               var cf = (CLIENTS_CONFIG.customFields || []).find(x => x.id === fId); 
                if(cf) {
                  html += `<tr><td><strong>${cf.label}</strong>`;
                  if (cf.type === 'json' && cf.options) {
@@ -1089,14 +1406,17 @@
       window.CLIENTS_ROLES_DATA = res || [];
       document.getElementById('edt-client-role-select').innerHTML = window.CLIENTS_ROLES_DATA.map(r => `<option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>${r.name}</option>`).join(''); 
       var container = document.getElementById('edt-accordions-container'); container.innerHTML = ''; 
-      CLIENTS_CONFIG.accordionGroups.forEach(g => addAccordionGroupRow(g));
+      
+      var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) ? CLIENTS_CONFIG.accordionGroups : [{ id: "grp_client", label: "Client Details", isDefault: true }, { id: "grp_contact", label: "Primary Contact", isDefault: true }, { id: "grp_contract", label: "Contract Information", isDefault: true }];
+      // Pass false to prevent scrolling during initial render loop
+      groups.forEach(g => addAccordionGroupRow(g, false));
       if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
     }).getRolesList();
   }
 
   function openEditClientsConfig() { toggleModuleEdit('clients', true); renderEdtClientsConfig(); }
 
-  function addAccordionGroupRow(data = {}) {
+  function addAccordionGroupRow(data = {}, shouldScroll = false) {
     var c = document.getElementById('edt-accordions-container'); 
     var id = data.id || 'grp_' + Math.random().toString(36).substr(2, 9); var isDef = data.isDefault || false;
     var layout = data.layout || DEFAULT_GROUP_LAYOUTS[id] || [];
@@ -1117,8 +1437,15 @@
       <div class="fields-container"></div>
       <button type="button" class="btn-add-row" onclick="addClientCustomFieldRow(this.previousElementSibling)" style="width:100%; border-style:dashed;">+ Add Custom Field to this Group</button>`;
     
-    c.appendChild(div); var fieldsContainer = div.querySelector('.fields-container');
-    var assignedCustomFields = CLIENTS_CONFIG.customFields.filter(f => f.groupId === id);
+    c.appendChild(div); 
+    
+    // Only scroll if triggered by clicking the manual "+ Add Accordion Group" workspace button
+    if (shouldScroll) {
+       setTimeout(() => { div.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 50);
+    }
+
+    var fieldsContainer = div.querySelector('.fields-container');
+    var assignedCustomFields = (CLIENTS_CONFIG.customFields || []).filter(f => f.groupId === id);
     var fieldsToRender = [...layout];
     assignedCustomFields.map(f => f.id).forEach(cfId => { if (!fieldsToRender.includes(cfId)) fieldsToRender.push(cfId); });
     
@@ -1197,17 +1524,17 @@
     
     div.innerHTML = `
       <button type="button" class="row-remove-btn" style="top:5px; right:5px; width:22px; height:22px; font-size:14px;" onclick="this.parentElement.remove()">&times;</button>
-      <div style="flex:2; min-width:200px;">
-         <label style="display:block; margin-bottom:8px; font-size:12px; font-weight:600; color:#475569; padding-bottom: 4px;">Sub-Field Label</label>
+      <div style="flex:2; min-width:200px; display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+         <label style="display:block; font-size:12px; font-weight:600; color:#475569;">Sub-Field Label</label>
          <input type="text" class="sf-label form-control" style="font-size:13px; padding:6px;" value="${data.label}">
       </div>
-      <div style="flex:1; min-width:150px;">
-         <label style="display:block; margin-bottom:8px; font-size:12px; font-weight:600; color:#475569; padding-bottom: 4px;">Type</label>
+      <div style="flex:1; min-width:150px; display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+         <label style="display:block; font-size:12px; font-weight:600; color:#475569;">Type</label>
          <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="toggleSfOpts(this)">${types}</select>
       </div>
       <div style="display:flex; gap:3px; align-items:flex-end; margin-bottom:2px; height:45px;"><button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:5px 8px; color:#475569; font-size:10px;">▲</button><button type="button" onclick="moveDomRow(this, 1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:5px 8px; color:#475569; font-size:10px;">▼</button></div>
-      <div class="sf-opts-grp" style="flex: 100%; margin-top:10px; display:none; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; background:#f8fafc;">
-         <label style="display:block; margin-bottom:6px; font-size:11px; font-weight:bold; color:#475569;">Custom Options (Comma Separated)</label>
+      <div class="sf-opts-grp" style="flex: 100%; margin-top:10px; display:none; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; background:#f8fafc; display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+         <label style="display:block; font-size:11px; font-weight:bold; color:#475569;">Custom Options (Comma Separated)</label>
          <input type="text" class="sf-static-opts form-control" style="font-size:12px; padding:6px;" value="${data.type==='select' && !data.options.startsWith('SYS_LOOKUP:') ? data.options : ''}" placeholder="Option 1, Option 2...">
       </div>
     `;
@@ -1216,7 +1543,7 @@
   }
 
   /* ========================================================================
-     8. 4-TIER VISIBILITY & SYMMETRICAL RE-ALIGNMENT PROCESSORS
+     8. 4-TIER MATRIX CASCADING RENDERING ENGINE (LABELS SECURED ON TOP)
      ======================================================================== */
   function adjustTierVisibilityOnLoad(typeSelector, savedType) {
      var row = typeSelector.closest('.cf-row');
@@ -1224,19 +1551,19 @@
      var jsonContainer = row.querySelector('.cf-json-grp');
      
      if (savedType === 'select') {
-        matrixContainer.style.display = 'block'; jsonContainer.style.display = 'none';
+        matrixContainer.style.setProperty('display', 'block', 'important'); jsonContainer.style.setProperty('display', 'none', 'important');
      } else if (savedType === 'json') {
-        matrixContainer.style.display = 'none'; jsonContainer.style.display = 'block';
+        matrixContainer.style.setProperty('display', 'none', 'important'); jsonContainer.style.setProperty('display', 'block', 'important');
         var subContainer = jsonContainer.querySelector('.json-subfields-container');
         if (subContainer.children.length === 0) addJsonSubfieldRow(subContainer);
      } else {
-        matrixContainer.style.display = 'none'; jsonContainer.style.display = 'none';
+        matrixContainer.style.setProperty('display', 'none', 'important'); jsonContainer.style.setProperty('display', 'none', 'important');
      }
   }
 
   function toggleSfOpts(sel) {
      var row = sel.closest('.json-sf-row'); var opts = row.querySelector('.sf-opts-grp');
-     opts.style.display = (sel.value === 'select') ? 'block' : 'none';
+     opts.style.setProperty('display', (sel.value === 'select') ? 'flex' : 'none', 'important');
   }
 
   function build4TierMatrixInterface(targetWrapper, data) {
@@ -1251,13 +1578,13 @@
 
      var moduleOptions = Object.keys(MODULE_ENTITY_MATRIX).map(m => `<option value="${m}" ${modVal===m?'selected':''}>${m.charAt(0).toUpperCase() + m.slice(1)} Module</option>`).join('');
 
-     // FIXED: Extracted fields directly into the primary grid container stream to allow left-to-right alignment rows perfectly
      targetWrapper.innerHTML = `
       <div style="border:1px dashed #cbd5e1; padding:20px; border-radius:8px; background:#f8fafc; box-sizing: border-box;">
         <label style="color:var(--brand-primary); font-weight:800; font-size:12px; text-transform:uppercase; margin-bottom:15px; display:block; letter-spacing:0.5px;">Data Lookup Mapping</label>
         <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; align-items:start;">
            
-           <div class="form-group"><label style="font-size:11px; font-weight:700;">Data Source</label>
+           <div class="form-group" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+              <label style="font-size:11px; font-weight:700; display: block !important; margin: 0;">Data Source</label>
               <select class="tier1-source-type form-control" onchange="evaluateTier1Mutation(this)">
                  <option value="">Select Source...</option>
                  <option value="custom" ${sourceVal==='custom'?'selected':''}>Custom Options</option>
@@ -1265,21 +1592,25 @@
               </select>
            </div>
 
-           <div class="form-group tier2-el" style="display:none;"><label style="font-size:11px; font-weight:700;">Module Source</label>
+           <div class="form-group tier2-el" style="display:none; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+              <label style="font-size:11px; font-weight:700; display: block !important; margin: 0;">Module Source</label>
               <select class="tier2-module form-control" onchange="evaluateTier2Mutation(this)">
                  <option value="">Select Module...</option>${moduleOptions}
               </select>
            </div>
 
-           <div class="form-group tier3-el" style="display:none;"><label style="font-size:11px; font-weight:700;">Entity Selection</label>
+           <div class="form-group tier3-el" style="display:none; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+              <label style="font-size:11px; font-weight:700; display: block !important; margin: 0;">Entity Selection</label>
               <select class="tier3-entity form-control" onchange="evaluateTier3Mutation(this)"><option value="">Select Entity...</option></select>
            </div>
 
-           <div class="form-group static-el" style="display:none; grid-column: span 2;"><label style="font-size:11px; font-weight:700;">Comma separated options</label>
+           <div class="form-group static-el" style="display:none; grid-column: span 2; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+              <label style="font-size:11px; font-weight:700; display: block !important; margin: 0;">Comma separated options</label>
               <input type="text" class="tier-static-opts form-control" value="${sourceVal==='custom'?optString:''}" placeholder="Option 1, Option 2, Option 3...">
            </div>
 
-           <div class="form-group tier4-el" style="display:none; grid-column: span 3;"><label style="font-size:11px; font-weight:700;">Value Selection</label>
+           <div class="form-group tier4-el" style="display:none; grid-column: span 3; flex-direction: column !important; align-items: stretch !important; gap: 6px !important;">
+              <label style="font-size:11px; font-weight:700; display: block !important; margin: 0;">Value Selection</label>
               <div class="searchable-multiselect-wrapper tier4-multiselect-container"></div>
            </div>
         </div>
@@ -1288,7 +1619,7 @@
       if (sourceVal === 'system') {
          executeMatrixCascadePopulation(targetWrapper, modVal, entityVal, itemsChecked);
       } else if (sourceVal === 'custom') {
-         targetWrapper.querySelector('.static-el').style.display = 'block';
+         targetWrapper.querySelector('.static-el').style.setProperty('display', 'flex', 'important');
       }
   }
 
@@ -1298,12 +1629,12 @@
      var t4 = block.querySelector('.tier4-el'); var sb = block.querySelector('.static-el');
      
      if (tier1Sel.value === 'system') {
-        t2.style.display = 'block'; sb.style.display = 'none';
-        block.querySelector('.tier2-module').value = ''; t3.style.display = 'none'; t4.style.display = 'none';
+        t2.style.setProperty('display', 'flex', 'important'); sb.style.setProperty('display', 'none', 'important');
+        block.querySelector('.tier2-module').value = ''; t3.style.setProperty('display', 'none', 'important'); t4.style.setProperty('display', 'none', 'important');
      } else if (tier1Sel.value === 'custom') {
-        sb.style.display = 'block'; t2.style.display = 'none'; t3.style.display = 'none'; t4.style.display = 'none';
+        sb.style.setProperty('display', 'flex', 'important'); t2.style.setProperty('display', 'none', 'important'); t3.style.setProperty('display', 'none', 'important'); t4.style.setProperty('display', 'none', 'important');
      } else {
-        t2.style.display = 'none'; t3.style.display = 'none'; t4.style.display = 'none'; sb.style.display = 'none';
+        t2.style.setProperty('display', 'none', 'important'); t3.style.setProperty('display', 'none', 'important'); t4.style.setProperty('display', 'none', 'important'); sb.style.setProperty('display', 'none', 'important');
      }
   }
 
@@ -1312,11 +1643,11 @@
      var modKey = tier2Sel.value; var t3Block = block.querySelector('.tier3-el');
      var t3Sel = block.querySelector('.tier3-entity'); var t4Block = block.querySelector('.tier4-el');
      
-     t4Block.style.display = 'none'; if (!modKey) { t3Block.style.display = 'none'; return; }
+     t4Block.style.setProperty('display', 'none', 'important'); if (!modKey) { t3Block.style.setProperty('display', 'none', 'important'); return; }
      
      var entities = MODULE_ENTITY_MATRIX[modKey] || [];
      t3Sel.innerHTML = '<option value="">Select Entity...</option>' + entities.map(e => `<option value="${e.id}">${e.label}</option>`).join('');
-     t3Block.style.display = 'block';
+     t3Block.style.setProperty('display', 'flex', 'important');
   }
 
   function evaluateTier3Mutation(tier3Sel) {
@@ -1324,22 +1655,22 @@
      var modKey = block.querySelector('.tier2-module').value; var entKey = tier3Sel.value;
      var t4Block = block.querySelector('.tier4-el');
      
-     if(!modKey || !entKey) { t4Block.style.display = 'none'; return; } t4Block.style.display = 'block';
+     if(!modKey || !entKey) { t4Block.style.setProperty('display', 'none', 'important'); return; } t4Block.style.setProperty('display', 'flex', 'important');
      
      var vectors = window.SYSTEM_LOOKUP_CACHE[entKey + 's'] || [];
      buildTier4SearchableCheckboxDropdown(block.querySelector('.tier4-multiselect-container'), vectors, []);
   }
 
   function executeMatrixCascadePopulation(wrapper, modVal, entVal, checkedArr) {
-     wrapper.querySelector('.tier2-el').style.display = 'block';
+     wrapper.querySelector('.tier2-el').style.setProperty('display', 'flex', 'important');
      wrapper.querySelector('.tier2-module').value = modVal;
      
      var t3Block = wrapper.querySelector('.tier3-el'); var t3Sel = wrapper.querySelector('.tier3-entity');
      var entities = MODULE_ENTITY_MATRIX[modVal] || [];
      t3Sel.innerHTML = '<option value="">Select Entity...</option>' + entities.map(e => `<option value="${e.id}" ${entVal===e.id?'selected':''}>${e.label}</option>`).join('');
-     t3Block.style.display = 'block';
+     t3Block.style.setProperty('display', 'flex', 'important');
      
-     var t4Block = wrapper.querySelector('.tier4-el'); t4Block.style.display = 'block';
+     var t4Block = wrapper.querySelector('.tier4-el'); t4Block.style.setProperty('display', 'flex', 'important');
      var vectors = window.SYSTEM_LOOKUP_CACHE[entVal + 's'] || [];
      buildTier4SearchableCheckboxDropdown(wrapper.querySelector('.tier4-multiselect-container'), vectors, checkedArr);
   }

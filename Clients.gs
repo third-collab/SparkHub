@@ -346,86 +346,159 @@ function updateClientRecord(p) {
     const newRow = [...oldRow];
     while(newRow.length < 26) newRow.push("");
 
-    newRow[2]  = p.companyName; 
+    newRow[2]  = p.companyName;
     newRow[3]  = p.address;
-    newRow[4]  = p.companyEmail; 
+    newRow[4]  = p.companyEmail;
     newRow[5]  = p.companyPhone;
-    newRow[6]  = p.website; 
-    newRow[7]  = p.pFirstName; 
-    newRow[8]  = p.pLastName; 
+    newRow[6]  = p.website;
+    newRow[7]  = p.pFirstName;
+    newRow[8]  = p.pLastName;
     newRow[9]  = p.pEmail;
     newRow[10] = p.pPhone;
-    newRow[11] = p.services; 
-    newRow[12] = p.rate; 
-    newRow[13] = p.termUnit; 
-    newRow[14] = p.termCount; 
+    newRow[11] = p.services;
+    newRow[12] = p.rate;
+    newRow[13] = p.termUnit;
+    newRow[14] = p.termCount;
     newRow[16] = p.currentStartDate || p.startDate;
     newRow[18] = p.currentExpDate || p.expDate;
     
-    if (!oldRow[19]) { 
-      newRow[19] = p.endDate;
-      newRow[20] = p.endDate; 
-    } else { 
+    if (!oldRow[19]) {
+      newRow[19] = p.endDate; newRow[20] = p.endDate;
+    } else {
       newRow[20] = p.endDate;
     }
     
-    newRow[21] = p.operationalNotes || oldRow[21]; // Handle incoming op notes
-    newRow[22] = p.remarks; 
-    newRow[23] = p.addlFields; 
+    newRow[21] = p.operationalNotes || oldRow[21];
+    newRow[22] = p.remarks;
+    newRow[23] = p.addlFields;
     newRow[25] = p.status;
 
-    // --- ENFORCED: AUDIT DIFFERENTIAL ENGINE ---
+    // ========================================================================
+    // BACKEND AUDIT NARRATIVE NATIVE LEXICON DISPATCH ENGINE
+    // ========================================================================
     var changes = [];
     var fieldMap = {
       2: "Company Name", 3: "Address", 4: "Company Email", 5: "Company Phone", 6: "Website",
-      7: "Primary First Name", 8: "Primary Last Name", 9: "Primary Email", 10: "Primary Phone",
-      11: "Services", 12: "Rate", 13: "Term Unit", 14: "Term Count", 25: "Status"
+      7: "First Name", 8: "Last Name", 9: "Email", 10: "Phone",
+      11: "Services Included", 12: "Rate", 13: "Term Unit", 14: "Term Count",
+      16: "Start Date", 18: "Expiration Date", 20: "End Date", 25: "Status"
     };
+
+    // Resolves system user logging via active session context username tokens
+    var editorUsername = "System Admin";
+    try { editorUsername = getLoggedInUsername() || "System Admin"; } catch(e){}
 
     for (var colIdx in fieldMap) {
       var oldV = String(oldRow[colIdx] || "").trim();
       var newV = String(newRow[colIdx] || "").trim();
       if (oldV !== newV) {
-        changes.push({ field: fieldMap[colIdx], old: oldV, new: newV });
+        var sentence = (oldV === "") ? `<em>added</em> "${newV}"` : `<em>edited</em> from "${oldV}" to "${newV}"`;
+        changes.push({ field: fieldMap[colIdx], old: "", new: `<strong>${fieldMap[colIdx]}:</strong> ${sentence}`, type: "standard" });
       }
     }
+
+    // High-Fidelity Differential Logic for Operational Note Collections (Repeater Descriptions Streamlined)
+    var oldNotes = [], newNotes = [];
+    try { oldNotes = JSON.parse(oldRow[21] || "[]"); } catch(e){}
+    try { newNotes = JSON.parse(newRow[21] || "[]"); } catch(e){}
+    
+    if (JSON.stringify(oldNotes) !== JSON.stringify(newNotes)) {
+      if (newNotes.length > oldNotes.length) {
+        var addedNote = newNotes[newNotes.length - 1];
+        changes.push({ field: "Operational Notes", old: "", new: `<em>added</em> an operational note: "${addedNote.content}"`, type: "note" });
+      } else if (newNotes.length < oldNotes.length) {
+        var deletedText = "";
+        for (var oldIdx = 0; oldIdx < oldNotes.length; oldIdx++) {
+          if (!newNotes.some(n => n.timestamp === oldNotes[oldIdx].timestamp)) {
+            deletedText = oldNotes[oldIdx].content;
+            break;
+          }
+        }
+        changes.push({ field: "Operational Notes", old: "", new: `<em>deleted</em> an operational note: "${deletedText}"`, type: "note" });
+      } else {
+        for (var noteIdx = 0; noteIdx < newNotes.length; noteIdx++) {
+          if (oldNotes[noteIdx] && oldNotes[noteIdx].content !== newNotes[noteIdx].content) {
+            changes.push({ field: "Operational Notes", old: "", new: `<em>edited</em> an operational note from "${oldNotes[noteIdx].content}" to "${newNotes[noteIdx].content}"`, type: "note" });
+            break;
+          }
+        }
+      }
+    }
+
+    // Interrogate Metadata Payloads and Nested JSON Sub-Fields
+    var oldAddl = {}, newAddl = {};
+    try { oldAddl = JSON.parse(oldRow[23] || "{}"); } catch(e){}
+    try { newAddl = JSON.parse(p.addlFields || "{}"); } catch(e){}
+    
+    var customFieldsObj = [];
+    try {
+      var conf = PropertiesService.getScriptProperties().getProperty('CLIENTS_MODULE_CONFIG');
+      if (conf) customFieldsObj = JSON.parse(conf).customFields || [];
+    } catch(e){}
+
+    var allKeys = new Set([...Object.keys(oldAddl), ...Object.keys(newAddl)]);
+    allKeys.forEach(function(k) {
+      var oldVal = oldAddl[k] !== undefined ? String(oldAddl[k]).trim() : "";
+      var newVal = newAddl[k] !== undefined ? String(newAddl[k]).trim() : "";
+      if (oldVal !== newVal) {
+        var cfDef = customFieldsObj.find(f => f.id === k);
+        var label = cfDef ? cfDef.label : k;
+        var isRichText = cfDef && cfDef.type === 'richtext';
+        var isJson = cfDef && cfDef.type === 'json';
+        
+        if (isRichText) {
+          // Strips layout elements and locks in database-level clipping constraints for rich text entries
+          var cleanOld = oldVal.replace(/<[^>]*>/g, "").trim();
+          var cleanNew = newVal.replace(/<[^>]*>/g, "").trim();
+          
+          if (cleanOld.length > 200) cleanOld = cleanOld.substring(0, 100) + "..." + cleanOld.substring(cleanOld.length - 100);
+          if (cleanNew.length > 200) cleanNew = cleanNew.substring(0, 100) + "..." + cleanNew.substring(cleanNew.length - 100);
+          
+          var cfSentence = (cleanOld === "") ? `<em>added</em> "${cleanNew}"` : `<em>edited</em> from "${cleanOld}" to "${cleanNew}"`;
+          changes.push({ field: label, old: "", new: `<strong>${label}:</strong> ${cfSentence}`, type: "standard" });
+        } else if (isJson) {
+          var pOld = [], pNew = [];
+          try { pOld = JSON.parse(oldVal || "[]"); } catch(e){}
+          try { pNew = JSON.parse(newVal || "[]"); } catch(e){}
+          var subDesc = `<strong>${label}:</strong> <em>edited</em> the following:<br>`;
+          
+          pNew.forEach(function(item, idx) {
+            for (var subK in item) {
+              var oS = (pOld[idx] && pOld[idx][subK] !== undefined) ? String(pOld[idx][subK]).trim() : "";
+              var nS = String(item[subK] !== undefined ? item[subK] : "").trim();
+              if (oS !== nS) {
+                subDesc += (oS === "") 
+                  ? `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${subK}: <em>added</em> "${nS}"<br>` 
+                  : `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${subK}: <em>edited</em> from "${oS}" to "${nS}"<br>`;
+              }
+            }
+          });
+          changes.push({ field: label, old: "", new: subDesc, type: "standard" });
+        } else {
+          var cfSentence = (oldVal === "") ? `<em>added</em> "${newVal}"` : `<em>edited</em> from "${oldVal}" to "${newVal}"`;
+          changes.push({ field: label, old: "", new: `<strong>${label}:</strong> ${cfSentence}`, type: "standard" });
+        }
+      }
+    });
 
     if (changes.length > 0) {
       var historyArr = [];
       try { historyArr = JSON.parse(oldRow[24] || "[]"); } catch(e){}
-      
-      var editorEmail = "System User";
-      try { editorEmail = Session.getActiveUser().getEmail() || "System User"; } catch(e){}
-
-      historyArr.unshift({
-        timestamp: new Date().toISOString(),
-        editor: editorEmail,
-        changes: changes
-      });
+      historyArr.unshift({ timestamp: new Date().toISOString(), editor: editorUsername, changes: changes });
       newRow[24] = JSON.stringify(historyArr);
     } else {
-      newRow[24] = oldRow[24] || "[]"; // Retain existing history if no tracked fields changed
+      newRow[24] = oldRow[24] || "[]";
     }
 
-    // Write array to database
     sheet.getRange(rowIndex + 1, 1, 1, newRow.length).setValues([newRow]);
-    SpreadsheetApp.flush(); // ENFORCED: Prevent Stale Data on read-only reload
+    SpreadsheetApp.flush();
 
     if (hasStatusChanged) {
       const brand = p.companyName || "Unknown Brand";
-      SystemEvent.emit(
-        "Clients", 
-        "STATUS_CHANGE", 
-        "Client Status Updated", 
-        "WARN", 
-        brand, 
-        `Status changed from ${oldStatus} to ${newStatus}.`,
-        p.pEmail || "system",
-        { oldStatus: oldStatus, newStatus: newStatus }
-      );
+      SystemEvent.emit("Clients", "STATUS_CHANGE", "Client Status Updated", "WARN", brand, `Status changed from ${oldStatus} to ${newStatus}.`, p.pEmail || "system", { oldStatus: oldStatus, newStatus: newStatus });
     }
 
-    return { success: true, message: "Client record updated successfully." };
+    return { success: true, message: "Updated successfully.", data: { operationalNotes: newRow[21], history: newRow[24] } };
   } catch (e) {
     console.error("updateClientRecord error: " + e.message);
     return { error: "Update failed: " + e.message };
@@ -452,30 +525,30 @@ function getClientsSheet() {
 function getSystemDynamicLookups() {
   var lookups = { users: [], templates: [] };
   try {
-    var userDb = ensureSheet('W-USERS');
-    var uData = userDb.getDataRange().getValues();
+    var userSheet = getMainDb().getSheetByName("Users");
+    var uData = userSheet.getDataRange().getValues();
     for (var i = 1; i < uData.length; i++) {
-      if (uData[i][2] && uData[i][8] !== 'Inactive') {
+      if (uData[i][1] && uData[i][7] !== 'Inactive') {
         lookups.users.push({
-           name: uData[i][1] + " " + uData[i][2],
-           username: uData[i][3],
-           role: uData[i][4]
+           id: String(uData[i][1]), // username anchor link key
+           name: uData[i][5] + " " + uData[i][6] // full display name
         });
       }
     }
-  } catch(e) {}
+  } catch(e) { console.error("Error fetching users for lookup: " + e.message); }
   
   try {
-    var tplDb = ensureSheet('W-TEMPLATES');
-    var tData = tplDb.getDataRange().getValues();
+    var tplSheet = getMainDb().getSheetByName("Templates");
+    var tData = tplSheet.getDataRange().getValues();
     for (var j = 1; j < tData.length; j++) {
-      if (tData[j][1] && tData[j][6] !== 'Inactive') {
+      if (tData[j][2] && tData[j][10] !== 'Inactive') {
          lookups.templates.push({
-            name: tData[j][1]
+            id: String(tData[j][1]),
+            name: String(tData[j][2])
          });
       }
     }
-  } catch(e) {}
+  } catch(e) { console.error("Error fetching templates for lookup: " + e.message); }
   
   return lookups;
 }
