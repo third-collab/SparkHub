@@ -114,8 +114,8 @@ function seedClientsTemplates(extWrapperName, intWrapperName) {
  * ========================================================================
  */
 
-function getClientsList() { 
-  try { 
+function getClientsList() {
+  try {
     var sheet = getClientsSheet();
     var data = sheet.getDataRange().getValues(); var clients = [];
     for (var i = 1; i < data.length; i++) {
@@ -198,17 +198,13 @@ function saveServiceRecord(p) {
     var sheet = getClientsDb().getSheetByName("Services");
     if (p.rowIndex) { 
       sheet.getRange(parseInt(p.rowIndex,10)+1, 3, 1, 3).setValues([[p.name, p.description, p.status]]); 
-      
-      SpreadsheetApp.flush(); // <--- FIX: Forces the database save to complete immediately
       return { success: true };
     } else { 
-      sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]);
-      
-      SpreadsheetApp.flush(); // <--- FIX: Forces the database save to complete immediately
+      sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]); 
       return { success: true };
     }
   } catch(e) { 
-    return { error: e.message };
+    return { error: e.message }; 
   }
 }
 
@@ -249,12 +245,11 @@ function createClientRecord(p) {
     newRow[24] = "[]";
     newRow[25] = "Onboarding";
 
-    // CORE ACTION: Write to sheet first, then FLUSH to guarantee read availability
+    // CORE ACTION: Write to sheet first!
     sheet.appendRow(newRow); 
-    SpreadsheetApp.flush(); 
-    
     var targetRow = sheet.getLastRow() - 1;
 
+    // POST-SAVE ACTIONS (Wrapped in internal try/catch so they don't break the record creation)
     try {
       var conf = getClientsModuleConfig().data; 
       var targetRole = conf.clientRole || "Client";
@@ -267,6 +262,7 @@ function createClientRecord(p) {
       
       SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
       
+      // Announcement Logic
       if (typeof getUsersList === 'function') {
         var staff = getUsersList().data.filter(function(u){ return u.status === 'Active' && u.email; });
         if (staff.length > 0) {
@@ -287,50 +283,73 @@ function createClientRecord(p) {
 
 function updateClientRecord(p) {
   try {
-    var sheet = getClientsSheet();
-    var rowIdx = parseInt(p.rowIndex, 10);
-    // FIX: Accept rowIdx >= 1 since array index 1 corresponds to spreadsheet Row 2!
-    if (isNaN(rowIdx) || rowIdx < 1) return { error: "Invalid row index." };
-
-    var data = sheet.getDataRange().getValues();
-    var row = data[rowIdx];
-    if (!row) return { error: "Record not found." };
-
-    var addl = {};
-    try { addl = JSON.parse(p.addlFields || "{}"); } catch(e){}
-    var brand = addl.brand_name || p.companyName;
-
-    row[2] = p.companyName; 
-    row[3] = p.address;
-    row[4] = p.companyEmail; 
-    row[5] = p.companyPhone; 
-    row[6] = p.website;
-    row[7] = p.pFirstName;
-    row[8] = p.pLastName; 
-    row[9] = p.pEmail;
-    row[10] = p.pPhone;
-    row[11] = p.services; 
-    row[12] = p.rate; 
-    row[13] = p.termUnit;
-    row[14] = p.termCount;
-    row[16] = p.startDate; 
-    row[18] = p.expDate; 
-    row[23] = p.addlFields || "{}"; 
-    row[25] = p.status;
-
-    // CORE ACTION: Update sheet, then FLUSH to guarantee read availability
-    sheet.getRange(rowIdx + 1, 1, 1, 26).setValues([row]);
-    SpreadsheetApp.flush(); 
+    const sheet = getClientsSheet();
+    const data = sheet.getDataRange().getValues();
+    const rowIndex = parseInt(p.rowIndex, 10);
+    const oldRow = data[rowIndex];
     
-    try {
-      var sysName = getSystemSettings().systemName || "SparkHub";
-      var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "systemName": sysName };
-      SystemEvent.emit("Clients", "UPDATE", "Client Updated", "INFO", brand, "Profile updated.", p.pEmail || "no-reply@local", dataMap);
-    } catch(postError) {}
+    if (!oldRow) throw new Error("Could not find record at row " + rowIndex);
 
-    return { success: true, rowIndex: rowIdx };
+    // 1. Detect Status Change for Event Broker
+    const oldStatus = oldRow[25];
+    const newStatus = p.status;
+    const hasStatusChanged = (oldStatus !== newStatus);
+
+    // 2. Prepare the Updated Row Array (Maintaining 26-column schema)
+    const newRow = [...oldRow]; 
+    while(newRow.length < 26) newRow.push("");
+
+    newRow[2]  = p.companyName; 
+    newRow[3]  = p.address;
+    newRow[4]  = p.companyEmail; 
+    newRow[5]  = p.companyPhone; 
+    newRow[6]  = p.website; 
+    newRow[7]  = p.pFirstName; 
+    newRow[8]  = p.pLastName; 
+    newRow[9]  = p.pEmail;
+    newRow[10] = p.pPhone; 
+    newRow[11] = p.services; 
+    newRow[12] = p.rate; 
+    newRow[13] = p.termUnit; 
+    newRow[14] = p.termCount; 
+    newRow[16] = p.currentStartDate;
+    newRow[18] = p.currentExpDate;
+    
+    // Handle End Date logic: Store original if first time, else update latest
+    if (!oldRow[19]) { 
+      newRow[19] = p.endDate; 
+      newRow[20] = p.endDate; 
+    } else { 
+      newRow[20] = p.endDate; 
+    }
+    
+    newRow[22] = p.remarks; 
+    newRow[23] = p.addlFields; 
+    newRow[25] = p.status;            
+
+    // 3. Physical Write to Sheet (rowIndex + 1 for 1-based indexing)
+    sheet.getRange(rowIndex + 1, 1, 1, newRow.length).setValues([newRow]);
+
+    // 4. Emit Status Change Event if applicable
+    if (hasStatusChanged) {
+      const brand = p.companyName || "Unknown Brand";
+      SystemEvent.emit(
+        "Clients", 
+        "STATUS_CHANGE", 
+        "Client Status Updated", 
+        "WARN", 
+        brand, 
+        `Status changed from ${oldStatus} to ${newStatus}.`,
+        p.pEmail || "system",
+        { oldStatus: oldStatus, newStatus: newStatus }
+      );
+    }
+
+    return { success: true, message: "Client record updated successfully." };
+
   } catch (e) {
-    return { error: "Backend error: " + e.message };
+    console.error("updateClientRecord error: " + e.message);
+    return { error: "Update failed: " + e.message };
   }
 }
 
@@ -341,11 +360,11 @@ function updateClientRecord(p) {
  */
 
 function getClientsDb() { 
-  var id = PropertiesService.getScriptProperties().getProperty('CLIENTS_DB_ID');
+  var id = PropertiesService.getScriptProperties().getProperty('CLIENTS_DB_ID'); 
   return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.openById(setupClientsDatabase().dbId); 
 }
 
-function getClientsSheet() {
+function getClientsSheet() { 
   var ss = getClientsDb(); 
   var s = ss.getSheetByName("Clients"); 
   return s ? s : ss.insertSheet("Clients"); 
@@ -358,36 +377,20 @@ function getSystemDynamicLookups() {
   var lookups = { users: [], templates: [] };
   
   try {
-    var userDb = getMainDb().getSheetByName("Users");
-    if (userDb) {
-      var uData = userDb.getDataRange().getValues();
-      for (var i = 1; i < uData.length; i++) {
-        // Col B (1) is Username, Col C (2) is Role, Col F & G (5,6) are Names, Col H (7) is Status
-        if (uData[i][1] && uData[i][7] === 'Active') {
-          lookups.users.push({
-            username: uData[i][1],
-            name: uData[i][5] + " " + uData[i][6],
-            role: uData[i][2]
-          });
-        }
-      }
+    var userDb = ensureSheet('W-USERS');
+    var uData = userDb.getDataRange().getValues();
+    for (var i = 1; i < uData.length; i++) {
+      if (uData[i][2] && uData[i][8] !== 'Inactive') lookups.users.push(uData[i][2]); // Email
     }
-  } catch(e) { console.warn("Dynamic Lookup Error (Users): " + e.message); }
+  } catch(e) {}
   
   try {
-    var tplDb = getMainDb().getSheetByName("Templates");
-    if (tplDb) {
-      var tData = tplDb.getDataRange().getValues();
-      for (var j = 1; j < tData.length; j++) {
-        // Col C (2) is Template Name, Col K (10) is Status
-        if (tData[j][2] && tData[j][10] === 'Active') {
-          lookups.templates.push({
-            name: tData[j][2]
-          });
-        }
-      }
+    var tplDb = ensureSheet('W-TEMPLATES');
+    var tData = tplDb.getDataRange().getValues();
+    for (var j = 1; j < tData.length; j++) {
+      if (tData[j][1] && tData[j][6] !== 'Inactive') lookups.templates.push(tData[j][1]); // Name
     }
-  } catch(e) { console.warn("Dynamic Lookup Error (Templates): " + e.message); }
+  } catch(e) {}
   
   return lookups;
 }

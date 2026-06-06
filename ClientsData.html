@@ -195,34 +195,6 @@
     }).getClientsModuleConfig();
   })();
 
-  function fetchDynamicLookups() {
-    google.script.run.withSuccessHandler(function(data) {
-      document.querySelectorAll('.dynamic-lookup').forEach(function(sel) {
-        var lookupData = sel.dataset.lookup; 
-        var currentValue = sel.dataset.value;
-        var parts = lookupData.split(':');
-        var source = parts[1]; 
-        var filter = parts.length > 2 ? parts[2] : null; 
-        
-        sel.innerHTML = '<option value="">Select...</option>';
-        
-        if (source === 'users' && data.users) {
-          data.users.forEach(function(u) {
-            if (!filter || u.role === filter) {
-              var selected = (currentValue === u.username) ? 'selected' : '';
-              sel.innerHTML += `<option value="${u.username}" ${selected}>${u.name} (@${u.username})</option>`;
-            }
-          });
-        } else if (source === 'templates' && data.templates) {
-          data.templates.forEach(function(t) {
-            var selected = (currentValue === t.name) ? 'selected' : '';
-            sel.innerHTML += `<option value="${t.name}" ${selected}>${t.name}</option>`;
-          });
-        }
-      });
-    }).getSystemDynamicLookups();
-  }
-
   document.addEventListener('click', function(e) {
     if (e.target && e.target.id === 'btn-set-ro-clients') renderRoClientsConfig();
     if (e.target && e.target.id === 'btn-set-edt-clients') renderEdtClientsConfig();
@@ -369,28 +341,27 @@
   }
 
   function renderEdtClientsConfig() {
-    if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Loading Schema...');
-    
-    // Fetch roles first so they are available for the new Role Filter Dropdowns!
     google.script.run.withSuccessHandler(res => { 
-      window.CLIENTS_ROLES_DATA = res || [];
-      
-      document.getElementById('edt-client-role-select').innerHTML = window.CLIENTS_ROLES_DATA.map(r => `
+      document.getElementById('edt-client-role-select').innerHTML = (res || []).map(r => `
         <option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>
           ${r.name}
         </option>
       `).join(''); 
       
-      var accContainer = document.getElementById('edt-accordions-container'); 
-      accContainer.innerHTML = '';
-      CLIENTS_CONFIG.accordionGroups.forEach(g => addAccordionGroupRow(g));
+      // Command the MASTER overlay to turn off
+      if(typeof toggleSettingsOverlay === 'function') {
+        toggleSettingsOverlay('edt-settings-overlay', false);
+      }
       
-      var fldContainer = document.getElementById('edt-clients-custom-fields-container'); 
-      fldContainer.innerHTML = '';
-      CLIENTS_CONFIG.customFields.forEach(f => addClientCustomFieldRow(f));
-
-      if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
     }).getRolesList();
+    
+    var accContainer = document.getElementById('edt-accordions-container'); 
+    accContainer.innerHTML = '';
+    CLIENTS_CONFIG.accordionGroups.forEach(g => addAccordionGroupRow(g));
+    
+    var fldContainer = document.getElementById('edt-clients-custom-fields-container'); 
+    fldContainer.innerHTML = '';
+    CLIENTS_CONFIG.customFields.forEach(f => addClientCustomFieldRow(f));
   }
 
   function addAccordionGroupRow(data = { id: 'grp_' + Math.random().toString(36).substr(2, 9), label: '', isDefault: false }) {
@@ -430,23 +401,19 @@
     var c = document.getElementById('edt-clients-custom-fields-container'); 
     var row = document.createElement('div'); 
     row.className = 'dynamic-json-row cf-row';
-    row.style.position = 'relative';
+    row.style.position = 'relative'; // Required for absolute positioning of buttons
     
+    // ADDED file-single and file-multiple
     var typeOpts = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `
       <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
     `).join('');
     
-    var optStr = data.options || '';
     var isSelect = data.type === 'select';
     var isFile = data.type && data.type.startsWith('file-');
     var optsDisplay = (isSelect || isFile) ? 'block' : 'none'; 
+    var optsLabel = isFile ? 'Allowed Extensions (e.g., .pdf, .png) - Leave blank for all' : 'Dropdown Options (Comma separated)';
     var jsonDisplay = data.type === 'json' ? 'block' : 'none';
     
-    var isLookup = optStr.startsWith('SYS_LOOKUP:');
-    var sourceVal = isLookup ? optStr.split(':')[0] + ':' + optStr.split(':')[1] : 'custom';
-    var filterVal = isLookup && optStr.split(':').length > 2 ? optStr.split(':')[2] : '';
-    var roleOptionsHtml = '<option value="">All Roles</option>' + (window.CLIENTS_ROLES_DATA || []).map(r => `<option value="${r.name}" ${filterVal === r.name ? 'selected' : ''}>${r.name}</option>`).join('');
-
     row.innerHTML = `
       <div style="position: absolute; top: 10px; right: 10px; display:flex; gap:5px;">
         <button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:none; border-radius:4px; cursor:pointer; width:28px; height:28px; color:#475569;">▲</button>
@@ -479,33 +446,10 @@
           <select class="cf-grp form-control" data-selected="${data.groupId || ''}"></select>
         </div>
       </div>
-
-      <div class="form-group cf-opts-grp" style="margin-top:15px; display:${optsDisplay}; border:1px dashed #cbd5e1; padding:15px; border-radius:8px; background:#fff;">
-        <label style="color:var(--brand-primary); font-weight:bold; margin-bottom:10px; display:block;">Select Configuration</label>
-        <div style="display:flex; gap: 15px; align-items: flex-start;">
-          <div class="cf-source-col" style="flex:1; display:${isSelect ? 'block' : 'none'};">
-             <label style="font-size:11px;">Data Source</label>
-             <select class="cf-source form-control" onchange="toggleSelectSource(this)">
-               <option value="custom" ${!isLookup ? 'selected' : ''}>Custom Options</option>
-               <option value="SYS_LOOKUP:users" ${sourceVal === 'SYS_LOOKUP:users' ? 'selected' : ''}>System Users (Active)</option>
-               <option value="SYS_LOOKUP:templates" ${sourceVal === 'SYS_LOOKUP:templates' ? 'selected' : ''}>System Templates</option>
-             </select>
-          </div>
-          <div class="cf-filter-wrapper" style="flex:1; display:${sourceVal === 'SYS_LOOKUP:users' && isSelect ? 'block' : 'none'};">
-             <label style="font-size:11px;">Filter by Role</label>
-             <select class="cf-filter form-control">${roleOptionsHtml}</select>
-          </div>
-          <div class="cf-custom-wrapper" style="flex:2; display:${!isLookup && isSelect ? 'block' : 'none'};">
-             <label style="font-size:11px;">Comma separated options</label>
-             <input type="text" class="cf-opts form-control" value="${!isLookup && isSelect ? optStr : ''}" placeholder="Option 1, Option 2, Option 3...">
-          </div>
-          <div class="cf-file-wrapper" style="flex:2; display:${isFile ? 'block' : 'none'};">
-             <label style="font-size:11px;">Allowed Extensions</label>
-             <input type="text" class="cf-file-ext form-control" value="${isFile ? optStr : ''}" placeholder="Leave blank for all">
-          </div>
-        </div>
+      <div class="form-group cf-opts-grp" style="margin-top:10px; display:${optsDisplay};">
+        <label class="cf-opts-lbl">${optsLabel}</label>
+        <input type="text" class="cf-opts form-control" value="${(isSelect || isFile) ? (data.options || '') : ''}">
       </div>
-
       <div class="form-group cf-json-grp" style="margin-top:15px; display:${jsonDisplay}; border:1px dashed #cbd5e1; padding:15px; border-radius:8px; background:#fff;">
         <label style="color:var(--brand-primary); font-weight:bold; margin-bottom:10px; display:block;">JSON Sub-Field Definitions</label>
         <div class="json-subfields-container" style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;"></div>
@@ -517,7 +461,9 @@
     refreshCustomFieldGroupDropdowns();
 
     if (data.type === 'json' && data.options) { 
-      try { JSON.parse(data.options).forEach(s => addJsonSubfieldRow(row.querySelector('.json-subfields-container'), s)); } catch (e) {} 
+      try { 
+        JSON.parse(data.options).forEach(s => addJsonSubfieldRow(row.querySelector('.json-subfields-container'), s)); 
+      } catch (e) {} 
     }
   }
 
@@ -525,68 +471,37 @@
     var row = document.createElement('div'); 
     row.className = 'json-sf-row'; 
     row.style.display = 'flex'; 
-    row.style.flexWrap = 'wrap'; 
     row.style.gap = '10px'; 
-    row.style.alignItems = 'flex-start'; 
+    row.style.alignItems = 'flex-end'; 
     row.style.background = 'var(--brand-bg)'; 
-    row.style.padding = '15px'; 
+    row.style.padding = '10px'; 
     row.style.borderRadius = '6px'; 
     row.style.border = '1px solid #e2e8f0';
-    row.style.position = 'relative';
     
     var types = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'file-single', 'file-multiple'].map(t => `
       <option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>
     `).join('');
     
-    var optStr = data.options || '';
-    var isSelect = data.type === 'select';
-    var isFile = data.type && data.type.startsWith('file-');
-    var optsDisplay = (isSelect || isFile) ? 'block' : 'none'; 
-    
-    var isLookup = optStr.startsWith('SYS_LOOKUP:');
-    var sourceVal = isLookup ? optStr.split(':')[0] + ':' + optStr.split(':')[1] : 'custom';
-    var filterVal = isLookup && optStr.split(':').length > 2 ? optStr.split(':')[2] : '';
-    var roleOptionsHtml = '<option value="">All Roles</option>' + (window.CLIENTS_ROLES_DATA || []).map(r => `<option value="${r.name}" ${filterVal === r.name ? 'selected' : ''}>${r.name}</option>`).join('');
+    var isOptType = data.type === 'select' || data.type?.startsWith('file-');
     
     row.innerHTML = `
-      <button type="button" class="row-remove-btn" style="top:5px; right:5px; width:22px; height:22px; font-size:14px;" onclick="this.parentElement.remove()">&times;</button>
-      <div style="flex:2; min-width:200px;">
+      <div style="flex:2;">
         <label style="font-size:11px;">Sub-Field Label</label>
         <input type="text" class="sf-label form-control" style="font-size:13px; padding:6px;" value="${data.label}">
       </div>
-      <div style="flex:1; min-width:150px;">
+      <div style="flex:1;">
         <label style="font-size:11px;">Type</label>
-        <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="toggleSfOpts(this)">${types}</select>
+        <select class="sf-type form-control" style="font-size:13px; padding:6px;" onchange="var n=this.parentElement.nextElementSibling; n.style.display = (this.value==='select' || this.value.startsWith('file-'))?'block':'none'; n.querySelector('label').innerText = this.value.startsWith('file-') ? 'Allowed Extensions' : 'Dropdown Options';">${types}</select>
       </div>
-      <div style="display:flex; gap:3px; align-items:flex-end; margin-bottom:2px;">
-        <button type="button" onclick="moveDomRow(this, -1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:5px 8px; color:#475569; font-size:10px;">▲</button>
-        <button type="button" onclick="moveDomRow(this, 1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:5px 8px; color:#475569; font-size:10px;">▼</button>
+      <div style="flex:2; display:${isOptType ? 'block' : 'none'};">
+        <label style="font-size:11px;">${data.type?.startsWith('file-') ? 'Allowed Extensions' : 'Dropdown Options'}</label>
+        <input type="text" class="sf-opts form-control" style="font-size:13px; padding:6px;" value="${data.options || ''}">
       </div>
-
-      <div class="sf-opts-grp" style="flex: 100%; margin-top:10px; display:${optsDisplay}; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; background:#fff;">
-        <label style="color:var(--brand-primary); font-weight:bold; margin-bottom:10px; display:block; font-size:11px;">Select Configuration</label>
-        <div style="display:flex; gap: 10px; align-items: flex-start;">
-          <div class="cf-source-col" style="flex:1; display:${isSelect ? 'block' : 'none'};">
-             <label style="font-size:10px;">Data Source</label>
-             <select class="cf-source form-control" style="font-size:12px; padding:6px;" onchange="toggleSelectSource(this)">
-               <option value="custom" ${!isLookup ? 'selected' : ''}>Custom Options</option>
-               <option value="SYS_LOOKUP:users" ${sourceVal === 'SYS_LOOKUP:users' ? 'selected' : ''}>System Users (Active)</option>
-               <option value="SYS_LOOKUP:templates" ${sourceVal === 'SYS_LOOKUP:templates' ? 'selected' : ''}>System Templates</option>
-             </select>
-          </div>
-          <div class="cf-filter-wrapper" style="flex:1; display:${sourceVal === 'SYS_LOOKUP:users' && isSelect ? 'block' : 'none'};">
-             <label style="font-size:10px;">Filter by Role</label>
-             <select class="cf-filter form-control" style="font-size:12px; padding:6px;">${roleOptionsHtml}</select>
-          </div>
-          <div class="cf-custom-wrapper" style="flex:2; display:${!isLookup && isSelect ? 'block' : 'none'};">
-             <label style="font-size:10px;">Comma separated options</label>
-             <input type="text" class="cf-opts form-control" style="font-size:12px; padding:6px;" value="${!isLookup && isSelect ? optStr : ''}" placeholder="Option 1, Option 2...">
-          </div>
-          <div class="cf-file-wrapper" style="flex:2; display:${isFile ? 'block' : 'none'};">
-             <label style="font-size:10px;">Allowed Extensions</label>
-             <input type="text" class="cf-file-ext form-control" style="font-size:12px; padding:6px;" value="${isFile ? optStr : ''}" placeholder="Leave blank for all">
-          </div>
-        </div>
+      
+      <div style="display:flex; gap:3px;">
+        <button type="button" onclick="moveDomRow(this, -1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:4px 6px; color:#475569; font-size:10px;">▲</button>
+        <button type="button" onclick="moveDomRow(this, 1)" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; padding:4px 6px; color:#475569; font-size:10px;">▼</button>
+        <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#fee2e2; border:1px solid #f87171; color:#ef4444; border-radius:4px; cursor:pointer; padding:4px 8px; font-weight:bold;">&times;</button>
       </div>
     `;
     container.appendChild(row);
@@ -722,25 +637,6 @@
     CLIENTS_CONFIG.customFields.filter(f => f.type === 'richtext').forEach(f => { 
       ACTIVE_QUILLS[f.id] = new Quill('#editor-' + f.id, { theme: 'snow' }); 
     });
-
-    CLIENTS_CONFIG.customFields.filter(f => f.type === 'json').forEach(f => {
-      var encodedOptions = btoa(unescape(encodeURIComponent(f.options || "[]")));
-      var existingData = [];
-      try {
-        if (addl[f.id]) {
-          existingData = typeof addl[f.id] === 'string' ? JSON.parse(addl[f.id]) : addl[f.id];
-          // Handle double-stringified migrations gracefully
-          if (typeof existingData === 'string') existingData = JSON.parse(existingData);
-        }
-      } catch(e) { console.warn("Could not parse JSON data for", f.id, e); }
-      
-      if (Array.isArray(existingData)) {
-        existingData.forEach(item => {
-          addRepeaterRow('json-rep-' + f.id, encodedOptions, item);
-        });
-      }
-    });
-    
     if (typeof fetchDynamicLookups === 'function') fetchDynamicLookups();
   }
 
@@ -865,6 +761,7 @@
   function handleSaveClientsConfig(e) {
     if (e) e.preventDefault();
     
+    // 1. Gather Accordion Groups
     const accordionGroups = [];
     document.querySelectorAll('.accordion-grp-row').forEach(row => {
       accordionGroups.push({ 
@@ -874,56 +771,26 @@
       });
     });
     
+    // 2. Gather Custom Fields (with JSON subfield support)
     const customFields = [];
     document.querySelectorAll('.cf-row').forEach(row => {
       var type = row.querySelector('.cf-type').value;
       var optionsStr = "";
       
+      // FIX: If it is a JSON field, loop through its specific subfield rows!
       if (type === 'json') {
         var subfields = [];
         row.querySelectorAll('.json-sf-row').forEach(sfRow => {
-          var sfType = sfRow.querySelector('.sf-type').value;
-          var sfOpts = "";
-          
-          if (sfType === 'select') {
-             var sfSource = sfRow.querySelector('.cf-source');
-             if (sfSource && sfSource.value.startsWith('SYS_LOOKUP:')) {
-                if (sfSource.value === 'SYS_LOOKUP:users') {
-                   var sfFilter = sfRow.querySelector('.cf-filter').value;
-                   sfOpts = sfFilter ? sfSource.value + ":" + sfFilter : sfSource.value;
-                } else {
-                   sfOpts = sfSource.value;
-                }
-             } else {
-                sfOpts = sfRow.querySelector('.cf-opts').value;
-             }
-          } else if (sfType.startsWith('file-')) {
-             sfOpts = sfRow.querySelector('.cf-file-ext').value;
-          }
-
           subfields.push({
             label: sfRow.querySelector('.sf-label').value,
-            type: sfType,
-            options: sfOpts
+            type: sfRow.querySelector('.sf-type').value,
+            options: sfRow.querySelector('.sf-opts').value
           });
         });
         optionsStr = JSON.stringify(subfields);
       } else {
-        if (type === 'select') {
-           var sourceSel = row.querySelector('.cf-source');
-           if (sourceSel && sourceSel.value.startsWith('SYS_LOOKUP:')) {
-              if (sourceSel.value === 'SYS_LOOKUP:users') {
-                 var filterVal = row.querySelector('.cf-filter').value;
-                 optionsStr = filterVal ? sourceSel.value + ":" + filterVal : sourceSel.value;
-              } else {
-                 optionsStr = sourceSel.value;
-              }
-           } else {
-              optionsStr = row.querySelector('.cf-opts').value;
-           }
-        } else if (type.startsWith('file-')) {
-           optionsStr = row.querySelector('.cf-file-ext').value;
-        }
+        // Otherwise, just grab the standard options box
+        optionsStr = row.querySelector('.cf-opts') ? row.querySelector('.cf-opts').value : "";
       }
 
       customFields.push({
@@ -936,18 +803,22 @@
       });
     });
     
+    // 3. Build Payload & Save
     const payload = { 
       clientRole: document.getElementById('edt-client-role-select').value, 
       accordionGroups: accordionGroups, 
       customFields: customFields 
     };
     
-    const btn = e.target; const originalText = btn.innerHTML;
-    btn.disabled = true; btn.innerHTML = "Saving Configuration...";
+    const btn = e.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "Saving Configuration...";
 
     google.script.run
       .withSuccessHandler(res => {
-        btn.disabled = false; btn.innerHTML = originalText;
+        btn.disabled = false;
+        btn.innerHTML = originalText;
         if (res.success) {
           CLIENTS_CONFIG = payload;
           toggleModuleEdit('clients', false);
@@ -958,7 +829,8 @@
         }
       })
       .withFailureHandler(err => {
-        btn.disabled = false; btn.innerHTML = originalText;
+        btn.disabled = false; 
+        btn.innerHTML = originalText;
         if(typeof showToast === 'function') showToast("Critical Error", err.message, "danger");
       })
       .saveClientsModuleConfig(payload);
@@ -1015,28 +887,29 @@
     
     payload.addlFields = JSON.stringify(addl);
 
-    var runner = google.script.run
+    var action = mode === 'add' ? createClientRecord : updateClientRecord;
+    
+    google.script.run
       .withSuccessHandler(res => { 
         btn.disabled = false; 
         btn.innerText = "Save Profile"; 
         if (res.success) { 
           loadClientsTable(); 
           switchView('clientListView'); 
+          if (typeof showSystemModal === 'function') showSystemModal("Success", "Profile saved."); 
         } else { 
-          alert("Error: " + res.error); 
+          if (typeof showSystemModal === 'function') showSystemModal("Error", res.error); 
         } 
       })
       .withFailureHandler(err => {
         btn.disabled = false;
         btn.innerText = "Save Profile";
-        alert("Server Error: " + err.message);
-      });
-
-    if (mode === 'add') {
-      runner.createClientRecord(payload);
-    } else {
-      runner.updateClientRecord(payload);
-    }
+        if (typeof showSystemModal === 'function') {
+          showSystemModal("Critical Server Error", err.message);
+        } else {
+          alert("Server Error: " + err.message);
+        }
+      })(payload);
   }
 
   function handleServiceSubmit(e) { 
@@ -1074,68 +947,27 @@
   }
 
   function toggleCfOpts(sel) {
-    var row = sel.closest('.cf-row');
-    var optGrp = row.querySelector('.cf-opts-grp');
+    var row = sel.closest('.cf-row'); 
+    var optGrp = row.querySelector('.cf-opts-grp'); 
+    var optLbl = row.querySelector('.cf-opts-lbl');
     var jsonGrp = row.querySelector('.cf-json-grp');
     
-    if (sel.value === 'select') {
-      optGrp.style.display = 'block';
-      jsonGrp.style.display = 'none';
-      row.querySelector('.cf-source-col').style.display = 'block';
-      toggleSelectSource(row.querySelector('.cf-source'));
-      row.querySelector('.cf-file-wrapper').style.display = 'none';
+    if (sel.value === 'select') { 
+      optGrp.style.display = 'block'; 
+      optLbl.innerText = 'Dropdown Options (Comma separated)';
+      jsonGrp.style.display = 'none'; 
     } else if (sel.value.startsWith('file-')) {
-      optGrp.style.display = 'block';
-      jsonGrp.style.display = 'none';
-      row.querySelector('.cf-source-col').style.display = 'none';
-      row.querySelector('.cf-filter-wrapper').style.display = 'none';
-      row.querySelector('.cf-custom-wrapper').style.display = 'none';
-      row.querySelector('.cf-file-wrapper').style.display = 'block';
-    } else if (sel.value === 'json') {
-      optGrp.style.display = 'none';
-      jsonGrp.style.display = 'block';
-      var c = jsonGrp.querySelector('.json-subfields-container');
-      if (c.children.length === 0) addJsonSubfieldRow(c);
-    } else {
-      optGrp.style.display = 'none';
-      jsonGrp.style.display = 'none';
-    }
-  }
-
-  function toggleSfOpts(sel) {
-    var row = sel.closest('.json-sf-row');
-    var optGrp = row.querySelector('.sf-opts-grp');
-    
-    if (sel.value === 'select') {
-      optGrp.style.display = 'block';
-      row.querySelector('.cf-source-col').style.display = 'block';
-      toggleSelectSource(row.querySelector('.cf-source'));
-      row.querySelector('.cf-file-wrapper').style.display = 'none';
-    } else if (sel.value.startsWith('file-')) {
-      optGrp.style.display = 'block';
-      row.querySelector('.cf-source-col').style.display = 'none';
-      row.querySelector('.cf-filter-wrapper').style.display = 'none';
-      row.querySelector('.cf-custom-wrapper').style.display = 'none';
-      row.querySelector('.cf-file-wrapper').style.display = 'block';
-    } else {
-      optGrp.style.display = 'none';
-    }
-  }
-
-  function toggleSelectSource(sel) {
-    var wrapper = sel.closest('.cf-opts-grp') || sel.closest('.sf-opts-grp');
-    var fW = wrapper.querySelector('.cf-filter-wrapper');
-    var cW = wrapper.querySelector('.cf-custom-wrapper');
-    
-    if (sel.value === 'SYS_LOOKUP:users') {
-      if(fW) fW.style.display = 'block';
-      if(cW) cW.style.display = 'none';
-    } else if (sel.value.startsWith('SYS_LOOKUP:')) {
-      if(fW) fW.style.display = 'none';
-      if(cW) cW.style.display = 'none';
-    } else {
-      if(fW) fW.style.display = 'none';
-      if(cW) cW.style.display = 'block';
+      optGrp.style.display = 'block'; 
+      optLbl.innerText = 'Allowed Extensions (e.g., .pdf, .png) - Leave blank for all';
+      jsonGrp.style.display = 'none'; 
+    } else if (sel.value === 'json') { 
+      optGrp.style.display = 'none'; 
+      jsonGrp.style.display = 'block'; 
+      var c = jsonGrp.querySelector('.json-subfields-container'); 
+      if (c.children.length === 0) addJsonSubfieldRow(c); 
+    } else { 
+      optGrp.style.display = 'none'; 
+      jsonGrp.style.display = 'none'; 
     }
   }
 
