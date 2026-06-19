@@ -230,11 +230,19 @@ function getUserProfileByUsername(username) {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getDisplayValues(); 
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][1]) === String(username)) { 
+      if (String(data[i][2]).toLowerCase() === String(username).toLowerCase()) { 
         return {
-          rowIndex: i + 1, username: data[i][1], role: data[i][2], email: data[i][3], 
-          password: data[i][4], firstName: data[i][5], lastName: data[i][6], 
-          status: data[i][7], lastLogin: data[i][8], userId: data[i][10]
+          rowIndex: i + 1,
+          userId: data[i][1],
+          username: data[i][2],
+          email: data[i][3],
+          systemEmail: data[i][4],
+          role: data[i][5],
+          password: data[i][6],
+          firstName: data[i][7],
+          lastName: data[i][8],
+          lastLogin: data[i][9],
+          status: data[i][11]
         };
       }
     }
@@ -429,35 +437,50 @@ function updateUserRecord(obj) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
-    var row = parseInt(obj.rowIndex);
+    var row = parseInt(obj.rowIndex, 10);
 
-    var existingUsername = data[row-1][1];
-    obj.username = existingUsername;
-    var existingRole = data[row-1][2];
-    var existingStatus = data[row-1][7];
+    var existingUserId = data[row-1][1];
+    var existingUsername = data[row-1][2];
+    var existingRole = data[row-1][5];
+    var existingStatus = data[row-1][11];
+    
     if ((existingRole === 'Administrator' || existingRole === 'Admin') && existingStatus === 'Active') {
       if (obj.role !== existingRole || obj.status !== 'Active') {
         var activeAdminCount = 0;
         for (var i = 1; i < data.length; i++) {
-          if ((data[i][2] === 'Administrator' || data[i][2] === 'Admin') && data[i][7] === 'Active') activeAdminCount++;
+          if ((data[i][5] === 'Administrator' || data[i][5] === 'Admin') && data[i][11] === 'Active') activeAdminCount++;
         }
         if (activeAdminCount <= 1) return { error: "Error: Cannot modify the role or status of the last active Administrator." };
       }
     }
 
-    var oldPassword = data[row-1][4];
+    var oldPassword = data[row-1][6];
     var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
 
-    sheet.getRange(row, 2, 1, 7).setValues([[ obj.username, obj.role, obj.email, newPassword, obj.firstName, obj.lastName, obj.status ]]);
-    SpreadsheetApp.flush();
+    sheet.getRange(row, 2, 1, 11).setValues([[
+      existingUserId,
+      existingUsername,
+      obj.email,
+      obj.systemEmail || obj.email,
+      obj.role,
+      newPassword,
+      obj.firstName,
+      obj.lastName,
+      data[row-1][9],  // Preserve Last Login column placement
+      data[row-1][10], // Preserve Dashboard Config layout
+      obj.status       // Status locks column 12 per Section 3.F mandate
+    ]]);
+    SpreadsheetApp.flush(); // Mandated race condition safeguard
     
-    SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", obj.username, "User access profile updated.");
+    SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", existingUserId, "User access profile updated.");
     if (existingStatus !== obj.status) {
       var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
-      SystemEvent.emit("Users", "UPDATE", "User Status Changed", "WARN", obj.username, "User account was manually " + actionVerb + ".");
+      SystemEvent.emit("Users", "UPDATE", "User Status Changed", "WARN", existingUserId, "User account was manually " + actionVerb + ".");
     }
     return { success: true, rowIndex: row, message: "Success! User updated." };
-  } catch (e) { return { error: "Error: " + e.message }; }
+  } catch (e) { 
+    return { error: "Error: " + e.message };
+  }
 }
 
 function updateMyProfileRecord(obj) {
@@ -469,26 +492,31 @@ function updateMyProfileRecord(obj) {
     var loggedInUser = getLoggedInUsername();
     if (obj.username !== loggedInUser) return "Error: Unauthorized profile modification.";
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][1]) === obj.username) {
+      if (String(data[i][2]) === obj.username) {
         rowToUpdate = i + 1;
         break;
       }
     }
 
     if (rowToUpdate === -1) return "Error: User profile not found.";
-    var oldPassword = data[rowToUpdate-1][4];
+    var existingUserId = data[rowToUpdate-1][1];
+    var oldPassword = data[rowToUpdate-1][6];
     var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
-    sheet.getRange(rowToUpdate, 4, 1, 4).setValues([[ obj.email, newPassword, obj.firstName, obj.lastName ]]);
     
-    SpreadsheetApp.flush();
-    SystemEvent.emit("Users", "UPDATE", "Update Profile", "INFO", obj.username, "User updated their personal profile details.");
+    // Selectively sets fields for Authentication, Communications, and Attributes side-by-side
+    sheet.getRange(rowToUpdate, 4, 1, 2).setValues([[ obj.email, obj.systemEmail || obj.email ]]);
+    sheet.getRange(rowToUpdate, 7, 1, 3).setValues([[ newPassword, obj.firstName, obj.lastName ]]);
     
+    SpreadsheetApp.flush(); // Mandated race condition safeguard
+    SystemEvent.emit("Users", "UPDATE", "Update Profile", "INFO", existingUserId, "User updated their personal profile details.");
     if (obj.password) {
-      SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", obj.username, "User updated their password via their profile.", obj.email, { userFirst: obj.firstName });
+      SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", existingUserId, "User updated their password via their profile.", obj.email, { userFirst: obj.firstName });
     }
 
     return { success: true, firstName: obj.firstName, message: "Success! Profile updated." };
-  } catch (e) { return "Error: " + e.message; }
+  } catch (e) { 
+    return "Error: " + e.message; 
+  }
 }
 
 function saveRoleRecord(obj) {

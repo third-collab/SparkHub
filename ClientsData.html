@@ -887,9 +887,16 @@
       if (logs.length === 0) { container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding:40px;">No change history recorded.</p>'; return; }
       container.innerHTML = '';
       logs.forEach(entry => {
+        var displayEditorName = entry.editor || 'System User';
+        if (displayEditorName.indexOf('U-') === 0 && window.SYSTEM_LOOKUP_CACHE && window.SYSTEM_LOOKUP_CACHE.users) {
+          var matchedUserNode = window.SYSTEM_LOOKUP_CACHE.users.find(function(u) { return u.id === displayEditorName; });
+          if (matchedUserNode && matchedUserNode.name) {
+             displayEditorName = matchedUserNode.name.split(' ')[0]; // Renders friendly First Name
+          }
+        }
         var html = `<div class="history-audit-entry" style="background:#fff; border:1px solid #e2e8f0; padding:20px; border-radius:8px; margin-bottom:15px; box-shadow:var(--shadow-sm);">
                       <div style="font-size:13px; color:#64748b; font-weight:bold; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
-                        ${new Date(entry.timestamp).toLocaleString()} &bull; Action by: <strong>${entry.editor || 'System User'}</strong>
+                        ${new Date(entry.timestamp).toLocaleString()} &bull; Action by: <strong>${displayEditorName}</strong>
                       </div>
                       <ul style="margin:0; padding-left:20px; color:#334155; font-size:13.5px; line-height:1.6;">`;
         

@@ -52,7 +52,20 @@ function getLogsList() {
     var data = sheet.getDataRange().getDisplayValues();
     data.shift(); 
     
+    // Fetch user mapping cache to convert User ID codes into friendly handles dynamically
+    var userLookupCache = {};
+    try {
+      if (typeof getUsersList === 'function') {
+        getUsersList().forEach(function(u) {
+          userLookupCache[u.userId] = u.firstName + " " + u.lastName + " (" + u.username + ")";
+        });
+      }
+    } catch(uErr) { console.warn("User lookup cache mapping failed for logs view: " + uErr.message); }
+    
     var formattedLogs = data.map(function(row, i) {
+      var actorTrackingKey = row[5];
+      var friendlyDisplayActor = userLookupCache[actorTrackingKey] || actorTrackingKey || "System";
+      
       return {
         rowIndex: i + 2,
         timestamp: row[0],
@@ -60,9 +73,10 @@ function getLogsList() {
         type: row[2],
         name: row[3],
         severity: row[4],
-        actor: row[5],
+        actor: friendlyDisplayActor,
         entity: row[6],
-        details: row[7],
+        details: 
+        row[7],
         env: row[8]
       };
     });

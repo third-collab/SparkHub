@@ -399,11 +399,11 @@ function updateClientRecord(p) {
       11: "Services Included", 12: "Rate", 13: "Term Unit", 14: "Term Count",
       16: "Start Date", 18: "Expiration Date", 20: "End Date", 25: "Status"
     };
-
-    var editorUsername = "System Admin";
+    var editorUsername = "U-SYSTEM";
     try { 
-      var activeEmail = Session.getActiveUser().getEmail();
-      if (activeEmail) editorUsername = activeEmail.split('@')[0];
+      if (typeof getLoggedInUserId === 'function') {
+        editorUsername = getLoggedInUserId(); // History records use the unchangeable tracking ID anchor
+      }
     } catch(e){}
 
     for (var colIdx in fieldMap) {

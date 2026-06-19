@@ -283,8 +283,11 @@
         <div class="form-group"><label>Last Name *</label><input type="text" id="edt-user-last" class="form-control" required></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Username (Login ID) *</label><input type="text" id="edt-user-username" class="form-control" required></div>
-        <div class="form-group"><label>System Email *</label><input type="email" id="edt-user-email" class="form-control" required></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Username (Profile Handle) *</label><input type="text" id="edt-user-username" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Google SSO Email (Authentication) *</label><input type="email" id="edt-user-email" class="form-control" required></div>
+        <div class="form-group"><label>System Communications Email (Alerts Inbox) *</label><input type="email" id="edt-user-system-email" class="form-control" required></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>System Role *</label>
@@ -389,7 +392,8 @@
       </div>
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Account Information</h4>
-        <p><strong>System Email:</strong> <span id="my-profile-email"></span></p>
+        <p><strong>Google SSO Email:</strong> <span id="my-profile-email"></span></p>
+        <p><strong>System Email:</strong> <span id="my-profile-system-email"></span></p>
         <p><strong>Local Password:</strong> <span id="my-profile-password" style="font-family: monospace;"></span></p>
         <p><strong>Last Login:</strong> <span id="my-profile-lastlogin" style="color: #64748b;"></span></p>
       </div>
@@ -410,10 +414,13 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Username (Login ID)</label>
+          <label>Username (Profile Handle)</label>
           <input type="text" id="edt-my-username" class="form-control" readonly style="background-color: #f8fafc; color: #94a3b8;" title="Username cannot be changed.">
         </div>
-        <div class="form-group"><label>System Email *</label><input type="email" id="edt-my-email" class="form-control" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Google SSO Email *</label><input type="email" id="edt-my-email" class="form-control" required placeholder="login@organization.com"></div>
+        <div class="form-group"><label>System Email *</label><input type="email" id="edt-my-system-email" class="form-control" required placeholder="alerts@organization.com"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Local Password</label><input type="password" id="edt-my-password" class="form-control" placeholder="Leave blank to keep current password"></div>
@@ -783,6 +790,7 @@
       userField.style.color = "#94a3b8";
 
       document.getElementById('edt-user-email').value = data.email || "";
+      document.getElementById('edt-user-system-email').value = data.systemEmail || "";
       document.getElementById('edt-user-password').value = data.password || "";
       document.getElementById('edt-user-first').value = data.firstName || "";
       document.getElementById('edt-user-last').value = data.lastName || "";
@@ -854,6 +862,7 @@
         document.getElementById('my-profile-first').innerText = data.firstName;
         document.getElementById('my-profile-last').innerText = data.lastName;
         document.getElementById('my-profile-email').innerText = data.email;
+        document.getElementById('my-profile-system-email').innerText = data.systemEmail || "N/A";
         document.getElementById('my-profile-lastlogin').innerText = data.lastLogin || "Never logged in";
         document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
       })
@@ -881,6 +890,7 @@
         document.getElementById('edt-my-last').value = data.lastName || "";
         document.getElementById('edt-my-username').value = data.username || "";
         document.getElementById('edt-my-email').value = data.email || "";
+        document.getElementById('edt-my-system-email').value = data.systemEmail || "";
       })
       .withFailureHandler(function(err) {
         toggleUserOverlay('edit-my-profile-overlay', false);
@@ -1069,6 +1079,7 @@
     var userData = {
       rowIndex: document.getElementById('edt-user-rowIndex').value, username: document.getElementById('edt-user-username').value,
       role: document.getElementById('edt-user-role').value, email: document.getElementById('edt-user-email').value,
+      systemEmail: document.getElementById('edt-user-system-email').value,
       password: document.getElementById('edt-user-password').value, firstName: document.getElementById('edt-user-first').value,
       lastName: document.getElementById('edt-user-last').value, status: document.getElementById('edt-user-status').value || "Active"
     };
@@ -1098,6 +1109,7 @@
       firstName: document.getElementById('edt-my-first').value,
       lastName: document.getElementById('edt-my-last').value,
       email: document.getElementById('edt-my-email').value,
+      systemEmail: document.getElementById('edt-my-system-email').value,
       password: document.getElementById('edt-my-password').value
     };
 
