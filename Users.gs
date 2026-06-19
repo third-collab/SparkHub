@@ -24,15 +24,16 @@ function Users_getPlaceholders() {
 }
 
 function Users_getPermissions() { 
-  return ["View Users", "Manage Users", "Manage Roles", "Configure Users"]; 
+  return ["View Users", "Add Users", "Manage Users", "View Roles", "Create Roles", "Manage Roles", "Manage Settings"];
 }
 
 function getDynamicPermissionMatrix() {
   var matrix = {
-    "Core System": ["Manage Settings"],
-    "Access & Users": ["View Users", "Manage Users", "Manage Roles"],
-    "Templates": ["View Templates", "Manage Templates"],
-    "System Logs": ["View Logs"]
+    "Core System": ["View Settings", "Manage Settings"],
+    "Access & Users": ["View Users", "Add Users", "Manage Users", "View Roles", "Create Roles", "Manage Roles", "Manage Settings"],
+    "Templates & Wrappers": ["View Templates", "Create Templates", "Manage Templates", "View Wrappers", "Create Wrappers", "Manage Wrappers", "Manage Settings"],
+    "Clients & Services": ["View Clients", "Onboard Clients", "Manage Clients", "View Services", "Define Services", "Manage Services", "Manage Settings"],
+    "System Logs": ["View Logs", "Manage Settings"]
   };
   var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
   if (installed) {
@@ -93,8 +94,8 @@ function sendPasswordResetEmail(email) {
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][3]).toLowerCase() === String(email).toLowerCase()) {
         userExists = true;
-        username = data[i][1];
-        userFirst = data[i][5];
+        username = data[i][2];  // Index 2 maps to customizable Username handle string
+        userFirst = data[i][7]; // Index 7 maps to First Name string
         break;
       }
     }
@@ -142,14 +143,16 @@ function processPasswordReset(token, newPassword) {
     if (userRow === -1) return { success: false, message: "User account no longer exists." };
 
     var hashedPw = hashPassword(newPassword);
-    userSheet.getRange(userRow, 5).setValue(hashedPw);
+    // Enforces write on 1-based Column 7 (Password) instead of corrupting Column 5 (System Email)
+    userSheet.getRange(userRow, 7).setValue(hashedPw);
     tokenSheet.deleteRow(tokenRow);
 
-    var username = userData[userRow-1][1];
-    var userFirst = userData[userRow-1][5];
+    var username = userData[userRow-1][2]; // Index 2 maps to customizable Username handle string
+    var userFirst = userData[userRow-1][7]; // Index 7 maps to First Name string
     SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", username, "User reset their password via email link.", emailToReset, { userFirst: userFirst });
     return { success: true, message: "Password updated successfully!" };
-  } catch(e) { return { success: false, message: "Error: " + e.message }; }
+  } catch(e) { return { success: false, message: "Error: " + e.message };
+  }
 }
 
 function updateLastLogin() {
@@ -159,11 +162,13 @@ function updateLastLogin() {
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
       if (data[i][3] === email) { 
-        sheet.getRange(i + 1, 9).setValue(new Date());
+        // Enforces write on 1-based Column 10 (Last Login) instead of overriding Column 9 (Last Name)
+        sheet.getRange(i + 1, 10).setValue(new Date());
         break;
       }
     }
-  } catch (e) { console.error("Failed to update last login: " + e.message); }
+  } catch (e) { console.error("Failed to update last login: " + e.message);
+  }
 }
 
 function saveUsersModuleConfig(payload) {
@@ -301,7 +306,8 @@ function getResolvedDashboardLayout(email, roleName) {
     var usersData = db.getSheetByName("Users").getDataRange().getValues();
     for (var i = 1; i < usersData.length; i++) {
       if (usersData[i][3] === email) {
-        var userConfig = usersData[i][9];
+        // Enforces lookup on index 10 (Column K) to isolate the genuine widget layout matrix string
+        var userConfig = usersData[i][10];
         if (userConfig && userConfig.trim() !== "" && userConfig !== "[]") return userConfig;
         break;
       }
@@ -324,7 +330,10 @@ function getUserRole() {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
-      if (data[i][3] === email) return data[i][7] === 'Inactive' ? 'Inactive' : data[i][2]; 
+      if (data[i][3] === email) {
+        // Index 11 maps to Status, Index 5 maps to Role under the 12-column schema
+        return data[i][11] === 'Inactive' ? 'Inactive' : data[i][5];
+      }
     }
     if (email === PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL')) return "Administrator";
     return "Inactive";
@@ -337,10 +346,11 @@ function getLoggedInUsername() {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
-      if (data[i][3] === email) return data[i][1];
+      if (data[i][3] === email) return data[i][2]; // Index 2 extracts the customizable Username handle string
     }
     return email.split('@')[0];
-  } catch (e) { return "User"; }
+  } catch (e) { return "User";
+  }
 }
 
 function getLoggedInUserFirstName() {
@@ -426,7 +436,8 @@ function createUserRecord(obj, isAutomatedOnboarding) {
     var targetRow = sheet.getLastRow();
     SpreadsheetApp.flush(); // Mandated race condition safeguard
     
-    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", generatedId, "New user profile established.", obj.email);
+    // Packages firstName in extraData to feed the installation welcome template greeting cleanly
+    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", generatedId, "New user profile established.", obj.email, { firstName: obj.firstName || "User" });
     return { success: true, rowIndex: targetRow, username: finalizedUsername, userId: generatedId };
   } catch (e) { 
     return { error: "Error: " + e.message }; 
@@ -503,8 +514,8 @@ function updateMyProfileRecord(obj) {
     var oldPassword = data[rowToUpdate-1][6];
     var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
     
-    // Selectively sets fields for Authentication, Communications, and Attributes side-by-side
-    sheet.getRange(rowToUpdate, 4, 1, 2).setValues([[ obj.email, obj.systemEmail || obj.email ]]);
+    // GOVERNANCE MANTRA: Force use of data[rowToUpdate-1][3] to keep the Google SSO Email authentication token locked
+    sheet.getRange(rowToUpdate, 4, 1, 2).setValues([[ data[rowToUpdate-1][3], obj.systemEmail || data[rowToUpdate-1][3] ]]);
     sheet.getRange(rowToUpdate, 7, 1, 3).setValues([[ newPassword, obj.firstName, obj.lastName ]]);
     
     SpreadsheetApp.flush(); // Mandated race condition safeguard

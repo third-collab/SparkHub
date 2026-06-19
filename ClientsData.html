@@ -55,7 +55,7 @@
   .json-sf-row label { display: block !important; margin-bottom: 8px !important; font-weight: 600 !important; color: #475569 !important; }
 </style>
 
-<template class="module-card-template" data-category="operational" data-perm-category="Clients" data-perm-action="View Clients">
+<template class="module-card-template" data-category="operational" data-perm-category="Clients & Services" data-perm-action="View Clients">
   <div class="card" id="card-clients" onclick="initClientsModule();">
     <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -114,10 +114,10 @@
   <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
     <div class="tab-nav" style="margin: 0; border: none;">
       <button type="button" class="tab-btn active" id="btn-tab-brands" onclick="switchClientMasterTab('brands')">Brand Directory</button>
-      <button type="button" class="tab-btn perm-protected" id="btn-tab-services" data-perm-category="Clients" data-perm-action="Manage Services" onclick="switchClientMasterTab('services')">Service Definitions</button>
+      <button type="button" class="tab-btn perm-protected" id="btn-tab-services" data-perm-category="Clients & Services" data-perm-action="View Services" onclick="switchClientMasterTab('services')">Service Definitions</button>
     </div>
     <div id="client-action-btns">
-      <button class="btn-primary perm-protected" onclick="window.CLIENTS_FORM_ORIGIN='list'; openDynamicForm('add', null, 'list')" data-perm-category="Clients" data-perm-action="Onboard Clients">+ Onboard New Client</button>
+      <button class="btn-primary perm-protected" onclick="window.CLIENTS_FORM_ORIGIN='list'; openDynamicForm('add', null, 'list')" data-perm-category="Clients & Services" data-perm-action="Onboard Clients">+ Onboard New Client</button>
     </div>
   </div>
   
@@ -493,7 +493,7 @@
           <td><span class="badge" style="background:#f1f5f9; color:#475569;">${c.acctMgr}</span></td>
           <td><span class="badge badge-${String(c.status).toLowerCase()}">${c.status}</span></td>
           <td>
-            <button type="button" class="btn-edit" onclick="openDynamicForm('edit', ${c.rowIndex}, 'list', event)">Edit</button>
+            ${hasPermission('Clients & Services', 'Manage Clients') ? `<button type="button" class="btn-edit" onclick="openDynamicForm('edit', ${c.rowIndex}, 'list', event)">Edit</button>` : ''}
           </td>
         </tr>`;
     });
@@ -518,9 +518,9 @@
         <td>${s.description}</td>
         <td><span class="badge badge-${String(s.status).toLowerCase()}">${s.status}</span></td>
         <td>
-          <button type="button" class="btn-edit" onclick="openServiceForm(${s.rowIndex}); event.stopPropagation();">Edit</button>
+          ${hasPermission('Clients & Services', 'Manage Services') ? `<button type="button" class="btn-edit" onclick="openServiceForm(${s.rowIndex}); event.stopPropagation();">Edit</button>` : ''}
         </td>
-      </tr>`).join(''); 
+      </tr>`).join('');
   }
   
   function loadServicesTable() {
@@ -1331,10 +1331,10 @@
     document.querySelectorAll('#clientListView .tab-btn').forEach(b => b.classList.remove('active'));
     if (tab === 'brands') { 
       bV.style.display = 'block'; sV.style.display = 'none'; document.getElementById('btn-tab-brands').classList.add('active'); 
-      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openDynamicForm('add')" data-perm-category="Clients" data-perm-action="Onboard Clients">+ Onboard New Client</button>`; 
+      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openDynamicForm('add')" data-perm-category="Clients & Services" data-perm-action="Onboard Clients">+ Onboard New Client</button>`; 
     } else { 
       bV.style.display = 'none'; sV.style.display = 'block'; document.getElementById('btn-tab-services').classList.add('active'); 
-      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openServiceForm()" data-perm-category="Clients" data-perm-action="Manage Services">+ Define New Service</button>`; 
+      act.innerHTML = `<button class="btn-primary perm-protected" onclick="openServiceForm()" data-perm-category="Clients & Services" data-perm-action="Define Services">+ Define New Service</button>`; 
       loadServicesTable(); 
     }
     if (typeof enforceUIPermissions === 'function') enforceUIPermissions();

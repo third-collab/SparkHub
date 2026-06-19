@@ -185,9 +185,9 @@ function seedCoreAssets(ss) {
   var tplSheet = ss.getSheetByName("Templates");
   
   // Safely check if the templates sheet is empty or only contains headers
-  // Safely check if the templates sheet is empty or only contains headers
   if (tplSheet && tplSheet.getLastRow() <= 1) {
-    var welcomeHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to your Workspace</h2><p>Hello {{username}},</p><p>Your account is ready. You can now access your workspace using your system credentials.</p></div>`;
+    var welcomeHtml = `<div style='font-family: sans-serif;
+padding: 20px;'><h2>Welcome to your Workspace</h2><p>Hello {{firstName}},</p><p>Your account is ready. You can now access your workspace using your system credentials.</p></div>`;
     
     var roleHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>New System Role</h2><p>The system role <strong>{{username}}</strong> has been successfully established.</p><p>Details: {{details}}</p></div>`;
     

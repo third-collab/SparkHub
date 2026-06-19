@@ -118,10 +118,10 @@
   <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;">
     <div class="tab-nav" style="margin: 0; border: none;">
       <button class="tab-btn active" id="btn-tab-users" onclick="toggleUserSubView('users')">User Directory</button>
-      <button class="tab-btn" id="btn-tab-roles" onclick="toggleUserSubView('roles')">Roles & Permissions</button>
+      <button class="tab-btn perm-protected" id="btn-tab-roles" data-perm-category="Access & Users" data-perm-action="View Roles" onclick="toggleUserSubView('roles')">Roles & Permissions</button>
     </div>
     <div id="user-action-btns">
-      <button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>
+      <button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Add Users">+ Add User</button>
     </div>
   </div>
 
@@ -215,7 +215,6 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">System Profile</h4>
-        <p><strong>User ID:</strong> <span id="ro-user-id" style="font-family: monospace; font-weight: bold; color: var(--brand-primary);"></span></p>
         <p><strong>Username:</strong> <span id="ro-user-username"></span></p>
         <p><strong>System Role:</strong> <span id="ro-user-role"></span></p>
         <p><strong>Created On:</strong> <span id="ro-user-created" style="color: #64748b; font-size:13px;"></span></p>
@@ -392,7 +391,7 @@
       </div>
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">Account Information</h4>
-        <p><strong>Google SSO Email:</strong> <span id="my-profile-email"></span></p>
+        <p id="my-profile-email-row"><strong>Google SSO Email:</strong> <span id="my-profile-email"></span></p>
         <p><strong>System Email:</strong> <span id="my-profile-system-email"></span></p>
         <p><strong>Local Password:</strong> <span id="my-profile-password" style="font-family: monospace;"></span></p>
         <p><strong>Last Login:</strong> <span id="my-profile-lastlogin" style="color: #64748b;"></span></p>
@@ -402,7 +401,7 @@
 </div>
 
 <div id="editMyProfileView" class="container" style="display: none;">
-  <button class="btn-dash-back" onclick="openMyProfile()">&#8592; Cancel & Back to Profile</button>
+  <button class="btn-dash-back" onclick="openMyProfile()">&#8592; Back to Profile</button>
   <div class="form-wrapper">
     <div id="edit-my-profile-overlay" class="global-loading-overlay"><div class="global-overlay-content"><div class="spinner-core"></div><span>Saving Profile...</span></div></div>
     <h2 style="margin-top: 0; color: var(--brand-dark); border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">Edit My Profile</h2>
@@ -419,7 +418,10 @@
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Google SSO Email *</label><input type="email" id="edt-my-email" class="form-control" required placeholder="login@organization.com"></div>
+        <div class="form-group" id="edt-my-email-group">
+          <label>Google SSO Email (Authentication Principal)</label>
+          <input type="email" id="edt-my-email" class="form-control" readonly style="background-color: #f8fafc; color: #94a3b8;" title="Google SSO Email cannot be changed by the user.">
+        </div>
         <div class="form-group"><label>System Email *</label><input type="email" id="edt-my-system-email" class="form-control" required placeholder="alerts@organization.com"></div>
       </div>
       <div class="form-row">
@@ -739,11 +741,11 @@
     if (view === 'users') {
       usersView.style.display = 'block'; rolesView.style.display = 'none';
       document.getElementById('btn-tab-users').classList.add('active');
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Manage Users">+ Add User</button>`;
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddUserForm()" data-perm-category="Access & Users" data-perm-action="Add Users">+ Add User</button>`;
     } else {
       usersView.style.display = 'none'; rolesView.style.display = 'block';
       document.getElementById('btn-tab-roles').classList.add('active');
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Access & Users" data-perm-action="Manage Roles">+ Create Role</button>`;
+      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddRoleForm()" data-perm-category="Access & Users" data-perm-action="Create Roles">+ Create Role</button>`;
       loadRolesTable();
     }
     if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
@@ -791,7 +793,8 @@
 
       document.getElementById('edt-user-email').value = data.email || "";
       document.getElementById('edt-user-system-email').value = data.systemEmail || "";
-      document.getElementById('edt-user-password').value = data.password || "";
+      // Enforces an empty input container field on load so the placeholder behaves correctly without double-hashing
+      document.getElementById('edt-user-password').value = "";
       document.getElementById('edt-user-first').value = data.firstName || "";
       document.getElementById('edt-user-last').value = data.lastName || "";
       
@@ -824,7 +827,6 @@
 
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('ro-user-overlay', false);
-      document.getElementById('ro-user-id').innerText = data.userId || "N/A";
       document.getElementById('ro-user-fullname').innerText = data.firstName + " " + data.lastName;
       document.getElementById('ro-user-subline').innerText = data.role;
       document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
@@ -865,6 +867,10 @@
         document.getElementById('my-profile-system-email').innerText = data.systemEmail || "N/A";
         document.getElementById('my-profile-lastlogin').innerText = data.lastLogin || "Never logged in";
         document.getElementById('my-profile-password').innerText = data.password ? "********" : "Not Set";
+        
+        // Dynamically handles row element display states to obscure properties from user during Local auth sessions
+        var ssoRow = document.getElementById('my-profile-email-row');
+        if (ssoRow) ssoRow.style.display = (SYSTEM_AUTH_MODE === 'SSO') ? 'block' : 'none';
       })
       .withFailureHandler(function(err) {
         toggleUserOverlay('my-profile-overlay', false);
@@ -891,6 +897,10 @@
         document.getElementById('edt-my-username').value = data.username || "";
         document.getElementById('edt-my-email').value = data.email || "";
         document.getElementById('edt-my-system-email').value = data.systemEmail || "";
+        
+        // Dynamically handles element group block states to obscure properties from user during Local auth sessions
+        var ssoGroup = document.getElementById('edt-my-email-group');
+        if (ssoGroup) ssoGroup.style.display = (SYSTEM_AUTH_MODE === 'SSO') ? 'block' : 'none';
       })
       .withFailureHandler(function(err) {
         toggleUserOverlay('edit-my-profile-overlay', false);
@@ -1142,11 +1152,15 @@
     var source = document.getElementById('edt-role-source').value;
     
     var finalPerms = {};
-    document.querySelectorAll('.role-perm-cb:checked').forEach(function(cb) {
-      var cat = cb.getAttribute('data-category');
-      if (!finalPerms[cat]) finalPerms[cat] = [];
-      finalPerms[cat].push(cb.value);
-    });
+    // Scopes execution to active edit matrix panel element container to eliminate cross-view data leaks
+    var activeFormMatrix = document.getElementById('permission-matrix-container');
+    if (activeFormMatrix) {
+      activeFormMatrix.querySelectorAll('.role-perm-cb:checked').forEach(function(cb) {
+        var cat = cb.getAttribute('data-category');
+        if (!finalPerms[cat]) finalPerms[cat] = [];
+        finalPerms[cat].push(cb.value);
+      });
+    }
 
     var payload = {
       rowIndex: document.getElementById('edt-role-rowIndex').value, name: document.getElementById('edt-role-name').value,

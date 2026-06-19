@@ -19,6 +19,10 @@ function Templates_getPlaceholders() {
   return ["templateName", "wrapperName", "triggerEvent"];
 }
 
+function Templates_getPermissions() {
+  return ["View Templates", "Create Templates", "Manage Templates", "View Wrappers", "Create Wrappers", "Manage Wrappers", "Manage Settings"];
+}
+
 function getDynamicTriggerRegistry() {
   var triggers = [];
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;

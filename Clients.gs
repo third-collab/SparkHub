@@ -20,7 +20,7 @@ function Clients_getPlaceholders() {
 }
 
 function Clients_getPermissions() { 
-  return ["View Clients", "Manage Clients", "Onboard Clients", "Manage Services"];
+  return ["View Clients", "Onboard Clients", "Manage Clients", "View Services", "Define Services", "Manage Services", "Manage Settings"];
 }
 
 /**

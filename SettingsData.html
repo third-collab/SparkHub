@@ -10,9 +10,9 @@
   .settings-full-row { background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-top: 30px; width: 100%; box-sizing: border-box; }
 </style>
 
-<template class="module-card-template" data-category="core" data-perm-category="Core System" data-perm-action="Manage Settings">
+<template class="module-card-template" data-category="core" data-perm-category="Core System" data-perm-action="View Settings">
   <div class="card" id="card-settings" onclick="initSettingsModule();">
-    <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2 2v.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     <h3>Settings</h3>
     <p>Manage system identity, infrastructure, and modules.</p>
   </div>
@@ -177,7 +177,15 @@
   function initSettingsModule() {
     switchView('readOnlySettingsView');
     injectSettingsFragments();
-    toggleModuleEdit('core', false); // Forces the Core tab to be visible
+    
+    // Auto-selects the first available permitted tab to prevent blank workspace layout blocks
+    var firstPermittedTab = document.getElementById('ro-settings-nav').querySelector('.tab-btn');
+    if (firstPermittedTab) {
+      firstPermittedTab.click();
+    } else {
+      var coreContent = document.getElementById('set-ro-core');
+      if (coreContent) coreContent.style.display = 'none';
+    }
     loadSettings();
   }
 
@@ -191,16 +199,37 @@
     var edtContainer = document.getElementById('edt-dynamic-settings-container');
 
     roContainer.innerHTML = ''; edtContainer.innerHTML = '';
-    roNav.querySelectorAll('.dynamic-tab').forEach(t => t.remove());
+    roNav.innerHTML = ''; 
 
+    // 1. Conditionally populate the Core Engine configuration tab
+    if (hasPermission("Core System", "Manage Settings")) {
+      roNav.innerHTML += `<button type="button" class="tab-btn" id="btn-set-ro-core" onclick="toggleModuleEdit('core', false)">Core Engine</button>`;
+    }
+
+    // 2. Evaluate dynamic module permissions
     allModules.forEach(mod => {
       var tabLabel = mod.charAt(0).toUpperCase() + mod.slice(1);
       
+      // Remap configuration categories matching matrix standard
+      var permCategory = "";
+      if (mod === 'users') permCategory = "Access & Users";
+      else if (mod === 'templates') permCategory = "Templates & Wrappers";
+      else if (mod === 'logs') permCategory = "System Logs";
+      else permCategory = mod.charAt(0).toUpperCase() + mod.slice(1) + " Services";
+
+      // If they lack Manage Settings for this module, omit the configuration tab entirely
+      if (!hasPermission(permCategory, "Manage Settings")) {
+        return;
+      }
+
       // Inject Read-Only Fragment AND its Tab Button
       var roTpl = document.getElementById(`tpl-settings-${mod}-ro`);
       if (roTpl) {
-        roNav.innerHTML += `<button type="button" class="tab-btn dynamic-tab" id="btn-set-ro-${mod}" onclick="toggleModuleEdit('${mod}', false)">${tabLabel}</button>`;
-        var div = document.createElement('div'); div.id = `set-ro-${mod}`; div.className = 'tab-content'; div.style.display = 'none'; div.appendChild(roTpl.content.cloneNode(true));
+        var isFirstActive = (roNav.innerHTML === '') ? 'active' : '';
+        roNav.innerHTML += `<button type="button" class="tab-btn dynamic-tab ${isFirstActive}" id="btn-set-ro-${mod}" onclick="toggleModuleEdit('${mod}', false)">${tabLabel}</button>`;
+        var div = document.createElement('div'); div.id = `set-ro-${mod}`; div.className = 'tab-content'; 
+        div.style.display = isFirstActive ? 'block' : 'none'; 
+        div.appendChild(roTpl.content.cloneNode(true));
         roContainer.appendChild(div);
       }
       
@@ -211,6 +240,11 @@
         edtContainer.appendChild(div);
       }
     });
+
+    var coreContent = document.getElementById('set-ro-core');
+    if (coreContent) {
+      coreContent.style.display = hasPermission("Core System", "Manage Settings") ? 'block' : 'none';
+    }
   }
 
   /* ========================================================================
@@ -223,6 +257,13 @@
       
       // Bind RO views
       document.getElementById('ro-settings-sysname').innerText = data.systemName || '';
+      
+      // Pushes the updated system name dynamically into the navigation header and browser window tab title
+      var navBrandLabel = document.getElementById('hub-system-name');
+      if (navBrandLabel) navBrandLabel.innerText = data.systemName || 'SparkHub';
+      var browserTabTitle = document.getElementById('hub-window-title');
+      if (browserTabTitle) browserTabTitle.innerText = data.systemName || 'SparkHub';
+      
       document.getElementById('ro-settings-logo').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
       var envBox = document.getElementById('ro-settings-env-box');
       if (envBox) envBox.innerHTML = `<span class="badge ${data.environment === 'Production' ? 'badge-active' : 'badge-onboarding'}">${data.environment} Profile</span>`;
@@ -449,12 +490,17 @@
       finishSave(payload); 
     }
 
-    // 3. The final save execution
+    // 3. The final save execution (Logs DB ID completely omitted from Core payload lifecycle)
     function finishSave(p) {
       toggleSettingsOverlay('edt-settings-overlay', true, 'Saving General Config...');
       google.script.run
         .withSuccessHandler(res => {
           toggleSettingsOverlay('edt-settings-overlay', false);
+          // Catch and expose any backend validation failures instead of silently swallowing them
+          if (res && res.error) {
+            showSystemModal("Configuration Error", res.error);
+            return;
+          }
           toggleModuleEdit('core', false); 
           if(typeof showToast === 'function') showToast("Success", "Core system settings updated.", "success");
           loadSettings();
