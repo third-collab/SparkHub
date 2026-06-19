@@ -253,10 +253,20 @@ function saveServiceRecord(p) {
     if (p.rowIndex) { 
       sheet.getRange(parseInt(p.rowIndex,10)+1, 3, 1, 3).setValues([[p.name, p.description, p.status]]); 
       SpreadsheetApp.flush(); // ENFORCED: Prevent Stale Data
+      
+      try {
+        SystemEvent.emit("Clients", "UPDATE", "Service Updated", "INFO", p.name, "Service definition details modified.", "system");
+      } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
+      
       return { success: true };
     } else { 
       sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]);
       SpreadsheetApp.flush(); // ENFORCED: Prevent Stale Data
+      
+      try {
+        SystemEvent.emit("Clients", "CREATE", "Service Created", "INFO", p.name, "New service capability defined.", "system");
+      } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
+      
       return { success: true };
     }
   } catch(e) { 
@@ -343,35 +353,41 @@ function updateClientRecord(p) {
     const newStatus = p.status;
     const hasStatusChanged = (oldStatus !== newStatus);
 
+    // [REPLACE EXPLICITLY: Lines 75-81 in Clients.gs]
     const newRow = [...oldRow];
     while(newRow.length < 26) newRow.push("");
 
-    newRow[2]  = p.companyName;
-    newRow[3]  = p.address;
-    newRow[4]  = p.companyEmail;
-    newRow[5]  = p.companyPhone;
-    newRow[6]  = p.website;
-    newRow[7]  = p.pFirstName;
-    newRow[8]  = p.pLastName;
-    newRow[9]  = p.pEmail;
-    newRow[10] = p.pPhone;
-    newRow[11] = p.services;
-    newRow[12] = p.rate;
-    newRow[13] = p.termUnit;
-    newRow[14] = p.termCount;
-    newRow[16] = p.currentStartDate || p.startDate;
-    newRow[18] = p.currentExpDate || p.expDate;
+    // Defensive mapping layer safeguards array elements against accidental 'undefined' properties
+    newRow[2]  = p.companyName !== undefined ? p.companyName : (oldRow[2] || "");
+    newRow[3]  = p.address !== undefined ? p.address : (oldRow[3] || "");
+    newRow[4]  = p.companyEmail !== undefined ? p.companyEmail : (oldRow[4] || "");
+    newRow[5]  = p.companyPhone !== undefined ? p.companyPhone : (oldRow[5] || "");
+    newRow[6]  = p.website !== undefined ? p.website : (oldRow[6] || "");
+    newRow[7]  = p.pFirstName !== undefined ? p.pFirstName : (oldRow[7] || "");
+    newRow[8]  = p.pLastName !== undefined ? p.pLastName : (oldRow[8] || "");
+    newRow[9]  = p.pEmail !== undefined ? p.pEmail : (oldRow[9] || "");
+    newRow[10] = p.pPhone !== undefined ? p.pPhone : (oldRow[10] || "");
+    newRow[11] = p.services !== undefined ? p.services : (oldRow[11] || "");
+    newRow[12] = p.rate !== undefined ? p.rate : (oldRow[12] || "");
+    newRow[13] = p.termUnit !== undefined ? p.termUnit : (oldRow[13] || "");
+    newRow[14] = p.termCount !== undefined ? p.termCount : (oldRow[14] || "");
     
-    if (!oldRow[19]) {
-      newRow[19] = p.endDate; newRow[20] = p.endDate;
+    newRow[16] = p.currentStartDate || p.startDate || (oldRow[16] ? Utilities.formatDate(new Date(oldRow[16]), getClientsDb().getSpreadsheetTimeZone(), "yyyy-MM-dd") : "");
+    newRow[18] = p.currentExpDate || p.expDate || (oldRow[18] ? Utilities.formatDate(new Date(oldRow[18]), getClientsDb().getSpreadsheetTimeZone(), "yyyy-MM-dd") : "");
+    
+    var inputEndDate = p.endDate !== undefined ? p.endDate : (p.latestEndDate !== undefined ? p.latestEndDate : (oldRow[20] ? Utilities.formatDate(new Date(oldRow[20]), getClientsDb().getSpreadsheetTimeZone(), "yyyy-MM-dd") : ""));
+    if (!oldRow[19] && inputEndDate) {
+      newRow[19] = inputEndDate;
+      newRow[20] = inputEndDate;
     } else {
-      newRow[20] = p.endDate;
+      if (p.origEndDate !== undefined) newRow[19] = p.origEndDate;
+      newRow[20] = inputEndDate || "";
     }
     
-    newRow[21] = p.operationalNotes || oldRow[21];
-    newRow[22] = p.remarks;
-    newRow[23] = p.addlFields;
-    newRow[25] = p.status;
+    newRow[21] = p.operationalNotes || oldRow[21] || "[]";
+    newRow[22] = p.remarks !== undefined ? p.remarks : (oldRow[22] || "");
+    newRow[23] = p.addlFields || oldRow[23] || "{}";
+    newRow[25] = p.status || oldRow[25] || "Active";
 
     // ========================================================================
     // BACKEND AUDIT NARRATIVE NATIVE LEXICON DISPATCH ENGINE
@@ -384,20 +400,27 @@ function updateClientRecord(p) {
       16: "Start Date", 18: "Expiration Date", 20: "End Date", 25: "Status"
     };
 
-    // Resolves system user logging via active session context username tokens
     var editorUsername = "System Admin";
-    try { editorUsername = getLoggedInUsername() || "System Admin"; } catch(e){}
+    try { 
+      var activeEmail = Session.getActiveUser().getEmail();
+      if (activeEmail) editorUsername = activeEmail.split('@')[0];
+    } catch(e){}
 
     for (var colIdx in fieldMap) {
       var oldV = String(oldRow[colIdx] || "").trim();
       var newV = String(newRow[colIdx] || "").trim();
       if (oldV !== newV) {
-        var sentence = (oldV === "") ? `<em>added</em> "${newV}"` : `<em>edited</em> from "${oldV}" to "${newV}"`;
-        changes.push({ field: fieldMap[colIdx], old: "", new: `<strong>${fieldMap[colIdx]}:</strong> ${sentence}`, type: "standard" });
+        changes.push({
+          field: fieldMap[colIdx],
+          type: "standard",
+          action: (oldV === "") ? "Added" : "Edited",
+          oldVal: oldV,
+          newVal: newV
+        });
       }
     }
 
-    // High-Fidelity Differential Logic for Operational Note Collections (Repeater Descriptions Streamlined)
+    // High-Fidelity Differential Logic for Operational Note Collections
     var oldNotes = [], newNotes = [];
     try { oldNotes = JSON.parse(oldRow[21] || "[]"); } catch(e){}
     try { newNotes = JSON.parse(newRow[21] || "[]"); } catch(e){}
@@ -405,7 +428,13 @@ function updateClientRecord(p) {
     if (JSON.stringify(oldNotes) !== JSON.stringify(newNotes)) {
       if (newNotes.length > oldNotes.length) {
         var addedNote = newNotes[newNotes.length - 1];
-        changes.push({ field: "Operational Notes", old: "", new: `<em>added</em> an operational note: "${addedNote.content}"`, type: "note" });
+        changes.push({
+          field: "Operational Notes",
+          type: "note",
+          action: "Added",
+          oldVal: "",
+          newVal: addedNote.content
+        });
       } else if (newNotes.length < oldNotes.length) {
         var deletedText = "";
         for (var oldIdx = 0; oldIdx < oldNotes.length; oldIdx++) {
@@ -414,18 +443,30 @@ function updateClientRecord(p) {
             break;
           }
         }
-        changes.push({ field: "Operational Notes", old: "", new: `<em>deleted</em> an operational note: "${deletedText}"`, type: "note" });
+        changes.push({
+          field: "Operational Notes",
+          type: "note",
+          action: "Deleted",
+          oldVal: deletedText,
+          newVal: ""
+        });
       } else {
         for (var noteIdx = 0; noteIdx < newNotes.length; noteIdx++) {
           if (oldNotes[noteIdx] && oldNotes[noteIdx].content !== newNotes[noteIdx].content) {
-            changes.push({ field: "Operational Notes", old: "", new: `<em>edited</em> an operational note from "${oldNotes[noteIdx].content}" to "${newNotes[noteIdx].content}"`, type: "note" });
+            changes.push({
+              field: "Operational Notes",
+              type: "note",
+              action: "Edited",
+              oldVal: oldNotes[noteIdx].content,
+              newVal: newNotes[noteIdx].content
+            });
             break;
           }
         }
       }
     }
 
-    // Interrogate Metadata Payloads and Nested JSON Sub-Fields
+    // Interrogate Custom Meta Metadata Fields and Array Sub-Fields
     var oldAddl = {}, newAddl = {};
     try { oldAddl = JSON.parse(oldRow[23] || "{}"); } catch(e){}
     try { newAddl = JSON.parse(p.addlFields || "{}"); } catch(e){}
@@ -447,36 +488,50 @@ function updateClientRecord(p) {
         var isJson = cfDef && cfDef.type === 'json';
         
         if (isRichText) {
-          // Strips layout elements and locks in database-level clipping constraints for rich text entries
           var cleanOld = oldVal.replace(/<[^>]*>/g, "").trim();
           var cleanNew = newVal.replace(/<[^>]*>/g, "").trim();
           
           if (cleanOld.length > 200) cleanOld = cleanOld.substring(0, 100) + "..." + cleanOld.substring(cleanOld.length - 100);
           if (cleanNew.length > 200) cleanNew = cleanNew.substring(0, 100) + "..." + cleanNew.substring(cleanNew.length - 100);
           
-          var cfSentence = (cleanOld === "") ? `<em>added</em> "${cleanNew}"` : `<em>edited</em> from "${cleanOld}" to "${cleanNew}"`;
-          changes.push({ field: label, old: "", new: `<strong>${label}:</strong> ${cfSentence}`, type: "standard" });
+          changes.push({
+            field: label,
+            type: "richtext",
+            action: (cleanOld === "") ? "Added" : "Edited",
+            oldVal: cleanOld,
+            newVal: cleanNew
+          });
         } else if (isJson) {
           var pOld = [], pNew = [];
           try { pOld = JSON.parse(oldVal || "[]"); } catch(e){}
           try { pNew = JSON.parse(newVal || "[]"); } catch(e){}
-          var subDesc = `<strong>${label}:</strong> <em>edited</em> the following:<br>`;
+          var subChanges = [];
           
           pNew.forEach(function(item, idx) {
             for (var subK in item) {
               var oS = (pOld[idx] && pOld[idx][subK] !== undefined) ? String(pOld[idx][subK]).trim() : "";
               var nS = String(item[subK] !== undefined ? item[subK] : "").trim();
               if (oS !== nS) {
-                subDesc += (oS === "") 
-                  ? `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${subK}: <em>added</em> "${nS}"<br>` 
-                  : `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${subK}: <em>edited</em> from "${oS}" to "${nS}"<br>`;
+                subChanges.push({ subField: subK, old: oS, new: nS });
               }
             }
           });
-          changes.push({ field: label, old: "", new: subDesc, type: "standard" });
+          
+          if (subChanges.length > 0) {
+            changes.push({
+              field: label,
+              type: "json",
+              subChanges: subChanges
+            });
+          }
         } else {
-          var cfSentence = (oldVal === "") ? `<em>added</em> "${newVal}"` : `<em>edited</em> from "${oldVal}" to "${newVal}"`;
-          changes.push({ field: label, old: "", new: `<strong>${label}:</strong> ${cfSentence}`, type: "standard" });
+          changes.push({
+            field: label,
+            type: "standard",
+            action: (oldVal === "") ? "Added" : "Edited",
+            oldVal: oldVal,
+            newVal: newVal
+          });
         }
       }
     });
@@ -492,6 +547,26 @@ function updateClientRecord(p) {
 
     sheet.getRange(rowIndex + 1, 1, 1, newRow.length).setValues([newRow]);
     SpreadsheetApp.flush();
+
+    // MANDATE: Generate global system-wide tracking logs for every profile or note modification
+    try {
+      var brandName = p.companyName || "Unknown Brand";
+      var logAction = "Client Updated";
+      var logDetails = "Client profile details updated.";
+      
+      // Interrogate calculated changes array to produce high-fidelity system logs
+      var noteChange = changes.find(function(c) { return c.type === "note"; });
+      if (noteChange) {
+        logAction = "Client Note Modified";
+        logDetails = noteChange.new.replace(/<[^>]*>/g, ""); // Strips HTML wrappers for clean system log view
+      } else if (changes.length > 0) {
+        logDetails = "Updated fields: " + changes.map(function(c) { return c.field; }).join(", ");
+      }
+      
+      SystemEvent.emit("Clients", "UPDATE", logAction, "INFO", brandName, logDetails, p.pEmail || "system");
+    } catch(logErr) {
+      console.warn("Global system log emission failed for client update: " + logErr.message);
+    }
 
     if (hasStatusChanged) {
       const brand = p.companyName || "Unknown Brand";

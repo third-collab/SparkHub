@@ -12,6 +12,9 @@
 var SystemEvent = (function() {
   
   function emit(module, type, name, severity, entity, details, recipientEmail, extraData) {
+    var actorTrackingId = "U-SYSTEM";
+    try { if (typeof getLoggedInUserId === 'function') actorTrackingId = getLoggedInUserId(); } catch(e){}
+    
     var payload = {
       module: module, 
       type: type, 
@@ -23,7 +26,7 @@ var SystemEvent = (function() {
       recipientEmail: recipientEmail || "",
       extraData: extraData || {}, 
       timestamp: new Date(), 
-      user: getLoggedInUsername()
+      user: actorTrackingId
     };
 
     // 1. Core Logging

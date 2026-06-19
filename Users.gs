@@ -59,21 +59,23 @@ function verifyUserCredentials(loginId, password) {
     var loginLower = loginId.toLowerCase();
 
     for (var i = 1; i < data.length; i++) {
-      var rowUsername = String(data[i][1]).toLowerCase();
-      var rowEmail = String(data[i][3]).toLowerCase();
-      var rowPassword = String(data[i][4]);
+      var rowUserId = String(data[i][1]);
+      var rowUsername = String(data[i][2]).toLowerCase();
+      var rowGoogleEmail = String(data[i][3]).toLowerCase();
+      var rowPassword = String(data[i][6]);
       
       var hashedInput = hashPassword(password);
-      if ((rowUsername === loginLower || rowEmail === loginLower) && rowPassword === hashedInput) {
-        if (String(data[i][7]) === 'Inactive') return { success: false, message: "Account is inactive." };
-        var role = String(data[i][2]);
+      if ((rowUsername === loginLower || rowGoogleEmail === loginLower) && rowPassword === hashedInput) {
+        if (String(data[i][11]) === 'Inactive') return { success: false, message: "Account is inactive." };
+        var role = String(data[i][5]);
         return {
           success: true,
-          username: String(data[i][1]),
-          firstName: String(data[i][5]), 
+          userId: rowUserId,
+          username: String(data[i][2]),
+          firstName: String(data[i][7]), 
           role: role,
           permissions: getUserPermissions(role),
-          dashboardLayout: getResolvedDashboardLayout(String(data[i][3]), role)
+          dashboardLayout: getResolvedDashboardLayout(rowGoogleEmail, role)
         };
       }
     }
@@ -194,8 +196,14 @@ function getUsersList() {
       if (row[1]) { 
         validUsers.push({ 
           rowIndex: i + 2, 
-          username: String(row[1]), role: String(row[2]), email: String(row[3]), 
-          firstName: String(row[5]), lastName: String(row[6]), status: String(row[7]) 
+          userId: String(row[1]),
+          username: String(row[2]), 
+          email: String(row[3]), 
+          systemEmail: String(row[4]),
+          role: String(row[5]), 
+          firstName: String(row[7]), 
+          lastName: String(row[8]), 
+          status: String(row[11]) 
         });
       }
     });
@@ -206,12 +214,13 @@ function getUsersList() {
 function getUserById(rowIndex) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
-    var rowData = sheet.getRange(rowIndex, 1, 1, 9).getDisplayValues()[0];
-    var username = rowData[1];
-    var lastUpdated = getEventTimestampFromLogs("Users", "UPDATE", username);
+    var rowData = sheet.getRange(rowIndex, 1, 1, 12).getDisplayValues()[0];
+    var userId = rowData[1];
+    var lastUpdated = getEventTimestampFromLogs("Users", "UPDATE", userId);
     return {
-      rowIndex: rowIndex, timestamp: rowData[0], lastUpdated: lastUpdated, username: username, role: rowData[2], email: rowData[3], 
-      password: rowData[4], firstName: rowData[5], lastName: rowData[6], status: rowData[7], lastLogin: rowData[8]
+      rowIndex: rowIndex, timestamp: rowData[0], lastUpdated: lastUpdated, userId: userId, username: rowData[2], 
+      email: rowData[3], systemEmail: rowData[4], role: rowData[5], password: rowData[6], firstName: rowData[7], 
+      lastName: rowData[8], lastLogin: rowData[9], status: rowData[11]
     };
   } catch (e) { return { error: e.message }; }
 }
@@ -225,7 +234,7 @@ function getUserProfileByUsername(username) {
         return {
           rowIndex: i + 1, username: data[i][1], role: data[i][2], email: data[i][3], 
           password: data[i][4], firstName: data[i][5], lastName: data[i][6], 
-          status: data[i][7], lastLogin: data[i][8] 
+          status: data[i][7], lastLogin: data[i][8], userId: data[i][10]
         };
       }
     }
@@ -332,29 +341,88 @@ function getLoggedInUserFirstName() {
     var sheet = getMainDb().getSheetByName("Users");
     var data = sheet.getDataRange().getValues();
     for (var i = 1; i < data.length; i++) {
-      if (data[i][3] === email) return data[i][5];
+      if (data[i][3] === email) return data[i][7];
     }
     return "User";
   } catch (e) { return "User"; }
 }
 
+function getLoggedInUserId() {
+  try {
+    var email = Session.getActiveUser().getEmail();
+    var sheet = getMainDb().getSheetByName("Users");
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][3] === email) return data[i][1] || "U-SYSTEM";
+    }
+    return "U-SYSTEM";
+  } catch (e) { return "U-SYSTEM"; }
+}
+
 // ========================================================================
 // 4. WRITE / SAVE FUNCTIONS
 // ========================================================================
-function createUserRecord(obj) {
+function createUserRecord(obj, isAutomatedOnboarding) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
-    var hashedPw = hashPassword(obj.password);
-    sheet.appendRow([
-      new Date(), obj.username, obj.role, obj.email, hashedPw, 
-      obj.firstName, obj.lastName, obj.status, "", "" 
-    ]);
-    var targetRow = sheet.getLastRow();
-    SpreadsheetApp.flush();
+    var data = sheet.getDataRange().getValues();
     
-    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", obj.username, "New user access profile established via UI.", obj.email);
-    return { success: true, rowIndex: targetRow, message: "Success! User created." };
-  } catch (e) { return { error: "Error: " + e.message }; }
+    var baseUsername = String(obj.username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!baseUsername) throw new Error("A valid alphanumeric username handle is required.");
+    
+    var finalizedUsername = baseUsername;
+    var suffixCounter = 1;
+    var exists = false;
+    
+    // Scan existing rows to check for username availability
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][2]).toLowerCase() === baseUsername) {
+        exists = true;
+        break;
+      }
+    }
+    
+    if (exists) {
+      if (isAutomatedOnboarding) {
+        // Automatic onboarding engine loops until hitting a vacant suffix row location
+        var activeUsernames = data.map(function(r) { return String(r[2]).toLowerCase(); });
+        while (activeUsernames.indexOf(finalizedUsername) > -1) {
+          finalizedUsername = baseUsername + suffixCounter;
+          suffixCounter++;
+        }
+      } else {
+        return { success: false, error: "Error: The username handle '" + baseUsername + "' is already allocated." };
+      }
+    }
+    
+    var generatedId = "U-" + Math.floor(1000 + Math.random() * 9000);
+    var hashedPw = hashPassword(obj.password || Utilities.getUuid().substring(0, 10));
+    
+    // Map data fields strictly matching the optimized 12-column layout mapping rules
+    var newRow = [
+      new Date(),
+      generatedId,
+      finalizedUsername,
+      String(obj.email || "").trim(),       // Google Email (SSO Principal Check)
+      String(obj.systemEmail || obj.email || "").trim(), // System Email (Outbound Routing Target)
+      obj.role || "Client",
+      hashedPw,
+      obj.firstName || "",
+      obj.lastName || "",
+      "",  // Last Login
+      "",  // Dashboard Config
+      obj.status || "Active" // Status locks column 12 per Section 3.F mandate
+    ];
+    
+    sheet.appendRow(newRow);
+    var targetRow = sheet.getLastRow();
+    SpreadsheetApp.flush(); // Mandated race condition safeguard
+    
+    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", generatedId, "New user profile established.", obj.email);
+    return { success: true, rowIndex: targetRow, username: finalizedUsername, userId: generatedId };
+  } catch (e) { 
+    return { error: "Error: " + e.message }; 
+  }
 }
 
 function updateUserRecord(obj) {

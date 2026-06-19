@@ -278,7 +278,6 @@
       <div id="dyn-accordions-render-target"></div>
 
       <div class="action-buttons" style="display: flex; justify-content: flex-end; margin-top: 40px; gap:20px;">
-        <button type="button" id="dyn-client-cancel-btn" class="btn-reset-filters">Cancel</button>
         <button type="submit" class="btn-primary" id="dyn-submit-btn" style="padding: 12px 50px;">Save Details</button>
       </div>
     </form>
@@ -415,10 +414,10 @@
   function populateLookupCache() {
     google.script.run.withSuccessHandler(function(data) {
       if(data && data.users) {
-        window.SYSTEM_LOOKUP_CACHE.users = data.users.map(u => ({ id: u.username, name: u.name }));
+        window.SYSTEM_LOOKUP_CACHE.users = data.users.map(u => ({ id: u.id, name: u.name }));
       }
       if(data && data.templates) {
-        window.SYSTEM_LOOKUP_CACHE.templates = data.templates.map(t => ({ id: t.name, name: t.name }));
+        window.SYSTEM_LOOKUP_CACHE.templates = data.templates.map(t => ({ id: t.id, name: t.name }));
       }
     }).getSystemDynamicLookups();
 
@@ -703,10 +702,9 @@
      document.getElementById('note-edit-' + idx).style.display = 'flex';
   }
 
+  // [REPLACE EXPLICITLY: saveOpNoteEditInline and executeOpNoteDeletionAsync]
   function saveOpNoteEditInline(idx) {
      var val = document.getElementById('note-input-' + idx).value.trim(); if (!val) return;
-     
-     // Configures contextual parameters for background database logs entries
      var overlay = document.getElementById('ro-client-overlay');
      if (overlay) {
         overlay.querySelector('span').innerText = "Saving Note...";
@@ -721,22 +719,21 @@
      window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
      google.script.run.withSuccessHandler(function(res) {
         if (overlay) overlay.style.display = 'none';
-        if(res.success && res.data) {
+        if(res && res.success && res.data) {
            window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
            window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
            renderOpNotesList(res.data.operationalNotes);
            renderHistoryTab(res.data.history);
-        }
-     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+        } else if (res && res.error) { alert("Error: " + res.error); }
+     }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
   function executeOpNoteDeletionAsync() {
      var idx = parseInt(document.getElementById('delete-note-target-index').value, 10);
-     document.getElementById('note-delete-layover-modal').style.display = 'none';
-     
+     document.getElementById('note-confirm-modal').style.display = 'none';
      var overlay = document.getElementById('ro-client-overlay');
      if (overlay) {
-        overlay.querySelector('span').innerText = "Saving Note...";
+        overlay.querySelector('span').innerText = "Deleting Note...";
         overlay.style.display = 'flex';
      }
      
@@ -746,13 +743,13 @@
      
      google.script.run.withSuccessHandler(function(res) {
         if (overlay) overlay.style.display = 'none';
-        if(res.success && res.data) {
+        if(res && res.success && res.data) {
            window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
            window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
            renderOpNotesList(res.data.operationalNotes);
            renderHistoryTab(res.data.history);
-        }
-     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+        } else if (res && res.error) { alert("Error: " + res.error); }
+     }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
   function triggerOpNoteDeleteLayover(idx) {
@@ -827,6 +824,7 @@
 
   function hideQuickNoteInput() { document.getElementById('ro-add-note-trigger').style.display = 'block'; document.getElementById('ro-quick-note-area').style.display = 'none'; }
 
+  // [REPLACE EXPLICITLY: addQuickOpNote in ClientsData.html]
   function addQuickOpNote() {
     var text = document.getElementById('ro-quick-note-input').value.trim(); if(!text) return;
     var overlay = document.getElementById('ro-client-overlay');
@@ -836,27 +834,38 @@
     }
     
     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
-    notes.push({ content: text, editor: typeof CURRENT_USERNAME !== 'undefined' ? CURRENT_USERNAME : "System", timestamp: new Date().toISOString() });
+    notes.push({ content: text, editor: typeof CURRENT_USERNAME !== 'undefined' ? CURRENT_USERNAME : "System Admin", timestamp: new Date().toISOString() });
     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
     
     google.script.run.withSuccessHandler(function(res) { 
-      document.getElementById('ro-client-overlay').style.display = 'none';
-      hideQuickNoteInput(); 
-      document.getElementById('ro-quick-note-input').value = ""; 
-      if(res.success && res.data) {
+      if (overlay) overlay.style.display = 'none';
+      if(res && res.success && res.data) {
+         hideQuickNoteInput(); 
+         document.getElementById('ro-quick-note-input').value = ""; 
          window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
          window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
          renderOpNotesList(res.data.operationalNotes);
          renderHistoryTab(res.data.history);
+         if(typeof showToast === 'function') showToast("Success", "Operational note logged.", "success");
+      } else if (res && res.error) {
+         alert("Error saving note: " + res.error);
       }
+    }).withFailureHandler(function(err) {
+      if (overlay) overlay.style.display = 'none';
+      alert("Note transmission failed: " + err.message);
     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
-  function formatHistoryValue(val) {
+  // [REPLACE EXPLICITLY: History Rendering Logic in ClientsData.html]
+  function formatHistoryValue(val, isRichText) {
     if (!val || val === "(empty)") return '<span>"(empty)"</span>';
     if (val.length > 200) {
       var start = val.substring(0, 100);
       var end = val.substring(val.length - 100);
+      if (isRichText) {
+        // Rich text values are stripped and permanently clipped with no expander action link
+        return `<span>"${start}...${end}"</span>`;
+      }
       var escaped = encodeURIComponent(val).replace(/'/g, "%27");
       return `<span class="history-value-wrapper">"${start}<span class="history-ellipsis-trigger" style="color:var(--brand-primary); cursor:pointer; font-weight:bold; text-decoration:underline; padding:0 2px;" data-raw="${escaped}" onclick="expandHistoryTextInline(this)">...</span>${end}"</span>`;
     }
@@ -887,32 +896,32 @@
         entry.changes.forEach(ch => { 
            var line = '';
            if (ch.type === "json") {
-             line += `<strong>${ch.field}:</strong> <em>changed</em> the following:<br>`;
+             line += `<strong>${ch.field}:</strong> <em>Changed</em> the following:<br>`;
              ch.subChanges.forEach(sub => {
-               var actionKeyword = (sub.old === "") ? "added" : "edited";
-               var oldPart = (sub.old === "") ? "" : `from ${formatHistoryValue(sub.old)} `;
-               var newPart = (sub.old === "") ? formatHistoryValue(sub.new) : `to ${formatHistoryValue(sub.new)}`;
-               line += `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${sub.subField}: <strong>${ch.operator}</strong> <em>${actionKeyword}</em> ${oldPart}${newPart}<br>`;
+               var actionKeyword = (sub.old === "") ? "Added" : "Edited";
+               var oldPart = (sub.old === "") ? "" : `from ${formatHistoryValue(sub.old, false)} `;
+               var newPart = (sub.old === "") ? formatHistoryValue(sub.new, false) : `to ${formatHistoryValue(sub.new, false)}`;
+               line += `&nbsp;&nbsp;&nbsp;&nbsp;&bull; ${sub.subField}: <em>${actionKeyword}</em> ${oldPart}${newPart}<br>`;
              });
            } else if (ch.type === "note") {
-             if (ch.action === 'added') {
-               line += `<strong>${ch.operator}</strong> <em>added</em> an operational note: ${formatHistoryValue(ch.newVal)}`;
-             } else if (ch.action === 'deleted') {
-               line += `<strong>${ch.operator}</strong> <em>deleted</em> an operational note: ${formatHistoryValue(ch.oldVal)}`;
+             if (ch.action === 'Added') {
+               line += `<strong>${ch.field}:</strong> <em>Added</em> an operational note: ${formatHistoryValue(ch.newVal, false)}`;
+             } else if (ch.action === 'Deleted') {
+               line += `<strong>${ch.field}:</strong> <em>Deleted</em> an operational note: ${formatHistoryValue(ch.oldVal, false)}`;
              } else {
-               line += `<strong>${ch.operator}</strong> <em>edited</em> an operational note from ${formatHistoryValue(ch.oldVal)} to ${formatHistoryValue(ch.newVal)}`;
+               line += `<strong>${ch.field}:</strong> <em>Edited</em> an operational note from ${formatHistoryValue(ch.oldVal, false)} to ${formatHistoryValue(ch.newVal, false)}`;
              }
            } else if (ch.type === "richtext") {
-             if (ch.action === 'added') {
-               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>added</em> "${ch.newVal}"`;
+             if (ch.action === 'Added') {
+               line += `<strong>${ch.field}:</strong> <em>Added</em> ${formatHistoryValue(ch.newVal, true)}`;
              } else {
-               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>edited</em> from "${ch.oldVal}" to "${ch.newVal}"`;
+               line += `<strong>${ch.field}:</strong> <em>Edited</em> from ${formatHistoryValue(ch.oldVal, true)} to ${formatHistoryValue(ch.newVal, true)}`;
              }
            } else {
-             if (ch.action === 'added') {
-               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>added</em> ${formatHistoryValue(ch.newVal)}`;
+             if (ch.action === 'Added') {
+               line += `<strong>${ch.field}:</strong> <em>Added</em> ${formatHistoryValue(ch.newVal, false)}`;
              } else {
-               line += `<strong>${ch.field}:</strong> <strong>${ch.operator}</strong> <em>edited</em> from ${formatHistoryValue(ch.oldVal)} to ${formatHistoryValue(ch.newVal)}`;
+               line += `<strong>${ch.field}:</strong> <em>Edited</em> from ${formatHistoryValue(ch.oldVal, false)} to ${formatHistoryValue(ch.newVal, false)}`;
              }
            }
            html += `<li style="margin-bottom:6px; list-style-type:square;">${line}</li>`;
@@ -1106,6 +1115,10 @@
     }
     
     var checkedValues = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
+    var displayNames = checkedValues.map(function(val) {
+       var found = vectors.find(function(v) { return v.id === val; });
+       return found ? found.name.split(' ')[0] : val;
+    });
     var rowsHtml = vectors.map(v => {
        var checkState = checkedValues.includes(v.id) ? 'checked' : '';
        return `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb" value="${v.id}" ${checkState} onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`;
@@ -1114,7 +1127,7 @@
     return `
       <div class="searchable-multiselect-wrapper runtime-lookup-engine" data-id="${cf.id}">
          <div class="multiselect-toggle-box" onclick="toggleMultiselectPanelElement(this)">
-            <span class="ms-display-label">${checkedValues.length ? checkedValues.join(', ') : 'Select options...'}</span>
+            <span class="ms-display-label">${displayNames.length ? displayNames.join(', ') : 'Select options...'}</span>
             <span>▼</span>
          </div>
          <div class="multiselect-dropdown-panel">
@@ -1151,9 +1164,14 @@
 
   function syncRuntimeMultiselectPayload(cb) {
      var wrapper = cb.closest('.searchable-multiselect-wrapper');
-     var checked = Array.from(wrapper.querySelectorAll('.runtime-ms-cb:checked')).map(c => c.value);
-     wrapper.querySelector('.ms-display-label').innerText = checked.length ? checked.join(', ') : 'Select options...';
-     wrapper.querySelector('.runtime-ms-hidden-sink').value = checked.join(', ');
+     var checkedCbs = Array.from(wrapper.querySelectorAll('.runtime-ms-cb:checked'));
+     var checkedValues = checkedCbs.map(function(c) { return c.value; });
+     var displayNames = checkedCbs.map(function(c) {
+        var labelText = c.closest('.multiselect-item-label').innerText.trim();
+        return labelText.split(' ')[0];
+     });
+     wrapper.querySelector('.ms-display-label').innerText = displayNames.length ? displayNames.join(', ') : 'Select options...';
+     wrapper.querySelector('.runtime-ms-hidden-sink').value = checkedValues.join(', ');
   }
 
   function addRepeaterRow(containerId, encDef, currentObj = {}) {
@@ -1676,6 +1694,10 @@
   }
 
   function buildTier4SearchableCheckboxDropdown(targetContainer, vectors, checkedArr) {
+     var displayNames = checkedArr.map(function(val) {
+        var found = vectors.find(function(v) { return v.id === val; });
+        return found ? found.name.split(' ')[0] : val;
+     });
      var rowsHtml = vectors.map(v => {
         var isChecked = checkedArr.includes(v.id) ? 'checked' : '';
         return `<label class="multiselect-item-label"><input type="checkbox" class="tier4-checkbox-node" value="${v.id}" ${isChecked} onchange="syncTier4SelectionLabel(this)"> ${v.name}</label>`;
@@ -1683,7 +1705,7 @@
 
      targetContainer.innerHTML = `
         <div class="multiselect-toggle-box" onclick="toggleTier4PanelDisplay(this)">
-           <span class="t4-display-text-label">${checkedArr.length ? checkedArr.join(', ') : 'Select Options...'}</span>
+           <span class="t4-display-text-label">${displayNames.length ? displayNames.join(', ') : 'Select Options...'}</span>
            <span>▼</span>
         </div>
         <div class="multiselect-dropdown-panel" style="position:relative; box-shadow:none; border-top:none;">
@@ -1705,8 +1727,13 @@
 
   function syncTier4SelectionLabel(cb) {
      var container = cb.closest('.tier4-multiselect-container');
-     var checked = Array.from(container.querySelectorAll('.tier4-checkbox-node:checked')).map(x => x.value);
-     container.querySelector('.t4-display-text-label').innerText = checked.length ? checked.join(', ') : 'Select Options...';
+     var checkedCbs = Array.from(container.querySelectorAll('.tier4-checkbox-node:checked'));
+     var checkedValues = checkedCbs.map(function(x) { return x.value; });
+     var displayNames = checkedCbs.map(function(c) {
+        var labelText = c.closest('.multiselect-item-label').innerText.trim();
+        return labelText.split(' ')[0];
+     });
+     container.querySelector('.t4-display-text-label').innerText = displayNames.length ? displayNames.join(', ') : 'Select Options...';
   }
 
   /* ========================================================================

@@ -5,6 +5,103 @@
  * SYNC STATUS: Standalone Utility
  */
 
+/**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: Patch.gs
+ * VERSION: 2.1 (Users Side-by-Side Email Schema Remap)
+ * SYNC STATUS: Standalone Architecture Utility
+ */
+
+/**
+ * Migrates and re-arranges the legacy 10-column Users table to an optimized 12-column 
+ * schema, placing Google Email and System Email side-by-side, and moving Status to the end.
+ * @return {string} Success or failure summary message.
+ */
+function patch_v2_1_UsersDatabase() {
+  try {
+    var db = getMainDb(); // Safely retrieves the main registry database spreadsheet
+    var sheet = db.getSheetByName("Users");
+    if (!sheet) return "Migration Aborted: Sheet 'Users' not found.";
+
+    var rawData = sheet.getDataRange().getValues();
+    if (rawData.length === 0) return "Migration Aborted: Sheet is completely empty.";
+
+    // Advanced 12-column header array configuration matching blueprint guidelines
+    var newHeaders = [
+      "Timestamp", "User ID", "Username", "Google Email", "System Email", 
+      "Role", "Password", "First Name", "Last Name", "Last Login", 
+      "Dashboard Config", "Status"
+    ];
+
+    var migratedRows = [newHeaders];
+    var uniqueUsernamesRegistry = [];
+    var counterId = 1001;
+
+    // Process rows skipping the old header index row [0]
+    for (var i = 1; i < rawData.length; i++) {
+      var oldRow = rawData[i];
+      if (!oldRow[1]) continue; // Skip malformed rows lacking handles
+
+      var remappedRow = new Array(12).fill("");
+      
+      // A (1): Map original creation timestamp
+      remappedRow[0] = oldRow[0]; 
+      
+      // B (2): Generate and apply the immutable unique User ID anchor
+      remappedRow[1] = "U-" + counterId;
+      counterId++;
+
+      // C (3): Uniqueness handle sanitization and iterative safety routing
+      var baseUsername = String(oldRow[1]).trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+      var finalizedUsername = baseUsername;
+      var suffixCounter = 1;
+
+      while (uniqueUsernamesRegistry.indexOf(finalizedUsername) > -1) {
+        finalizedUsername = baseUsername + suffixCounter;
+        suffixCounter++;
+      }
+      uniqueUsernamesRegistry.push(finalizedUsername);
+      remappedRow[2] = finalizedUsername; 
+
+      // D (4) & E (5): Place the Authentication Email and Communication Email side-by-side
+      var rawEmailValue = String(oldRow[3]).trim();
+      remappedRow[3] = rawEmailValue; // Google Email (SSO Principal Check)
+      remappedRow[4] = rawEmailValue; // System Email (Custom Alerts Target)
+
+      // F (6) through K (11): Map standard profile attributes and configurations
+      remappedRow[5] = oldRow[2];  // Role
+      remappedRow[6] = oldRow[4];  // Password
+      remappedRow[7] = oldRow[5];  // First Name
+      remappedRow[8] = oldRow[6];  // Last Name
+      remappedRow[9] = oldRow[8];  // Last Login
+      remappedRow[10] = oldRow[9]; // Dashboard Config
+
+      // L (12): Force Status to the final column index to comply with Section 3.F
+      remappedRow[11] = oldRow[7] || "Active"; 
+
+      migratedRows.push(remappedRow);
+    }
+
+    // Overwrite the previous layout structure with the re-arranged array block safely
+    sheet.clearContents();
+    sheet.getRange(1, 1, migratedRows.length, newHeaders.length).setValues(migratedRows);
+    sheet.getRange(1, 1, 1, newHeaders.length).setFontWeight("bold").setBackground("#f1f5f9");
+    
+    // Mandate immediate physical commit flush sequence to circumvent data latency profile race conditions
+    SpreadsheetApp.flush(); 
+
+    return "Success: Re-arranged database schema to 12-column layout. Synchronized " + (migratedRows.length - 1) + " profiles.";
+
+  } catch(e) {
+    console.error("User re-arrangement patch failed: " + e.message);
+    return "Migration Failed: " + e.message;
+  }
+}
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */
+
 function patchDashboardConfigColumns() {
   var db = getMainDb();
   var usersSheet = db.getSheetByName("Users");

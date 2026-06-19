@@ -128,8 +128,8 @@ function setupCoreDatabase(rootFolder) {
     }
   }
 
-  // 3. Schema Initialization
-  initializeSheet(verifiedDb, "Users", ["Timestamp", "Username", "Role", "Email", "Password", "First Name", "Last Name", "Status", "Last Login", "Dashboard Config"]);
+  // 3. Schema Initialization (Remapped to support side-by-side emails and locked Status column layout)
+  initializeSheet(verifiedDb, "Users", ["Timestamp", "User ID", "Username", "Google Email", "System Email", "Role", "Password", "First Name", "Last Name", "Last Login", "Dashboard Config", "Status"]);
   initializeSheet(verifiedDb, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status", "Dashboard Config"]);
   initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status"]);
   initializeSheet(verifiedDb, "Wrappers", ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"]);
@@ -137,7 +137,7 @@ function setupCoreDatabase(rootFolder) {
   // 4. Admin Creation
   var adminEmail = Session.getActiveUser().getEmail();
   var adminUsername = adminEmail.split('@')[0];
-  verifiedDb.getSheetByName("Users").appendRow([new Date(), adminUsername, "Administrator", adminEmail, "", "System", "Admin", "Active", new Date(), ""]);
+  verifiedDb.getSheetByName("Users").appendRow([new Date(), "U-1001", adminUsername, adminEmail, adminEmail, "Administrator", "", "System", "Admin", new Date(), "", "Active"]);
   var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"], "System Logs": ["View Logs"] });
   verifiedDb.getSheetByName("Roles").appendRow([new Date(), "R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active", ""]);
 

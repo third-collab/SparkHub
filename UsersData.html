@@ -215,6 +215,7 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
       <div>
         <h4 style="color:var(--brand-primary); border-bottom:1px solid #eee; padding-bottom:5px;">System Profile</h4>
+        <p><strong>User ID:</strong> <span id="ro-user-id" style="font-family: monospace; font-weight: bold; color: var(--brand-primary);"></span></p>
         <p><strong>Username:</strong> <span id="ro-user-username"></span></p>
         <p><strong>System Role:</strong> <span id="ro-user-role"></span></p>
         <p><strong>Created On:</strong> <span id="ro-user-created" style="color: #64748b; font-size:13px;"></span></p>
@@ -241,8 +242,11 @@
         <div class="form-group"><label>Last Name *</label><input type="text" id="add-user-last" class="form-control" required></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Username (Login ID) *</label><input type="text" id="add-user-username" class="form-control" required></div>
-        <div class="form-group"><label>System Email *</label><input type="email" id="add-user-email" class="form-control" required></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Username (Custom Profile Handle) *</label><input type="text" id="add-user-username" class="form-control" required placeholder="e.g., ralph_dev"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Google SSO Email (Authentication Principal) *</label><input type="email" id="add-user-email" class="form-control" required placeholder="login@organization.com"></div>
+        <div class="form-group"><label>System Communications Email (Alerts Inbox) *</label><input type="email" id="add-user-system-email" class="form-control" required placeholder="alerts@organization.com"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>System Role *</label>
@@ -812,6 +816,7 @@
 
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('ro-user-overlay', false);
+      document.getElementById('ro-user-id').innerText = data.userId || "N/A";
       document.getElementById('ro-user-fullname').innerText = data.firstName + " " + data.lastName;
       document.getElementById('ro-user-subline').innerText = data.role;
       document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
