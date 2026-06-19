@@ -132,20 +132,6 @@ function getLogsList() {
   } catch (e) { return []; }
 }
 
-function getEventTimestampFromLogs(module, type, entity) {
-  try {
-    var sheet = getLogsDb().getSheetByName("System Logs");
-    if (!sheet) return "Not recorded";
-    var data = sheet.getDataRange().getDisplayValues();
-    for (var i = data.length - 1; i > 0; i--) {
-      if (data[i][1] === module && data[i][2] === type && data[i][6] === entity) {
-        return data[i][0];
-      }
-    }
-    return "Not recorded";
-  } catch(e) { return "Unknown"; }
-}
-
 // ========================================================================
 // 4. WRITE / SAVE FUNCTIONS
 // ========================================================================

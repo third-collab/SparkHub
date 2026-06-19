@@ -201,6 +201,9 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 25px; font-size: 14px;">
        <div>
          <p><strong>Subject Line:</strong> <span id="ro-tpl-subject"></span></p>
+         <p><strong>To Override:</strong> <span id="ro-tpl-to" style="font-family:monospace; background:#f1f5f9; padding:2px 6px; border-radius:4px;"></span></p>
+         <p><strong>CC Recipients:</strong> <span id="ro-tpl-cc" style="color:#475569;"></span></p>
+         <p><strong>BCC Recipients:</strong> <span id="ro-tpl-bcc" style="color:#475569;"></span></p>
          <p><strong>Description:</strong> <span id="ro-tpl-desc"></span></p>
          <p><strong>Created On:</strong> <span id="ro-tpl-created" style="color: #64748b; font-size:13px;"></span></p>
        </div>
@@ -257,6 +260,22 @@
 
       <button type="button" class="accordion" onclick="toggleAccordion(this)">2. Composition & Placeholders</button>
       <div class="panel">
+        <div class="form-row" style="margin-top:15px;">
+          <div class="form-group">
+            <label>To Recipients Override (Optional)</label>
+            <input type="text" id="edt-tpl-to" class="form-control" placeholder="Leave blank to use trigger defaults, or assign dynamic {{placeholders}}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>CC Carbon Copy Recipients (Optional)</label>
+            <input type="text" id="edt-tpl-cc" class="form-control" placeholder="e.g., manager@domain.com, {{adminEmail}}">
+          </div>
+          <div class="form-group">
+            <label>BCC Blind Carbon Copy Recipients (Optional)</label>
+            <input type="text" id="edt-tpl-bcc" class="form-control" placeholder="e.g., archive@domain.com">
+          </div>
+        </div>
         <div class="form-group" style="margin-top:15px;">
            <label>Email Subject Line *</label>
            <input type="text" id="edt-tpl-subject" class="form-control" required placeholder="Enter subject with {{placeholders}} if needed">
@@ -741,6 +760,11 @@
       document.getElementById('edt-tpl-status').value = data.status || "Draft";
       document.getElementById('edt-tpl-subject').value = data.subject || "";
       
+      // Hydrates array configurations into the edit form workspace smoothly
+      document.getElementById('edt-tpl-to').value = data.to || "";
+      document.getElementById('edt-tpl-cc').value = data.cc || "";
+      document.getElementById('edt-tpl-bcc').value = data.bcc || "";
+      
       var wrapperSelect = document.getElementById('edt-tpl-wrapper');
       wrapperSelect.value = data.wrapper || "Internal Communication";
       
@@ -778,6 +802,12 @@
       document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
       
       document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
+      
+      // Projects custom fields mappings onto the read-only dashboard presentation card cells
+      document.getElementById('ro-tpl-to').innerText = data.to || "Default Event Target Recipient";
+      document.getElementById('ro-tpl-cc').innerText = data.cc || "None";
+      document.getElementById('ro-tpl-bcc').innerText = data.bcc || "None";
+      
       document.getElementById('ro-tpl-desc').innerText = data.description || "No description provided";
       document.getElementById('ro-tpl-module').innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569;">${data.module}</span>`;
       document.getElementById('ro-tpl-wrapper').innerText = data.wrapper || "Internal Communication";
@@ -997,6 +1027,10 @@
       wrapper: document.getElementById('edt-tpl-wrapper').value,
       status: document.getElementById('edt-tpl-status').value,
       subject: document.getElementById('edt-tpl-subject').value,
+      // Extracted form variables packaged cleanly into server transmission objects
+      to: document.getElementById('edt-tpl-to').value,
+      cc: document.getElementById('edt-tpl-cc').value,
+      bcc: document.getElementById('edt-tpl-bcc').value,
       body: tplQuill ? tplQuill.root.innerHTML : ""
     };
 
@@ -1069,20 +1103,6 @@
     var btn = event.target; var original = btn.innerText; btn.innerText = "Copied!"; btn.style.background = "#15803d"; btn.style.color = "white";
     setTimeout(() => { btn.innerText = original; btn.style.background = ""; btn.style.color = ""; }, 1000);
   }
-
-  function toggleAccordion(btn) {
-    btn.classList.toggle("active");
-    var panel = btn.nextElementSibling;
-    panel.style.display = (panel.style.display === "block") ? "none" : "block";
-  }
-
-  function resetAccordions(containerId) {
-    var container = document.getElementById(containerId);
-    if(!container) return;
-    var accs = container.querySelectorAll('.accordion');
-    var panels = container.querySelectorAll('.panel');
-    accs.forEach((a, i) => { if(i===0) a.classList.add('active'); else a.classList.remove('active'); });
-    panels.forEach((p, i) => { if(i===0) p.style.display = 'block'; else p.style.display = 'none'; });
-  }
+</script>
 </script>
 <!-- [SPARKHUB INTEGRITY ANCHOR: END] -->

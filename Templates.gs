@@ -265,7 +265,9 @@ function getTemplatesList() {
       return {
         rowIndex: index + 2, timestamp: row[0], id: row[1], name: row[2], 
         description: row[3], category: row[4], module: row[5], trigger: row[6], 
-        subject: row[7], status: row[10], wrapper: row[9]
+        subject: row[7], wrapper: row[9], status: row[10],
+        // Appends routing tokens safely to maintain array compliance
+        to: row[11] || "", cc: row[12] || "", bcc: row[13] || ""
       };
     });
   } catch (e) { return []; }
@@ -273,12 +275,14 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getDisplayValues()[0];
+    // Expands range scanning out to 14 columns to capture re-arranged data segments
+    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 14).getDisplayValues()[0];
     var templateName = row[2];
     var lastUpdated = getEventTimestampFromLogs("Templates", "UPDATE", templateName);
     return {
       rowIndex: rowIndex, timestamp: row[0], id: row[1], name: templateName, description: row[3], category: row[4],
       module: row[5], trigger: row[6], subject: row[7], body: row[8], wrapper: row[9], status: row[10],
+      to: row[11] || "", cc: row[12] || "", bcc: row[13] || "",
       lastUpdated: lastUpdated
     };
   } catch (e) { return { error: e.message }; }
@@ -328,18 +332,20 @@ function saveTemplateRecord(data) {
     var sheet = getMainDb().getSheetByName("Templates");
     var autoModule = data.trigger ? data.trigger.split(':')[0] : "System";
     if (autoModule === "Roles") autoModule = "Users";
-    
     var values = [
       data.timestamp || new Date(), 
       data.id || "TPL-" + Utilities.getUuid().substring(0,8),
       data.name, data.description, data.category, autoModule, 
-      data.trigger, data.subject, data.body, data.wrapper, data.status
+      data.trigger, data.subject, data.body, data.wrapper, data.status,
+      // Integrates array variables smoothly to protect database layout columns
+      data.to || "", data.cc || "", data.bcc || ""
     ];
     var targetRow;
     if (data.rowIndex) {
       targetRow = parseInt(data.rowIndex);
       var oldStatus = sheet.getRange(targetRow, 11).getValue();
-      sheet.getRange(targetRow, 1, 1, 11).setValues([values]);
+      // Expanded sheet target write boundaries to 14 columns to maintain symmetry
+      sheet.getRange(targetRow, 1, 1, 14).setValues([values]);
       SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template content or logic updated.");
       
       // Granular Activation Logging

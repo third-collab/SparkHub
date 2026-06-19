@@ -330,7 +330,6 @@
   var GLOBAL_OP_NOTES = [];
   window.CURRENT_VIEW_CLIENT_DATA = null;
   window.CLIENTS_FORM_ORIGIN = 'list';
-  window.SYSTEM_LOOKUP_CACHE = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
 
   var CORE_FIELD_DICTIONARY = {
     "core_companyName": { label: "Company Name *", type: "text" },
@@ -393,13 +392,17 @@
   };
 
   /* ========================================================================
-     2. LIFECYCLE INITIALIZERS & CACHE MANAGERS
+     2. LIFECYCLE INITIALIZERS & EVENT LISTENERS
      ======================================================================== */
   (function initializeModuleEagerly() {
     google.script.run.withSuccessHandler(function(res) { 
       if (res && res.success) { CLIENTS_CONFIG = res.data; }
     }).getClientsModuleConfig();
-    populateLookupCache();
+    
+    // Listens for the universal global shell hydration and automatically triggers table refresh
+    document.addEventListener('sparkhubLookupsHydrated', function() {
+      applyClientFilters();
+    });
   })();
 
   function initClientsModule() { 
@@ -413,7 +416,7 @@
 
   /**
    * Translates raw database custom field inputs dynamically by evaluating settings configurations.
-   * References the centralized lookup cache natively.
+   * Leverages the decentralized core system resolution engine natively.
    */
   function resolveCustomFieldDisplayValue(fieldId, rawValue) {
     if (!rawValue || rawValue === "Unassigned" || rawValue === "N/A") return rawValue || "Unassigned";
@@ -422,59 +425,10 @@
     var cf = CLIENTS_CONFIG.customFields.find(function(f) { return f.id === fieldId; });
     if (cf && cf.type === 'select' && cf.options && cf.options.startsWith('SYS_LOOKUP:')) {
       var parts = cf.options.split(':');
-      var entityType = parts[2]; 
-      var vectorKey = entityType + "s"; 
-      var cache = window.SYSTEM_LOOKUP_CACHE[vectorKey];
-      if (cache && Array.isArray(cache)) {
-        var values = String(rawValue).split(',').map(v => v.trim());
-        var names = values.map(function(val) {
-          var found = cache.find(item => item.id === val);
-          return found ? found.name : val; // Received pre-formatted from the source provider
-        });
-        return names.join(', ');
-      }
+      // Directly invokes the core web application translation service
+      return resolveGlobalLookupIdToName(parts[2], rawValue);
     }
     return rawValue;
-  }
-
-  function populateLookupCache() {
-    google.script.run.withSuccessHandler(function(data) {
-      if(data && data.users) {
-        window.SYSTEM_LOOKUP_CACHE.users = data.users.map(u => ({ id: u.id || u.userId, name: u.name || (u.firstName + " " + u.lastName) }));
-      }
-      if(data && data.templates) {
-        window.SYSTEM_LOOKUP_CACHE.templates = data.templates.map(t => ({ id: t.id, name: t.name }));
-      }
-      applyClientFilters(); // Instantly translates names once lookups propagate
-    }).getSystemDynamicLookups();
-
-    // Redundant atomic fallback loop to guarantee user array synchronization on launch
-    google.script.run.withSuccessHandler(function(users) {
-      if (users && users.length) {
-        window.SYSTEM_LOOKUP_CACHE.users = users.map(u => ({ id: u.userId, name: u.firstName + " " + u.lastName }));
-        applyClientFilters();
-      }
-    }).getUsersList();
-
-    google.script.run.withSuccessHandler(function(res) {
-      window.SYSTEM_LOOKUP_CACHE.roles = (res || []).map(r => ({ id: r.name, name: r.name }));
-    }).getRolesList();
-
-    google.script.run.withSuccessHandler(function(res) {
-      window.SYSTEM_LOOKUP_CACHE.services = (res && res.data || []).map(s => ({ id: s.name, name: s.name }));
-    }).getServicesList();
-
-    google.script.run.withSuccessHandler(function(res) {
-      window.SYSTEM_LOOKUP_CACHE.clients = (res && res.data || []).map(c => ({ id: c.clientId, name: c.brandName }));
-    }).getClientsList();
-    
-    window.SYSTEM_LOOKUP_CACHE.wrappers = [{ id: "System Default", name: "System Default" }, { id: "Minimalist", name: "Minimalist" }];
-  }
-
-  function toggleAccordion(el) { 
-    el.classList.toggle("active"); 
-    var panel = el.nextElementSibling; 
-    panel.style.display = (panel.style.display === "block") ? "none" : "block"; 
   }
   
   function navigateClientTab(prefix, tabId) {
@@ -1147,7 +1101,7 @@
     var checkedValues = currentVal ? currentVal.split(',').map(v => v.trim()) : [];
     var displayNames = checkedValues.map(function(val) {
        var found = vectors.find(function(v) { return v.id === val; });
-       return found ? found.name.split(' ')[0] : val;
+       return found ? found.name : val; // Natively reads pre-formatted provider data strings
     });
     var rowsHtml = vectors.map(v => {
        var checkState = checkedValues.includes(v.id) ? 'checked' : '';
@@ -1174,34 +1128,6 @@
            document.querySelectorAll('.multiselect-dropdown-panel').forEach(p => p.style.display = 'none');
         }
      });
-  }
-
-  function toggleMultiselectPanelElement(box) {
-     var panel = box.nextElementSibling;
-     var open = panel.style.display === 'block';
-     document.querySelectorAll('.multiselect-dropdown-panel').forEach(p => p.style.display = 'none');
-     panel.style.display = open ? 'none' : 'block';
-  }
-
-  function filterMultiselectOptionsPanel(input) {
-     var search = input.value.toLowerCase();
-     var labels = input.nextElementSibling.querySelectorAll('.multiselect-item-label');
-     labels.forEach(l => {
-        var txt = l.innerText.toLowerCase();
-        l.style.display = txt.includes(search) ? 'flex' : 'none';
-     });
-  }
-
-  function syncRuntimeMultiselectPayload(cb) {
-     var wrapper = cb.closest('.searchable-multiselect-wrapper');
-     var checkedCbs = Array.from(wrapper.querySelectorAll('.runtime-ms-cb:checked'));
-     var checkedValues = checkedCbs.map(function(c) { return c.value; });
-     var displayNames = checkedCbs.map(function(c) {
-        var labelText = c.closest('.multiselect-item-label').innerText.trim();
-        return labelText.split(' ')[0];
-     });
-     wrapper.querySelector('.ms-display-label').innerText = displayNames.length ? displayNames.join(', ') : 'Select options...';
-     wrapper.querySelector('.runtime-ms-hidden-sink').value = checkedValues.join(', ');
   }
 
   function addRepeaterRow(containerId, encDef, currentObj = {}) {
@@ -1726,7 +1652,7 @@
   function buildTier4SearchableCheckboxDropdown(targetContainer, vectors, checkedArr) {
      var displayNames = checkedArr.map(function(val) {
         var found = vectors.find(function(v) { return v.id === val; });
-        return found ? found.name.split(' ')[0] : val;
+        return found ? found.name : val; // Natively reads pre-formatted provider data strings
      });
      var rowsHtml = vectors.map(v => {
         var isChecked = checkedArr.includes(v.id) ? 'checked' : '';
@@ -1760,8 +1686,8 @@
      var checkedCbs = Array.from(container.querySelectorAll('.tier4-checkbox-node:checked'));
      var checkedValues = checkedCbs.map(function(x) { return x.value; });
      var displayNames = checkedCbs.map(function(c) {
-        var labelText = c.closest('.multiselect-item-label').innerText.trim();
-        return labelText.split(' ')[0];
+        // Leverages the unmodified text nodes to preserve initials across custom selection logs
+        return c.closest('.multiselect-item-label').innerText.trim();
      });
      container.querySelector('.t4-display-text-label').innerText = displayNames.length ? displayNames.join(', ') : 'Select Options...';
   }

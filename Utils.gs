@@ -138,11 +138,16 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
 
   for (var t = 0; t < matchedTemplates.length; t++) {
     var templateRow = matchedTemplates[t];
-    var finalToEmail = toEmail;
+    
+    // Resolves To Override (Index 11), CC Recipients (Index 12), and BCC Recipients (Index 13) fields natively from data rows
+    var finalToEmail = (templateRow[11] && String(templateRow[11]).trim() !== "") ? String(templateRow[11]).trim() : toEmail;
+    var finalCcEmail = templateRow[12] ? String(templateRow[12]).trim() : "";
+    var finalBccEmail = templateRow[13] ? String(templateRow[13]).trim() : "";
+    
     var finalSubject = templateRow[7];
     var finalHtmlBody = templateRow[8];
     var wrapperName = templateRow[9];
-    
+
     // Fetch wrapper HTML
     var wrapperHtml = "{{USER_MESSAGE_CONTENT}}";
     for (var w=1; w<wData.length; w++) {
@@ -152,14 +157,21 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     finalHtmlBody = applyGlobalSignature(finalHtmlBody);
     
     var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
+    
+    // Processes structural token merge translations over custom route configuration strings uniformly
     for (var key in dataMap) {
       var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
+      finalToEmail = finalToEmail.replace(regex, dataMap[key] || "");
+      finalCcEmail = finalCcEmail.replace(regex, dataMap[key] || "");
+      finalBccEmail = finalBccEmail.replace(regex, dataMap[key] || "");
       finalSubject = finalSubject.replace(regex, dataMap[key] || "");
       fullHtml = fullHtml.replace(regex, dataMap[key] || "");
     }
 
     if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
       finalToEmail = settings.adminEmail;
+      finalCcEmail = ""; // Suppresses external carbon copy loops while sandbox interception is engaged
+      finalBccEmail = "";
       finalSubject = "[Sandbox Mail] " + finalSubject;
       var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
       sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
@@ -169,11 +181,21 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
 
     // 2. Wrap all links for tracking right before sending
     fullHtml = applyLinkTracking(fullHtml, finalToEmail);
+    
+    // Package parameters securely into native MailApp structural option schemas
+    var mailOptions = {
+      to: finalToEmail, 
+      subject: finalSubject, 
+      htmlBody: fullHtml, 
+      noReply: true, 
+      name: settings.systemName, 
+      inlineImages: { logo: getLogoBlob() }
+    };
+    
+    if (finalCcEmail) mailOptions.cc = finalCcEmail;
+    if (finalBccEmail) mailOptions.bcc = finalBccEmail;
 
-    MailApp.sendEmail({
-      to: finalToEmail, subject: finalSubject, htmlBody: fullHtml, 
-      noReply: true, name: settings.systemName, inlineImages: { logo: getLogoBlob() }
-    });
+    MailApp.sendEmail(mailOptions);
   }
 }
 

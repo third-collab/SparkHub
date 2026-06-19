@@ -277,5 +277,29 @@ function patch_v4_3_clientsDatabase() {
 }
 
 /**
+ * Architectural Upgrade Patch v5.1
+ * Append To, CC, and BCC recipient routing cells onto your active Templates spreadsheet table.
+ * Run this function manually from your Apps Script editor workspace panel once to upgrade sheets safely.
+ */
+function patch_v5_1_TemplatesDatabaseSchema() {
+  try {
+    var db = getMainDb();
+    var sheet = db.getSheetByName("Templates");
+    if (!sheet) return "Migration Cancelled: Templates sheet container element is missing.";
+    
+    var lastCol = sheet.getLastColumn();
+    // Verify if columns have already been extended
+    if (lastCol < 14) {
+      sheet.getRange(1, 12, 1, 3).setValues([["To Recipients", "CC Recipients", "BCC Recipients"]]).setFontWeight("bold").setBackground("#f1f5f9");
+      SpreadsheetApp.flush();
+      return "Success! Mapped 14-column layout architecture onto active spreadsheet elements successfully.";
+    }
+    return "Notice: Sheet layout was already upgraded to v5.1 template schema ruleset bounds.";
+  } catch(e) {
+    return "Migration Failed: " + e.message;
+  }
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

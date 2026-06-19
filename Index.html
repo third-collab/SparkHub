@@ -103,6 +103,47 @@
     var APP_FALLBACK_LOGO = "<?= typeof appFallbackLogo !== 'undefined' ? appFallbackLogo : '' ?>";
     var RESET_TOKEN = "<?= typeof resetToken !== 'undefined' ? resetToken : '' ?>";
 
+    // UNIVERSAL ECOSYSTEM REGISTRY LOOKUP CACHE
+    window.SYSTEM_LOOKUP_CACHE = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
+
+    /**
+     * Executes a high-fidelity server round-trip to pull available lookup data
+     * across all active and installed modules via the backend auto-discovery map.
+     */
+    function populateGlobalLookupCache() {
+      google.script.run.withSuccessHandler(function(masterPayload) {
+        if (!masterPayload) return;
+        for (var key in masterPayload) {
+          if (window.SYSTEM_LOOKUP_CACHE[key] !== undefined) {
+            window.SYSTEM_LOOKUP_CACHE[key] = masterPayload[key];
+          }
+        }
+        // Broadcasts a global hydration event so independent module views can listen and re-render
+        document.dispatchEvent(new CustomEvent('sparkhubLookupsHydrated', { detail: masterPayload }));
+      }).getSystemDynamicLookups();
+    }
+
+    /**
+     * Universal Entity Translation Helper.
+     * Maps raw database structural reference IDs to user-friendly descriptive labels.
+     * Reusable by any current or future modular extension.
+     */
+    function resolveGlobalLookupIdToName(entityType, rawValue) {
+      if (!rawValue || rawValue === "Unassigned" || rawValue === "N/A") return rawValue || "Unassigned";
+      
+      // Pluralize keyword automatically to target the correct window cache index vector array
+      var vectorKey = entityType.toLowerCase().endsWith('s') ? entityType.toLowerCase() : entityType.toLowerCase() + "s";
+      var cache = window.SYSTEM_LOOKUP_CACHE[vectorKey];
+      if (!cache || !Array.isArray(cache)) return rawValue;
+
+      var values = String(rawValue).split(',').map(v => v.trim());
+      var names = values.map(function(val) {
+        var found = cache.find(item => item.id === val);
+        return found ? found.name : val;
+      });
+      return names.join(', ');
+    }
+
     // ----------------------------------------------------------------
     // ROLE-BASED ACCESS CONTROL (RBAC) ENGINE
     // ----------------------------------------------------------------
@@ -196,6 +237,9 @@
     document.addEventListener("DOMContentLoaded", function() {
       if (document.getElementById('installWizard')) return;
 
+      // Universal Lookups Registry Hydration loop runs natively at app boot execution phase
+      populateGlobalLookupCache();
+
       // 1. Inject logos into ALL overlay screens immediately
       var loginLogo = document.getElementById('login-logo-img');
       if (loginLogo) loginLogo.src = SYSTEM_LOGO_URL || APP_FALLBACK_LOGO;
@@ -273,6 +317,75 @@
 
       if (viewId === 'usersListView' && typeof loadUsersTable === "function") loadUsersTable();
       if (viewId === 'templatesListView' && typeof loadTemplatesTable === "function") loadTemplatesTable();
+    }
+
+    /* ========================================================================
+       GLOBAL UI WIDGET COMPONENT MECHANICAL HANDLERS
+       ======================================================================== */
+    
+    /**
+     * Global Accordion Panel Toggle Trigger
+     */
+    function toggleAccordion(btn) {
+      btn.classList.toggle("active");
+      var panel = btn.nextElementSibling;
+      if (panel) {
+        panel.style.display = (panel.style.display === "block") ? "none" : "block";
+      }
+    }
+
+    /**
+     * Resets grouped form accordion states back to their default loaded indices
+     */
+    function resetAccordions(containerId) {
+      var container = document.getElementById(containerId);
+      if(!container) return;
+      var accs = container.querySelectorAll('.accordion');
+      var panels = container.querySelectorAll('.panel');
+      accs.forEach((a, i) => { if(i===0) a.classList.add('active'); else a.classList.remove('active'); });
+      panels.forEach((p, i) => { if(i===0) p.style.display = 'block'; else p.style.display = 'none'; });
+    }
+
+    /**
+     * Toggles the drop panel visibility state for searchable multi-select lookup engines
+     */
+    function toggleMultiselectPanelElement(box) {
+       var panel = box.nextElementSibling;
+       var open = panel.style.display === 'block';
+       document.querySelectorAll('.multiselect-dropdown-panel').forEach(p => p.style.display = 'none');
+       panel.style.display = open ? 'none' : 'block';
+    }
+
+    /**
+     * Real-time character evaluation input query filtering loop for selection dropdowns
+     */
+    function filterMultiselectOptionsPanel(input) {
+       var search = input.value.toLowerCase();
+       var labels = input.nextElementSibling.querySelectorAll('.multiselect-item-label');
+       labels.forEach(l => {
+          var txt = l.innerText.toLowerCase();
+          l.style.display = txt.includes(search) ? 'flex' : 'none';
+       });
+    }
+
+    /**
+     * Intercepts multi-select mutations and compiles data values for form hidden sinks
+     */
+    function syncRuntimeMultiselectPayload(cb) {
+       var wrapper = cb.closest('.searchable-multiselect-wrapper');
+       var checkedCbs = Array.from(wrapper.querySelectorAll('.runtime-ms-cb:checked'));
+       var checkedValues = checkedCbs.map(function(c) { return c.value; });
+       var displayNames = checkedCbs.map(function(c) {
+          return c.closest('.multiselect-item-label').innerText.trim();
+       });
+       wrapper.querySelector('.ms-display-label').innerText = displayNames.length ? displayNames.join(', ') : 'Select options...';
+       
+       var hiddenSink = wrapper.querySelector('.runtime-ms-hidden-sink');
+       if (hiddenSink) {
+          hiddenSink.value = checkedValues.join(', ');
+          // Dispatches native native event notification to ensure dirty-form tracking engines listen smoothly
+          hiddenSink.dispatchEvent(new Event('change', { bubbles: true }));
+       }
     }
     
     function showSystemModal(title, message) {
