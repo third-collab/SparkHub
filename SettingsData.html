@@ -215,7 +215,8 @@
       if (mod === 'users') permCategory = "Access & Users";
       else if (mod === 'templates') permCategory = "Templates & Wrappers";
       else if (mod === 'logs') permCategory = "System Logs";
-      else permCategory = mod.charAt(0).toUpperCase() + mod.slice(1) + " Services";
+      else if (mod === 'clients') permCategory = "Clients & Services";
+      else permCategory = mod.charAt(0).toUpperCase() + mod.slice(1) + " Module";
 
       // If they lack Manage Settings for this module, omit the configuration tab entirely
       if (!hasPermission(permCategory, "Manage Settings")) {

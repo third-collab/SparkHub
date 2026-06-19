@@ -39,6 +39,7 @@ function getDynamicPermissionMatrix() {
   if (installed) {
     installed.split(',').forEach(function(modName) {
       var mod = modName.trim();
+      if (mod.toLowerCase() === 'clients') return; // Core architectural mapping is explicitly handled above
       var funcName = mod + "_getPermissions";
       if (typeof this[funcName] === 'function') {
         matrix[mod + " Module"] = this[funcName]();

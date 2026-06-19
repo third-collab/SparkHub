@@ -695,7 +695,8 @@
     if (!container) return;
     container.innerHTML = '';
     
-    var priorityOrder = ["Core System", "Access & Users", "Templates", "System Logs"];
+    // Explicitly orders blocks to keep core capabilities on top and dynamic operational extensions below
+    var priorityOrder = ["Core System", "Access & Users", "Templates & Wrappers", "Clients & Services", "System Logs"];
     var allCategories = Object.keys(matrix).sort(function(a, b) {
       var idxA = priorityOrder.indexOf(a); var idxB = priorityOrder.indexOf(b);
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
