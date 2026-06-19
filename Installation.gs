@@ -138,7 +138,15 @@ function setupCoreDatabase(rootFolder) {
   var adminEmail = Session.getActiveUser().getEmail();
   var adminUsername = adminEmail.split('@')[0];
   verifiedDb.getSheetByName("Users").appendRow([new Date(), "U-1001", adminUsername, adminEmail, adminEmail, "Administrator", "", "System", "Admin", new Date(), "", "Active"]);
-  var adminPerms = JSON.stringify({ "Core System": ["Manage Settings", "Manage Roles"], "Access & Users": ["View Users", "Manage Users"], "Templates": ["View Templates", "Manage Templates"], "System Logs": ["View Logs"] });
+  
+  // Seeds the exact granular actions, tabs, and categories mapped inside our Ecosystem Permission Matrix Blueprint
+  var adminPerms = JSON.stringify({ 
+    "Core System": ["View Settings", "Manage Settings"], 
+    "Access & Users": ["View Users", "Add Users", "Manage Users", "View Roles", "Create Roles", "Manage Roles", "Manage Settings"], 
+    "Templates & Wrappers": ["View Templates", "Create Templates", "Manage Templates", "View Wrappers", "Create Wrappers", "Manage Wrappers", "Manage Settings"], 
+    "Clients & Services": ["View Clients", "Onboard Clients", "Manage Clients", "View Services", "Define Services", "Manage Services", "Manage Settings"], 
+    "System Logs": ["View Logs", "Manage Settings"] 
+  });
   verifiedDb.getSheetByName("Roles").appendRow([new Date(), "R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active", ""]);
 
   // 5. Asset Seeding

@@ -27,6 +27,43 @@ function Users_getPermissions() {
   return ["View Users", "Add Users", "Manage Users", "View Roles", "Create Roles", "Manage Roles", "Manage Settings"];
 }
 
+function Users_getLookups() {
+  var vectors = { users: [], roles: [] };
+  try {
+    var userSheet = getMainDb().getSheetByName("Users");
+    var uData = userSheet.getDataRange().getValues();
+    for (var i = 1; i < uData.length; i++) {
+      if (uData[i][1] && uData[i][11] !== 'Inactive') {
+        var first = String(uData[i][7] || "").trim();
+        var last = String(uData[i][8] || "").trim();
+        var shortName = first + (last ? " " + last.charAt(0).toUpperCase() + "." : "");
+        
+        vectors.users.push({
+          id: String(uData[i][1]), 
+          name: shortName, // Default display standard: First Name + Last Initial
+          fullName: first + " " + last
+        });
+      }
+    }
+  } catch(e) { console.warn("Users lookup broadcast failed: " + e.message); }
+  
+  try {
+    var rolesSheet = getMainDb().getSheetByName("Roles");
+    if (rolesSheet) {
+      var rData = rolesSheet.getDataRange().getDisplayValues();
+      for (var r = 1; r < rData.length; r++) {
+        if (rData[r][2] && rData[r][5] === 'Active') {
+          vectors.roles.push({
+            id: String(rData[r][2]), 
+            name: String(rData[r][2])
+          });
+        }
+      }
+    }
+  } catch(e) { console.warn("Roles lookup broadcast failed: " + e.message); }
+  return vectors;
+}
+
 function getDynamicPermissionMatrix() {
   var matrix = {
     "Core System": ["View Settings", "Manage Settings"],

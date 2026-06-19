@@ -23,6 +23,38 @@ function Templates_getPermissions() {
   return ["View Templates", "Create Templates", "Manage Templates", "View Wrappers", "Create Wrappers", "Manage Wrappers", "Manage Settings"];
 }
 
+function Templates_getLookups() {
+  var vectors = { templates: [], wrappers: [] };
+  try {
+    var tplSheet = getMainDb().getSheetByName("Templates");
+    var tData = tplSheet.getDataRange().getValues();
+    for (var j = 1; j < tData.length; j++) {
+      if (tData[j][1] && tData[j][10] !== 'Inactive') {
+        vectors.templates.push({
+          id: String(tData[j][1]), 
+          name: String(tData[j][2]) 
+        });
+      }
+    }
+  } catch(e) { console.warn("Templates lookup broadcast failed: " + e.message); }
+  
+  try {
+    var wrapSheet = getMainDb().getSheetByName("Wrappers");
+    if (wrapSheet) {
+      var wData = wrapSheet.getDataRange().getValues();
+      for (var w = 1; w < wData.length; w++) {
+        if (wData[w][1] && wData[w][5] === 'Active') {
+          vectors.wrappers.push({
+            id: String(wData[w][2]), 
+            name: String(wData[w][2]) 
+          });
+        }
+      }
+    }
+  } catch(e) { console.warn("Wrappers lookup broadcast failed: " + e.message); }
+  return vectors;
+}
+
 function getDynamicTriggerRegistry() {
   var triggers = [];
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;

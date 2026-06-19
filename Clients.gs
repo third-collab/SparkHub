@@ -314,8 +314,9 @@ function createClientRecord(p) {
     try {
       var conf = getClientsModuleConfig().data;
       var targetRole = conf.clientRole || "Client";
-      if (typeof saveUserRecord === 'function' && p.pEmail) {
-        saveUserRecord({ username: p.pEmail, email: p.pEmail, firstName: p.pFirstName, lastName: p.pLastName, role: targetRole, status: "Active" });
+      // Enforces connection to the authentic createUserRecord token provisioning sequence defined in Users.gs
+      if (typeof createUserRecord === 'function' && p.pEmail) {
+        createUserRecord({ username: p.pEmail, email: p.pEmail, firstName: p.pFirstName, lastName: p.pLastName, role: targetRole, status: "Active" });
       }
 
       var sysName = getSystemSettings().systemName || "SparkHub";
@@ -558,7 +559,8 @@ function updateClientRecord(p) {
       var noteChange = changes.find(function(c) { return c.type === "note"; });
       if (noteChange) {
         logAction = "Client Note Modified";
-        logDetails = noteChange.new.replace(/<[^>]*>/g, ""); // Strips HTML wrappers for clean system log view
+        // References newVal property correctly to avoid throwing fatal unhandled undefined property TypeError breaks
+        logDetails = noteChange.newVal.replace(/<[^>]*>/g, "");
       } else if (changes.length > 0) {
         logDetails = "Updated fields: " + changes.map(function(c) { return c.field; }).join(", ");
       }
@@ -597,35 +599,39 @@ function getClientsSheet() {
   return s ? s : ss.insertSheet("Clients"); 
 }
 
-function getSystemDynamicLookups() {
-  var lookups = { users: [], templates: [] };
+function Clients_getLookups() {
+  var vectors = { clients: [], services: [] };
   try {
-    var userSheet = getMainDb().getSheetByName("Users");
-    var uData = userSheet.getDataRange().getValues();
-    for (var i = 1; i < uData.length; i++) {
-      if (uData[i][1] && uData[i][7] !== 'Inactive') {
-        lookups.users.push({
-           id: String(uData[i][1]), // username anchor link key
-           name: uData[i][5] + " " + uData[i][6] // full display name
+    var sheet = getClientsSheet();
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][1] && data[i][25] !== 'Inactive') {
+        var addl = {};
+        try { addl = JSON.parse(data[i][23] || "{}"); } catch(e){}
+        var brand = addl.brand_name || data[i][2] || "Unknown Brand";
+        vectors.clients.push({
+          id: String(data[i][1]), 
+          name: String(brand)
         });
       }
     }
-  } catch(e) { console.error("Error fetching users for lookup: " + e.message); }
+  } catch(e) { console.warn("Clients lookup broadcast failed: " + e.message); }
   
   try {
-    var tplSheet = getMainDb().getSheetByName("Templates");
-    var tData = tplSheet.getDataRange().getValues();
-    for (var j = 1; j < tData.length; j++) {
-      if (tData[j][2] && tData[j][10] !== 'Inactive') {
-         lookups.templates.push({
-            id: String(tData[j][1]),
-            name: String(tData[j][2])
-         });
+    var srvSheet = getClientsDb().getSheetByName("Services");
+    if (srvSheet) {
+      var sData = srvSheet.getDataRange().getValues();
+      for (var s = 1; s < sData.length; s++) {
+        if (sData[s][1] && sData[s][4] === 'Active') {
+          vectors.services.push({
+            id: String(sData[s][2]), 
+            name: String(sData[s][2])
+          });
+        }
       }
     }
-  } catch(e) { console.error("Error fetching templates for lookup: " + e.message); }
-  
-  return lookups;
+  } catch(e) { console.warn("Services lookup broadcast failed: " + e.message); }
+  return vectors;
 }
 
 /**

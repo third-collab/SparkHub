@@ -50,5 +50,43 @@ function getLogsDb() {
 }
 
 /**
+ * Centralized Ecosystem Lookup Aggregator
+ * Automatically discovers and harvests all lookable entity reference models 
+ * across core infrastructure and dynamically installed external extensions.
+ * Follows the V8 Auto-Discovery pattern.
+ */
+function getSystemDynamicLookups() {
+  var masterLookups = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
+  var activeModules = ["System", "Users", "Templates", "Settings", "Logs"];
+  var props = PropertiesService.getScriptProperties();
+  var installed = props.getProperty('INSTALLED_MODULES');
+  
+  if (installed) {
+    installed.split(',').forEach(function(m) {
+      var mod = m.trim();
+      if (mod && activeModules.indexOf(mod) === -1) activeModules.push(mod);
+    });
+  }
+  
+  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
+  
+  activeModules.forEach(function(modName) {
+    var funcName = modName + "_getLookups";
+    if (typeof globalScope[funcName] === 'function') {
+      try {
+        var modulePayload = globalScope[funcName]();
+        if (modulePayload && typeof modulePayload === 'object') {
+          for (var key in modulePayload) {
+            masterLookups[key] = modulePayload[key];
+          }
+        }
+      } catch(e) { console.warn("Lookup discovery bypassed for " + modName + ": " + e.message); }
+    }
+  });
+  
+  return masterLookups;
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

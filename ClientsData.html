@@ -411,15 +411,50 @@
     }).getServicesList();
   }
 
+  /**
+   * Translates raw database custom field inputs dynamically by evaluating settings configurations.
+   * References the centralized lookup cache natively.
+   */
+  function resolveCustomFieldDisplayValue(fieldId, rawValue) {
+    if (!rawValue || rawValue === "Unassigned" || rawValue === "N/A") return rawValue || "Unassigned";
+    if (!CLIENTS_CONFIG || !CLIENTS_CONFIG.customFields) return rawValue;
+    
+    var cf = CLIENTS_CONFIG.customFields.find(function(f) { return f.id === fieldId; });
+    if (cf && cf.type === 'select' && cf.options && cf.options.startsWith('SYS_LOOKUP:')) {
+      var parts = cf.options.split(':');
+      var entityType = parts[2]; 
+      var vectorKey = entityType + "s"; 
+      var cache = window.SYSTEM_LOOKUP_CACHE[vectorKey];
+      if (cache && Array.isArray(cache)) {
+        var values = String(rawValue).split(',').map(v => v.trim());
+        var names = values.map(function(val) {
+          var found = cache.find(item => item.id === val);
+          return found ? found.name : val; // Received pre-formatted from the source provider
+        });
+        return names.join(', ');
+      }
+    }
+    return rawValue;
+  }
+
   function populateLookupCache() {
     google.script.run.withSuccessHandler(function(data) {
       if(data && data.users) {
-        window.SYSTEM_LOOKUP_CACHE.users = data.users.map(u => ({ id: u.id, name: u.name }));
+        window.SYSTEM_LOOKUP_CACHE.users = data.users.map(u => ({ id: u.id || u.userId, name: u.name || (u.firstName + " " + u.lastName) }));
       }
       if(data && data.templates) {
         window.SYSTEM_LOOKUP_CACHE.templates = data.templates.map(t => ({ id: t.id, name: t.name }));
       }
+      applyClientFilters(); // Instantly translates names once lookups propagate
     }).getSystemDynamicLookups();
+
+    // Redundant atomic fallback loop to guarantee user array synchronization on launch
+    google.script.run.withSuccessHandler(function(users) {
+      if (users && users.length) {
+        window.SYSTEM_LOOKUP_CACHE.users = users.map(u => ({ id: u.userId, name: u.firstName + " " + u.lastName }));
+        applyClientFilters();
+      }
+    }).getUsersList();
 
     google.script.run.withSuccessHandler(function(res) {
       window.SYSTEM_LOOKUP_CACHE.roles = (res || []).map(r => ({ id: r.name, name: r.name }));
@@ -472,6 +507,7 @@
     var search = document.getElementById('client-filter-search').value.toLowerCase(); 
     var checkedStatuses = Array.from(document.querySelectorAll('.client-filter-status-cb:checked')).map(cb => cb.value);
     var tbody = document.getElementById('clientTableBody'); 
+    if (!tbody) return;
     tbody.innerHTML = '';
     
     var records = GLOBAL_CLIENTS_DATA.filter(c => {
@@ -486,11 +522,20 @@
     }
     
     records.forEach(c => {
+      // Formats contact names locally but reads account manager straight from the optimized broadcast vector
+      var displayContact = formatNameWithLastInitial(c.pFirstName, c.pLastName);
+      // Inline formatting function for core contact entries
+      function formatNameWithLastInitial(f, l) {
+        var fStr = String(f || "").trim(); var lStr = String(l || "").trim();
+        return fStr + (lStr ? " " + lStr.charAt(0).toUpperCase() + "." : "");
+      }
+      
+      var displayManager = resolveCustomFieldDisplayValue('account_manager', c.acctMgr);
       tbody.innerHTML += `
         <tr style="cursor:pointer;" onclick="window.CLIENTS_FORM_ORIGIN='ro'; openReadOnlyClient(${c.rowIndex})">
           <td><strong>${c.brandName}</strong></td>
-          <td>${c.pFirstName} ${c.pLastName}</td>
-          <td><span class="badge" style="background:#f1f5f9; color:#475569;">${c.acctMgr}</span></td>
+          <td>${displayContact}</td>
+          <td><span class="badge" style="background:#f1f5f9; color:#475569;">${displayManager}</span></td>
           <td><span class="badge badge-${String(c.status).toLowerCase()}">${c.status}</span></td>
           <td>
             ${hasPermission('Clients & Services', 'Manage Clients') ? `<button type="button" class="btn-edit" onclick="openDynamicForm('edit', ${c.rowIndex}, 'list', event)">Edit</button>` : ''}
@@ -633,6 +678,8 @@
               var cf = (CLIENTS_CONFIG.customFields || []).find(x => x.id === fId);
               if (cf) {
                 var val = addl[cf.id] !== undefined ? addl[cf.id] : 'N/A';
+                // Intercepts value assignments and checks for registered lookup options mapping configurations
+                var resolvedDisplayVal = resolveCustomFieldDisplayValue(cf.id, val);
                 var gridSpan = (['json','richtext','textarea','longtext'].includes(cf.type)) ? 'grid-column: 1 / -1;' : '';
                 html += `<div class="ro-data-group" style="${gridSpan}"><div class="ro-data-label">${cf.label}</div>`;
                 
@@ -654,7 +701,7 @@
                 } else if (cf.type === 'richtext') {
                    html += `<div class="ro-data-value" style="background:#f8fafc; padding:15px; border-radius:6px; border:1px solid #e2e8f0;">${val !== 'N/A' && val !== '' ? val : 'No content.'}</div>`;
                 } else {
-                   html += `<div class="ro-data-value">${val === '' ? 'N/A' : val}</div>`;
+                   html += `<div class="ro-data-value">${resolvedDisplayVal === '' ? 'N/A' : resolvedDisplayVal}</div>`;
                 }
                 html += `</div>`;
               }
@@ -702,7 +749,6 @@
      document.getElementById('note-edit-' + idx).style.display = 'flex';
   }
 
-  // [REPLACE EXPLICITLY: saveOpNoteEditInline and executeOpNoteDeletionAsync]
   function saveOpNoteEditInline(idx) {
      var val = document.getElementById('note-input-' + idx).value.trim(); if (!val) return;
      var overlay = document.getElementById('ro-client-overlay');
@@ -728,9 +774,15 @@
      }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
+  function triggerOpNoteDeleteLayover(idx) {
+     document.getElementById('delete-note-index-target').value = idx;
+     document.getElementById('note-confirm-modal').style.display = 'flex';
+  }
+
   function executeOpNoteDeletionAsync() {
-     var idx = parseInt(document.getElementById('delete-note-target-index').value, 10);
+     var idx = parseInt(document.getElementById('delete-note-index-target').value, 10);
      document.getElementById('note-confirm-modal').style.display = 'none';
+     
      var overlay = document.getElementById('ro-client-overlay');
      if (overlay) {
         overlay.querySelector('span').innerText = "Deleting Note...";
@@ -748,38 +800,9 @@
            window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
            renderOpNotesList(res.data.operationalNotes);
            renderHistoryTab(res.data.history);
+           if(typeof showToast === 'function') showToast("Success", "Operational note purged.", "success");
         } else if (res && res.error) { alert("Error: " + res.error); }
      }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
-  }
-
-  function triggerOpNoteDeleteLayover(idx) {
-     document.getElementById('delete-note-index-target').value = idx;
-     document.getElementById('note-confirm-modal').style.display = 'flex';
-  }
-
-  function executeOpNoteDeletionAsync() {
-     var idx = parseInt(document.getElementById('delete-note-target-index').value, 10);
-     document.getElementById('note-delete-layover-modal').style.display = 'none';
-     
-     var overlay = document.getElementById('ro-client-overlay');
-     if (overlay) {
-        overlay.querySelector('span').innerText = "Saving Note...";
-        overlay.style.display = 'flex';
-     }
-     
-     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
-     notes.splice(idx,1);
-     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
-     
-     google.script.run.withSuccessHandler(function(res) {
-        if (overlay) overlay.style.display = 'none';
-        if(res.success && res.data) {
-           window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
-           window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
-           renderOpNotesList(res.data.operationalNotes);
-           renderHistoryTab(res.data.history);
-        }
-     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
   function removeOpNoteAt(idx) {
@@ -891,7 +914,7 @@
         if (displayEditorName.indexOf('U-') === 0 && window.SYSTEM_LOOKUP_CACHE && window.SYSTEM_LOOKUP_CACHE.users) {
           var matchedUserNode = window.SYSTEM_LOOKUP_CACHE.users.find(function(u) { return u.id === displayEditorName; });
           if (matchedUserNode && matchedUserNode.name) {
-             displayEditorName = matchedUserNode.name.split(' ')[0]; // Renders friendly First Name
+             displayEditorName = matchedUserNode.name; // Natively reads pre-formatted provider values
           }
         }
         var html = `<div class="history-audit-entry" style="background:#fff; border:1px solid #e2e8f0; padding:20px; border-radius:8px; margin-bottom:15px; box-shadow:var(--shadow-sm);">
