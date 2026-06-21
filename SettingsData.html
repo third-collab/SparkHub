@@ -499,7 +499,7 @@
           finishSave(payload);
         })
         .withFailureHandler(function(err) {
-          alert("Logo Upload Error: " + err.message);
+          showSystemModal("Upload Error", "Logo Upload Error: " + err.message);
           finishSave(payload); // Attempt to save the rest of the settings anyway
         })
         .uploadSystemLogo(logoSrc, "system_logo.png");
