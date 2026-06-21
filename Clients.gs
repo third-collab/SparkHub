@@ -292,9 +292,26 @@ function createClientRecord(p) {
     try { addl = JSON.parse(p.addlFields || "{}"); } catch(e){}
     var brand = addl.brand_name || p.companyName;
     
+    var generatedId = "C-" + Math.floor(1000+Math.random()*9000);
+    
+    // Automatically provision a dedicated Google Drive folder for the onboarded client brand
+    try {
+      if (typeof getSystemSubfolder === 'function') {
+        var parentFolder = getSystemSubfolder("Client Assets");
+        var clientFolder = parentFolder.createFolder("[" + generatedId + "] " + p.companyName);
+        clientFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        
+        // Maps the generated URL directly into the asset link metadata property slot smoothly
+        addl.core_assetFolderLink = clientFolder.getUrl();
+        p.addlFields = JSON.stringify(addl);
+      }
+    } catch(folderErr) {
+      console.warn("Automated client asset folder provisioning bypassed: " + folderErr.message);
+    }
+
     var newRow = new Array(26).fill("");
     newRow[0] = new Date(); 
-    newRow[1] = "C-" + Math.floor(1000+Math.random()*9000); 
+    newRow[1] = generatedId; 
     newRow[2] = p.companyName; 
     newRow[3] = p.address;
     newRow[4] = p.companyEmail; 
@@ -314,11 +331,12 @@ function createClientRecord(p) {
     newRow[18] = p.expDate; 
     newRow[21] = "[]"; 
     newRow[23] = p.addlFields || "{}"; 
-    newRow[24] = "[]"; // Empty History
+    newRow[24] = "[]";
+    // Empty History
     newRow[25] = "Onboarding";
 
     sheet.appendRow(newRow); 
-    SpreadsheetApp.flush(); // ENFORCED: Prevent Stale Data on Dashboard Read
+    SpreadsheetApp.flush();
     
     var targetRow = sheet.getLastRow() - 1;
 

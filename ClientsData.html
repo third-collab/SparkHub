@@ -91,6 +91,29 @@
       <label>Auto-Provision User Role</label>
       <select id="edt-client-role-select" class="form-control" style="max-width: 400px;"></select>
     </div>
+
+    <div style="background:var(--brand-bg); padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+      <h4 style="margin:0 0 15px 0; color:var(--brand-dark); font-size:15px; font-weight:700;">Cloud Storage & Asset Automation</h4>
+      <div class="form-group" style="margin-bottom:15px;">
+        <label class="perm-cb-label">
+          <input type="checkbox" id="edt-client-auto-folder" onchange="toggleClientFolderSettingsFields(this.checked)"> Automatically Create Client Folders (Google Drive Only)
+        </label>
+        <small style="color:#64748b; display:block; margin-top:4px;">Enable this if your primary repository lives in Google Drive. Leave disabled if using external storage providers like Dropbox (requires manual entry during client onboarding).</small>
+      </div>
+      <div id="edt-client-folder-conditional-fields" style="display:none; flex-direction:column; gap:15px;">
+        <div class="form-row" style="margin:0; gap:20px;">
+          <div class="form-group">
+            <label>Parent Folder ID Override (Optional)</label>
+            <input type="text" id="edt-client-parent-folder" class="form-control" placeholder="Leave blank to create under default folder 'Client Assets'">
+          </div>
+          <div class="form-group">
+            <label>Folder Naming Blueprint Pattern</label>
+            <input type="text" id="edt-client-folder-template" class="form-control" placeholder="[{{clientId}}] {{companyName}}">
+            <small style="color:#64748b; margin-top:4px; display:block;">Supported placeholder macros: <code>{{clientId}}</code>, <code>{{companyName}}</code></small>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <h4 class="settings-section-header">Form Accordion Groups & Fields Workspace</h4>
@@ -1291,9 +1314,24 @@
     if (e.target && e.target.id === 'btn-set-edt-clients') { renderEdtClientsConfig(); }
   });
 
-  function renderRoClientsConfig() {
-    document.getElementById('ro-clients-core-config').innerHTML = `<p style="margin:0;"><strong>Default Role Provisioned to Clients:</strong> <span class="badge" style="background:var(--brand-primary); color:#fff; font-size:13px; padding:5px 12px; margin-left:10px;">${CLIENTS_CONFIG.clientRole || "Client"}</span></p>`;
-    var container = document.getElementById('ro-clients-accordions'); container.innerHTML = '';
+  function renderEdtClientsConfig() {
+    if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Loading configuration...');
+    google.script.run.withSuccessHandler(function(res) { 
+      window.CLIENTS_ROLES_DATA = res || [];
+      document.getElementById('edt-client-role-select').innerHTML = window.CLIENTS_ROLES_DATA.map(r => `<option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>${r.name}</option>`).join(''); 
+      
+      // Synchronizes form checkbox and conditional modal visibility parameters
+      var autoFolderCb = document.getElementById('edt-client-auto-folder');
+      if (autoFolderCb) {
+        autoFolderCb.checked = CLIENTS_CONFIG.autoCreateFolder || false;
+        toggleClientFolderSettingsFields(autoFolderCb.checked);
+      }
+      var parentFolderInput = document.getElementById('edt-client-parent-folder');
+      if (parentFolderInput) parentFolderInput.value = CLIENTS_CONFIG.parentFolderId || '';
+      var folderTemplateInput = document.getElementById('edt-client-folder-template');
+      if (folderTemplateInput) folderTemplateInput.value = CLIENTS_CONFIG.folderTemplate || '[{{clientId}}] {{companyName}}';
+
+      var container = document.getElementById('edt-accordions-container'); container.innerHTML = '';
     
     var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) 
                  ? CLIENTS_CONFIG.accordionGroups 
@@ -1717,7 +1755,14 @@
 
     if(executionCrashed) return;
 
-    const payload = { clientRole: document.getElementById('edt-client-role-select').value, accordionGroups: accordionGroups, customFields: customFields };
+    const payload = { 
+      clientRole: document.getElementById('edt-client-role-select').value, 
+      autoCreateFolder: document.getElementById('edt-client-auto-folder').checked,
+      parentFolderId: document.getElementById('edt-client-parent-folder').value.trim(),
+      folderTemplate: document.getElementById('edt-client-folder-template').value.trim(),
+      accordionGroups: accordionGroups, 
+      customFields: customFields 
+    };
     const btn = e.target; var originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = "Saving Configuration...";
 
     google.script.run
@@ -1730,6 +1775,13 @@
       })
       .withFailureHandler(function(err) { btn.disabled = false; btn.innerHTML = originalText; alert(err.message); })
       .saveClientsModuleConfig(payload);
+  }
+
+  function toggleClientFolderSettingsFields(isChecked) {
+    var conditionalBox = document.getElementById('edt-client-folder-conditional-fields');
+    if (conditionalBox) {
+      conditionalBox.style.display = isChecked ? 'flex' : 'none';
+    }
   }
 
   function moveDomRow(btn, direction) {
