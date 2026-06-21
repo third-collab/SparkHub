@@ -235,7 +235,7 @@
       
       <button type="button" class="accordion active" onclick="toggleAccordion(this)">1. Identity & System Binding</button>
       <div class="panel" style="display: block;">
-        <div class="form-row" style="margin-top:15px;">
+        <div class="form-row">
           <div class="form-group"><label>Display Name *</label><input type="text" id="edt-tpl-name" class="form-control" required placeholder="Internal name for library"></div>
           <div class="form-group"><label>Communication Category</label><input type="text" id="edt-tpl-cat" class="form-control" placeholder="e.g., Onboarding, Sales, Admin"></div>
         </div>
@@ -261,39 +261,78 @@
 
       <button type="button" class="accordion" onclick="toggleAccordion(this)">2. Composition & Placeholders</button>
       <div class="panel">
-        <div class="form-row" style="margin-top:15px;">
-          <div class="form-group">
-            <label>To Recipient Conditions *</label>
-            <select id="edt-tpl-to-condition" class="form-control" onchange="evaluateTemplateToConditionChange(this.value)">
+        <div class="form-row">
+          <div class="form-group"><label>To Recipient Conditions *</label>
+            <select id="edt-tpl-to-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('to', this.value)">
                <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
                <option value="ALL_ACTIVE_USERS">All Active Users</option>
                <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Dispatch Mode Configuration *</label>
+            <label>Manual To Emails (Optional)</label>
+            <input type="text" id="edt-tpl-to-manual" class="form-control" placeholder="external1@domain.com, external2@domain.com">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group"><label>Dispatch Mode Configuration *</label>
             <select id="edt-tpl-dispatchMode" class="form-control">
                <option value="Individual">Send Individually (Separate Personalized Loops)</option>
                <option value="Collective">Send Collectively (Single Combined Group Dispatch)</option>
             </select>
           </div>
+          <div class="form-group"></div>
         </div>
         
         <div class="form-row" id="tpl-custom-to-lookup-group" style="display:none; margin-bottom:15px;">
           <div class="form-group">
-            <label>Select Specific Target Recipients Matrix</label>
+            <label>Select Specific Target To Recipients Matrix</label>
             <div id="tpl-custom-to-ms-wrapper"></div>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Carbon Copy (CC) Address (Optional)</label>
-            <input type="text" id="edt-tpl-cc" class="form-control" placeholder="manager@domain.com, {{adminEmail}}">
+            <label>Carbon Copy (CC) Conditions</label>
+            <select id="edt-tpl-cc-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('cc', this.value)">
+               <option value="NONE">None</option>
+               <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
+               <option value="ALL_ACTIVE_USERS">All Active Users</option>
+               <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
+            </select>
           </div>
           <div class="form-group">
-            <label>Blind Carbon Copy (BCC) Address (Optional)</label>
-            <input type="text" id="edt-tpl-bcc" class="form-control" placeholder="archive@domain.com">
+            <label>Manual CC Emails (Optional)</label>
+            <input type="text" id="edt-tpl-cc-manual" class="form-control" placeholder="cc1@domain.com, cc2@domain.com">
+          </div>
+        </div>
+        <div class="form-row" id="tpl-custom-cc-lookup-group" style="display:none; margin-bottom:15px;">
+          <div class="form-group">
+            <label>Select Specific Target CC Recipients Matrix</label>
+            <div id="tpl-custom-cc-ms-wrapper"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Blind Carbon Copy (BCC) Conditions</label>
+            <select id="edt-tpl-bcc-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('bcc', this.value)">
+               <option value="NONE">None</option>
+               <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
+               <option value="ALL_ACTIVE_USERS">All Active Users</option>
+               <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Manual BCC Emails (Optional)</label>
+            <input type="text" id="edt-tpl-bcc-manual" class="form-control" placeholder="bcc1@domain.com, bcc2@domain.com">
+          </div>
+        </div>
+        <div class="form-row" id="tpl-custom-bcc-lookup-group" style="display:none; margin-bottom:15px;">
+          <div class="form-group">
+            <label>Select Specific Target BCC Recipients Matrix</label>
+            <div id="tpl-custom-bcc-ms-wrapper"></div>
           </div>
         </div>
 
@@ -308,7 +347,10 @@
         <div style="margin-top:20px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
            <label style="font-size:12px; color:var(--brand-primary); font-weight:800; display:block; margin-bottom:12px; text-transform:uppercase;">Registry Placeholder Suggestions (Click to copy)</label>
            <div id="placeholder-container"></div>
-           <p style="font-size:11px; color:#94a3b8; margin-top:12px; font-style:italic;">Note: Placeholders are case-sensitive. Use double curly braces, e.g., {{brandName}}.</p>
+           <p style="font-size:11px; color:#94a3b8; margin-top:12px; font-style:italic;">
+             Note: Placeholders are case-sensitive. Use double curly braces, e.g., {{brandName}}.
+             <a href="javascript:void(0);" onclick="openGlobalPlaceholderGuide('templates')" style="color:var(--brand-primary); font-weight:700; text-decoration:underline; margin-left:8px;">Open Context Summary Sheet</a>
+          </p>
         </div>
       </div>
 
@@ -780,39 +822,46 @@
       document.getElementById('edt-tpl-trigger').value = data.trigger || "Users:CREATE";
       document.getElementById('edt-tpl-status').value = data.status || "Draft";
       document.getElementById('edt-tpl-subject').value = data.subject || "";
-      
-      // Load routing variables smoothly into condition workspace panels
-      var rawTo = data.to || "";
-      var conditionSelect = document.getElementById('edt-tpl-to-condition');
       document.getElementById('edt-tpl-dispatchMode').value = data.dispatchMode || "Individual";
-      document.getElementById('edt-tpl-cc').value = data.cc || "";
-      document.getElementById('edt-tpl-bcc').value = data.bcc || "";
-
-      if (rawTo === "ALL_ACTIVE_USERS") {
-         conditionSelect.value = "ALL_ACTIVE_USERS"; evaluateTemplateToConditionChange("ALL_ACTIVE_USERS");
-      } else if (rawTo.indexOf("CUSTOM_LOOKUP:") === 0) {
-         conditionSelect.value = "CUSTOM_LOOKUP"; evaluateTemplateToConditionChange("CUSTOM_LOOKUP");
-         var lookupIds = rawTo.replace("CUSTOM_LOOKUP:", "").split(",").map(x => x.trim());
-         var msWrapper = document.getElementById('tpl-custom-to-ms-wrapper');
-         if (msWrapper) {
-            // Re-evaluates custom lookup checkboxes inside the newly injected template container shell
-            var targetVectors = window.SYSTEM_LOOKUP_CACHE.users || [];
-            var lines = targetVectors.map(v => `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb tpl-to-user-cb" value="${v.id}" onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`).join('');
-            msWrapper.innerHTML = `<div class="searchable-multiselect-wrapper" id="tpl-to-multiselect" style="width:100%;"><div class="multiselect-toggle-box" onclick="toggleMultiselectPanelElement(this)"><span class="ms-display-label">Select users...</span><span>▼</span></div><div class="multiselect-dropdown-panel" style="max-height:200px;"><input type="text" class="multiselect-search-input" placeholder="Search..." onkeyup="filterMultiselectOptionsPanel(this)"><div class="multiselect-options-list">${lines}</div></div><input type="hidden" id="edt-tpl-to-custom-sink" class="runtime-ms-hidden-sink" value=""></div>`;
-            
-            var cbs = msWrapper.querySelectorAll('.tpl-to-user-cb');
+      
+      // Dynamic Unpacking Standard Method
+      function unpackEcosystemRecipientRuleToUi(prefix, rawRule) {
+        var conditionVal = (prefix === 'to') ? "TRIGGER_DEFAULT" : "NONE";
+        var manualVal = ""; var lookupIdsStr = "";
+        if (rawRule && rawRule.trim() !== "") {
+          var mainRule = rawRule; var pipeIdx = rawRule.indexOf('|');
+          if (pipeIdx > -1) { mainRule = rawRule.substring(0, pipeIdx).trim(); manualVal = rawRule.substring(pipeIdx + 1).trim(); }
+          if (mainRule === "TRIGGER_DEFAULT" || mainRule === "ALL_ACTIVE_USERS" || mainRule === "NONE") { conditionVal = mainRule; } 
+          else if (mainRule.indexOf("CUSTOM_LOOKUP:") === 0) { conditionVal = "CUSTOM_LOOKUP"; lookupIdsStr = mainRule.replace("CUSTOM_LOOKUP:", "").trim(); } 
+          else { conditionVal = (prefix === 'to') ? "TRIGGER_DEFAULT" : "NONE"; manualVal = manualVal ? (mainRule + "," + manualVal) : mainRule; }
+        }
+        var condSelect = document.getElementById('edt-tpl-' + prefix + '-condition');
+        if (condSelect) condSelect.value = conditionVal;
+        var manInput = document.getElementById('edt-tpl-' + prefix + '-manual');
+        if (manInput) manInput.value = manualVal;
+        evaluateTemplateRecipientConditionChange(prefix, conditionVal);
+        if (conditionVal === "CUSTOM_LOOKUP") {
+          var msWrapper = document.getElementById('tpl-custom-' + prefix + '-ms-wrapper');
+          if (msWrapper) {
+            var lookupIds = lookupIdsStr.split(',').map(x => x.trim()); var targetVectors = window.SYSTEM_LOOKUP_CACHE.users || [];
+            var lines = targetVectors.map(v => `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb tpl-${prefix}-user-cb" value="${v.id}" onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`).join('');
+            msWrapper.innerHTML = `<div class="searchable-multiselect-wrapper" id="tpl-${prefix}-multiselect" style="width:100%;"><div class="multiselect-toggle-box" onclick="toggleMultiselectPanelElement(this)"><span class="ms-display-label">Select users...</span><span>▼</span></div><div class="multiselect-dropdown-panel" style="max-height:200px;"><input type="text" class="multiselect-search-input" placeholder="Search..." onkeyup="filterMultiselectOptionsPanel(this)"><div class="multiselect-options-list">${lines}</div></div><input type="hidden" id="edt-tpl-${prefix}-custom-sink" class="runtime-ms-hidden-sink" value=""></div>`;
+            var cbs = msWrapper.querySelectorAll('.tpl-' + prefix + '-user-cb');
             cbs.forEach(cb => { cb.checked = lookupIds.includes(cb.value); });
             if (cbs.length > 0) {
-               var wrapper = document.getElementById('tpl-to-multiselect');
+               var wrapper = document.getElementById(`tpl-${prefix}-multiselect`);
                var checkedCbs = Array.from(wrapper.querySelectorAll('.runtime-ms-cb:checked'));
                var displayNames = checkedCbs.map(c => c.closest('.multiselect-item-label').innerText.trim());
                wrapper.querySelector('.ms-display-label').innerText = displayNames.length ? displayNames.join(', ') : 'Select users...';
-               wrapper.querySelector('.runtime-ms-hidden-sink').value = lookupIds.join(', ');
+               wrapper.querySelector('.runtime-ms-hidden-sink').value = lookupIdsStr;
             }
-         }
-      } else {
-         conditionSelect.value = "TRIGGER_DEFAULT"; evaluateTemplateToConditionChange("TRIGGER_DEFAULT");
+          }
+        }
       }
+
+      unpackEcosystemRecipientRuleToUi('to', data.to);
+      unpackEcosystemRecipientRuleToUi('cc', data.cc);
+      unpackEcosystemRecipientRuleToUi('bcc', data.bcc);
       
       var wrapperSelect = document.getElementById('edt-tpl-wrapper');
       wrapperSelect.value = data.wrapper || "Internal Communication";
@@ -851,17 +900,26 @@
       document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
       
       document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
-      document.getElementById('ro-tpl-cc').innerText = data.cc || "None";
-      document.getElementById('ro-tpl-bcc').innerText = data.bcc || "None";
-      document.getElementById('ro-tpl-dispatchMode').innerText = data.dispatchMode === "Individual" ? "Send Separately (Personalized Loops)" : "Send Combined (Group Dispatch)";
+    document.getElementById('ro-tpl-dispatchMode').innerText = data.dispatchMode === "Individual" ? "Send Separately (Personalized Loops)" : "Send Combined (Group Dispatch)";
 
-      var displayToText = "Default Trigger Recipient";
-      if (data.to === "ALL_ACTIVE_USERS") { displayToText = "All Active Users"; } 
-      else if (data.to && data.to.indexOf("CUSTOM_LOOKUP:") === 0) {
-         // Uses our global lookup translator service to swap out IDs for names smoothly
-         displayToText = "Custom: " + resolveGlobalLookupIdToName("user", data.to.replace("CUSTOM_LOOKUP:", ""));
-      }
-      document.getElementById('ro-tpl-to').innerText = displayToText;
+    // Integrated Context-Aware Recipient Formatting for High-Fidelity Previews
+    function formatEcosystemRecipientRuleForDisplay(rawRule, isToField) {
+      if (!rawRule || rawRule.trim() === "" || rawRule === "NONE") return isToField ? "Default Trigger Recipient" : "None";
+      var mainRule = rawRule; var manualVal = ""; var pipeIdx = rawRule.indexOf('|');
+      if (pipeIdx > -1) { mainRule = rawRule.substring(0, pipeIdx).trim(); manualVal = rawRule.substring(pipeIdx + 1).trim(); }
+      var label = "";
+      if (mainRule === "TRIGGER_DEFAULT") label = "Default Trigger Recipient";
+      else if (mainRule === "ALL_ACTIVE_USERS") label = "All Active Users";
+      else if (mainRule === "NONE") label = "None";
+      else if (mainRule.indexOf("CUSTOM_LOOKUP:") === 0) label = "Users: " + resolveGlobalLookupIdToName("user", mainRule.replace("CUSTOM_LOOKUP:", ""));
+      else manualVal = manualVal ? (mainRule + ", " + manualVal) : mainRule;
+      if (manualVal) return label && label !== "None" ? `${label} + Manual: [${manualVal}]` : `Manual: [${manualVal}]`;
+      return label;
+    }
+
+    document.getElementById('ro-tpl-to').innerText = formatEcosystemRecipientRuleForDisplay(data.to, true);
+    document.getElementById('ro-tpl-cc').innerText = formatEcosystemRecipientRuleForDisplay(data.cc, false);
+    document.getElementById('ro-tpl-bcc').innerText = formatEcosystemRecipientRuleForDisplay(data.bcc, false);
       
       document.getElementById('ro-tpl-desc').innerText = data.description || "No description provided";
       document.getElementById('ro-tpl-module').innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569;">${data.module}</span>`;
@@ -1072,12 +1130,16 @@
     if(e) e.preventDefault();
     toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');
     
-    var conditionVal = document.getElementById('edt-tpl-to-condition').value;
-    var computedToValue = "TRIGGER_DEFAULT";
-    if (conditionVal === 'ALL_ACTIVE_USERS') { computedToValue = "ALL_ACTIVE_USERS"; } 
-    else if (conditionVal === 'CUSTOM_LOOKUP') {
-       var sink = document.getElementById('edt-tpl-to-custom-sink');
-       computedToValue = "CUSTOM_LOOKUP:" + (sink ? sink.value : "");
+    // Aggregator routine packages condition frameworks and text vectors side-by-side
+    function compileEcosystemRecipientRule(prefix) {
+      var conditionVal = document.getElementById('edt-tpl-' + prefix + '-condition').value;
+      var baseRule = conditionVal;
+      if (conditionVal === 'CUSTOM_LOOKUP') {
+        var sink = document.getElementById('edt-tpl-' + prefix + '-custom-sink');
+        baseRule = "CUSTOM_LOOKUP:" + (sink ? sink.value : "");
+      }
+      var manualVal = document.getElementById('edt-tpl-' + prefix + '-manual').value.trim();
+      return manualVal ? (baseRule + "|" + manualVal) : baseRule;
     }
 
     var payload = {
@@ -1090,9 +1152,9 @@
       wrapper: document.getElementById('edt-tpl-wrapper').value,
       status: document.getElementById('edt-tpl-status').value,
       subject: document.getElementById('edt-tpl-subject').value,
-      to: computedToValue,
-      cc: document.getElementById('edt-tpl-cc').value,
-      bcc: document.getElementById('edt-tpl-bcc').value,
+      to: compileEcosystemRecipientRule('to'),
+      cc: compileEcosystemRecipientRule('cc'),
+      bcc: compileEcosystemRecipientRule('bcc'),
       dispatchMode: document.getElementById('edt-tpl-dispatchMode').value,
       body: tplQuill ? tplQuill.root.innerHTML : ""
     };
@@ -1168,22 +1230,22 @@
   }
 
   /**
-   * Toggles the display state of the searchable multi-select user checkbox tray dynamically
+   * Toggles the display state of the searchable multi-select user checkbox tray dynamically across all prefixes
    */
-  function evaluateTemplateToConditionChange(val) {
-     var customGroup = document.getElementById('tpl-custom-to-lookup-group');
+  function evaluateTemplateRecipientConditionChange(prefix, val) {
+     var customGroup = document.getElementById('tpl-custom-' + prefix + '-lookup-group');
      if (!customGroup) return;
      if (val === 'CUSTOM_LOOKUP') {
         customGroup.style.display = 'flex';
-        var msWrapper = document.getElementById('tpl-custom-to-ms-wrapper');
+        var msWrapper = document.getElementById('tpl-custom-' + prefix + '-ms-wrapper');
         if (msWrapper && msWrapper.innerHTML.trim() === "") {
            var vectors = window.SYSTEM_LOOKUP_CACHE.users || [];
            var rowsHtml = vectors.map(v => {
-              return `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb tpl-to-user-cb" value="${v.id}" onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`;
+              return `<label class="multiselect-item-label"><input type="checkbox" class="runtime-ms-cb tpl-${prefix}-user-cb" value="${v.id}" onchange="syncRuntimeMultiselectPayload(this)"> ${v.name}</label>`;
            }).join('');
            
            msWrapper.innerHTML = `
-              <div class="searchable-multiselect-wrapper" id="tpl-to-multiselect" style="width:100%;">
+              <div class="searchable-multiselect-wrapper" id="tpl-${prefix}-multiselect" style="width:100%;">
                  <div class="multiselect-toggle-box" onclick="toggleMultiselectPanelElement(this)">
                     <span class="ms-display-label">Select users...</span>
                     <span>▼</span>
@@ -1192,7 +1254,7 @@
                     <input type="text" class="multiselect-search-input" placeholder="Search..." onkeyup="filterMultiselectOptionsPanel(this)">
                     <div class="multiselect-options-list">${rowsHtml || '<span style="padding:5px; color:#94a3b8; font-style:italic;">No active profiles.</span>'}</div>
                  </div>
-                 <input type="hidden" id="edt-tpl-to-custom-sink" class="runtime-ms-hidden-sink" value="">
+                 <input type="hidden" id="edt-tpl-${prefix}-custom-sink" class="runtime-ms-hidden-sink" value="">
               </div>`;
         }
      } else {

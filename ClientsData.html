@@ -109,7 +109,10 @@
           <div class="form-group">
             <label>Folder Naming Blueprint Pattern</label>
             <input type="text" id="edt-client-folder-template" class="form-control" placeholder="[{{clientId}}] {{companyName}}">
-            <small style="color:#64748b; margin-top:4px; display:block;">Supported placeholder macros: <code>{{clientId}}</code>, <code>{{companyName}}</code></small>
+            <small style="color:#64748b; margin-top:4px; display:block;">
+              Supported placeholder macros: <code>{{clientId}}</code>, <code>{{companyName}}</code>.
+              <a href="javascript:void(0);" onclick="openGlobalPlaceholderGuide('clients')" style="color:var(--brand-primary); font-weight:600; text-decoration:underline; margin-left:5px;">View all placeholders</a>
+            </small>
           </div>
         </div>
       </div>
@@ -1314,33 +1317,35 @@
     if (e.target && e.target.id === 'btn-set-edt-clients') { renderEdtClientsConfig(); }
   });
 
-  function renderEdtClientsConfig() {
-    if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Loading configuration...');
-    google.script.run.withSuccessHandler(function(res) { 
-      window.CLIENTS_ROLES_DATA = res || [];
-      document.getElementById('edt-client-role-select').innerHTML = window.CLIENTS_ROLES_DATA.map(r => `<option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>${r.name}</option>`).join(''); 
-      
-      // Synchronizes form checkbox and conditional modal visibility parameters
-      var autoFolderCb = document.getElementById('edt-client-auto-folder');
-      if (autoFolderCb) {
-        autoFolderCb.checked = CLIENTS_CONFIG.autoCreateFolder || false;
-        toggleClientFolderSettingsFields(autoFolderCb.checked);
-      }
-      var parentFolderInput = document.getElementById('edt-client-parent-folder');
-      if (parentFolderInput) parentFolderInput.value = CLIENTS_CONFIG.parentFolderId || '';
-      var folderTemplateInput = document.getElementById('edt-client-folder-template');
-      if (folderTemplateInput) folderTemplateInput.value = CLIENTS_CONFIG.folderTemplate || '[{{clientId}}] {{companyName}}';
+  function renderRoClientsConfig() {
+    // 1. Build the real-time folder storage metrics layout summaries dynamically for the Read-Only panel card
+    var folderHtml = `<p style="margin:12px 0 0 0;"><strong>Auto-Create Drive Folders:</strong> <span class="badge ${CLIENTS_CONFIG.autoCreateFolder ? 'badge-active' : 'badge-inactive'}">${CLIENTS_CONFIG.autoCreateFolder ? 'Enabled' : 'Disabled'}</span></p>`;
+    if (CLIENTS_CONFIG.autoCreateFolder) {
+      folderHtml += `<p style="margin:8px 0 0 0; font-size:13px; color:#475569;"><strong>Parent Folder Destination:</strong> <code>${CLIENTS_CONFIG.parentFolderId || 'Default Core Repository Folder (Client Assets)'}</code></p>`;
+      folderHtml += `<p style="margin:4px 0 0 0; font-size:13px; color:#475569;"><strong>Folder Structural Pattern:</strong> <code>${CLIENTS_CONFIG.folderTemplate || '[{{clientId}}] {{companyName}}'}</code></p>`;
+    }
 
-      var container = document.getElementById('edt-accordions-container'); container.innerHTML = '';
+    var coreConfigEl = document.getElementById('ro-clients-core-config');
+    if (coreConfigEl) {
+      coreConfigEl.innerHTML = `
+        <p style="margin:0;"><strong>Default Role Provisioned to Clients:</strong> <span class="badge" style="background:var(--brand-primary); color:#fff; font-size:13px; padding:5px 12px; margin-left:10px;">${CLIENTS_CONFIG.clientRole || "Client"}</span></p>
+        ${folderHtml}
+      `;
+    }
+    
+    var container = document.getElementById('ro-clients-accordions'); 
+    if (!container) return;
+    container.innerHTML = '';
     
     var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) 
                  ? CLIENTS_CONFIG.accordionGroups 
                  : [
-                     { id: "grp_client", label: "Client Details" },
-                     { id: "grp_contact", label: "Primary Contact" },
-                     { id: "grp_contract", label: "Contract Information" }
+                     { id: "grp_client", label: "Client Details", isDefault: true },
+                     { id: "grp_contact", label: "Primary Contact", isDefault: true },
+                     { id: "grp_contract", label: "Contract Information", isDefault: true }
                    ];
 
+    // 2. Maps the "long layout format" summary table precisely onto the read-only view container element
     groups.forEach(g => {
       var html = `<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:20px; margin-bottom:15px;">
                   <h4 style="margin-top:0; border-bottom:1px solid #f1f5f9; padding-bottom:10px; color:var(--brand-dark);">${g.label} ${g.isDefault ? '<span style="font-size:11px; font-weight:normal; color:#64748b; margin-left:10px;">(System Default)</span>' : ''}</h4>`;
@@ -1351,7 +1356,6 @@
       
       if (layout.length === 0) { html += `<p style="color:#94a3b8; font-style:italic; font-size:13px; margin:0;">No fields configured.</p>`; } 
       else {
-         // CLEANUP COMPLETE: Stray "export" prefix string has been completely wiped from this row generator line block below
          html += `<table class="history-diff-table" style="margin-top:10px; table-layout: fixed; width: 100%;">
                     <thead>
                       <tr>
@@ -1362,7 +1366,7 @@
                     <tbody>`;
          layout.forEach(fId => {
             if (fId.startsWith('core_')) {
-               var def = CORE_FIELD_DICTIONARY[fId]; if(def) html += `<tr><td><strong>${def.label.replace('*','')}</strong></td><td><span class="badge" style="background:#e2e8f0; color:#475569;">Core Field</span></td></tr>`;
+               var def = CORE_FIELD_DICTIONARY[fId]; if(def) html += `<tr><td><strong>${def.label.replace('*','')}</strong></td><td><span class="badge" style="background:#e2e8f0; color:#64748b;">Core Field</span></td></tr>`;
             } else {
                var cf = (CLIENTS_CONFIG.customFields || []).find(x => x.id === fId); 
                if(cf) {
@@ -1392,10 +1396,22 @@
     google.script.run.withSuccessHandler(function(res) { 
       window.CLIENTS_ROLES_DATA = res || [];
       document.getElementById('edt-client-role-select').innerHTML = window.CLIENTS_ROLES_DATA.map(r => `<option value="${r.name}" ${r.name === CLIENTS_CONFIG.clientRole ? 'selected' : ''}>${r.name}</option>`).join(''); 
+      
+      // 3. Synchronizes and populates all editable cloud storage automation field inputs cleanly on the form
+      var autoFolderCb = document.getElementById('edt-client-auto-folder');
+      if (autoFolderCb) {
+        autoFolderCb.checked = CLIENTS_CONFIG.autoCreateFolder || false;
+        toggleClientFolderSettingsFields(autoFolderCb.checked);
+      }
+      var parentFolderInput = document.getElementById('edt-client-parent-folder');
+      if (parentFolderInput) parentFolderInput.value = CLIENTS_CONFIG.parentFolderId || '';
+      var folderTemplateInput = document.getElementById('edt-client-folder-template');
+      if (folderTemplateInput) folderTemplateInput.value = CLIENTS_CONFIG.folderTemplate || '[{{clientId}}] {{companyName}}';
+
       var container = document.getElementById('edt-accordions-container'); container.innerHTML = ''; 
       
       var groups = (CLIENTS_CONFIG && CLIENTS_CONFIG.accordionGroups && CLIENTS_CONFIG.accordionGroups.length > 0) ? CLIENTS_CONFIG.accordionGroups : [{ id: "grp_client", label: "Client Details", isDefault: true }, { id: "grp_contact", label: "Primary Contact", isDefault: true }, { id: "grp_contract", label: "Contract Information", isDefault: true }];
-      // Pass false to prevent scrolling during initial render loop
+      // 4. Invokes the interactive form accordion row custom fields step-builder sequentially
       groups.forEach(g => addAccordionGroupRow(g, false));
       if(typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
     }).getRolesList();

@@ -19,7 +19,22 @@ function Clients_getTriggers() {
 }
 
 function Clients_getPlaceholders() { 
-  return ["companyName", "brandName", "priFirstName", "priContactFull", "priEmail", "services", "rate", "contractStartDate", "notes", "systemName"];
+  var placeholders = ["companyName", "brandName", "priFirstName", "priContactFull", "priEmail", "services", "rate", "contractStartDate", "notes", "systemName", "core_assetFolderLink"];
+  try {
+    if (typeof getClientsModuleConfig === 'function') {
+      var confRes = getClientsModuleConfig();
+      if (confRes && confRes.success && confRes.data && confRes.data.customFields) {
+        confRes.data.customFields.forEach(function(field) {
+          if (field.id && placeholders.indexOf(field.id) === -1) {
+            placeholders.push(field.id);
+          }
+        });
+      }
+    }
+  } catch(e) {
+    console.warn("Failed to harvest custom fields for template placeholder registry: " + e.message);
+  }
+  return placeholders;
 }
 
 function Clients_getPermissions() { 
@@ -294,25 +309,39 @@ function createClientRecord(p) {
     
     var generatedId = "C-" + Math.floor(1000+Math.random()*9000);
     
-    // Automatically provision a dedicated Google Drive folder for the onboarded client brand
+    // Evaluate Cloud Storage Automation settings flags before provisioning assets
     try {
-      if (typeof getSystemSubfolder === 'function') {
-        var parentFolder = getSystemSubfolder("Client Assets");
-        var clientFolder = parentFolder.createFolder("[" + generatedId + "] " + p.companyName);
+      var configRes = typeof getClientsModuleConfig === 'function' ? getClientsModuleConfig() : null;
+      var conf = (configRes && configRes.success) ? configRes.data : {};
+      
+      // DEFENSIVE SAFEGUARD: Only run automation if enabled AND user left the field completely blank during onboarding
+      if (conf && conf.autoCreateFolder && (!addl.core_assetFolderLink || addl.core_assetFolderLink.trim() === "")) {
+        var parentFolder;
+        // Determine destination tree path mapping bounds
+        if (conf.parentFolderId && conf.parentFolderId.trim() !== "") {
+          parentFolder = DriveApp.getFolderById(conf.parentFolderId.trim());
+        } else {
+          parentFolder = getSystemSubfolder("Client Assets");
+        }
+        
+        var namingBlueprint = conf.folderTemplate && conf.folderTemplate.trim() !== "" ? conf.folderTemplate.trim() : "[{{clientId}}] {{companyName}}";
+        var resolvedFolderName = namingBlueprint.replace(/\{\{clientId\}\}/g, generatedId).replace(/\{\{companyName\}\}/g, p.companyName);
+        
+        var clientFolder = parentFolder.createFolder(resolvedFolderName);
         clientFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         
-        // Maps the generated URL directly into the asset link metadata property slot smoothly
+        // Maps programmatically provisioned cloud URL into metadata fields sink slots
         addl.core_assetFolderLink = clientFolder.getUrl();
         p.addlFields = JSON.stringify(addl);
       }
-    } catch(folderErr) {
-      console.warn("Automated client asset folder provisioning bypassed: " + folderErr.message);
+    } catch(folderProvisioningErr) {
+      console.warn("Automated asset folder generation bypassed: " + folderProvisioningErr.message);
     }
 
     var newRow = new Array(26).fill("");
     newRow[0] = new Date(); 
     newRow[1] = generatedId; 
-    newRow[2] = p.companyName; 
+    newRow[2] = p.companyName;
     newRow[3] = p.address;
     newRow[4] = p.companyEmail; 
     newRow[5] = p.companyPhone; 
@@ -350,6 +379,16 @@ function createClientRecord(p) {
 
       var sysName = getSystemSettings().systemName || "SparkHub";
       var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName };
+      
+      // Unpack all custom fields and assets folder links stored in the addl metadata payload straight into dataMap tokens
+      if (addl && typeof addl === 'object') {
+        for (var key in addl) {
+          if (addl.hasOwnProperty(key)) {
+            dataMap[key] = addl[key];
+          }
+        }
+      }
+      
       // Issues a single atomic transaction signal. Core lookup matrices handle internal/external routing automatically
       SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
     } catch(postError) {

@@ -78,6 +78,35 @@
     </div>
   </div>
 
+  <div id="globalPlaceholderGuideModal" class="system-overlay" style="display:none; z-index: 200005;">
+    <div class="overlay-card" style="max-width: 900px; width: 90%; max-height: 85vh; overflow: hidden; padding: 35px; text-align: left; display: flex; flex-direction: column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; flex-shrink: 0;">
+        <div>
+          <h3 style="margin:0; font-size: 22px; color:var(--brand-dark);">Ecosystem Placeholder Context Guide</h3>
+          <p id="global-guide-context-subline" style="margin:5px 0 0 0; font-size:13px; color:#64748b; font-weight: 500;"></p>
+        </div>
+        <button type="button" class="btn-cancel" style="padding: 8px 16px; font-size: 13px;" onclick="document.getElementById('globalPlaceholderGuideModal').style.display='none'">Close Document</button>
+      </div>
+      <p style="font-size: 13.5px; color: #475569; margin-bottom: 20px; flex-shrink: 0; line-height: 1.5;">
+        Review available runtime variables below. Click any cell row token highlighted in the table to automatically copy it to your clipboard for instant blueprint integration.
+      </p>
+      <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: var(--shadow-sm);">
+        <table class="history-diff-table" style="margin:0; width:100%; border-collapse: collapse;">
+          <thead style="position: sticky; top: 0; z-index: 10; background: #f8fafc;">
+            <tr>
+              <th style="width: 25%; background:#f8fafc; border-bottom: 2px solid #cbd5e1;">Token Handle</th>
+              <th style="width: 20%; background:#f8fafc; border-bottom: 2px solid #cbd5e1;">Module Layer</th>
+              <th style="width: 55%; background:#f8fafc; border-bottom: 2px solid #cbd5e1;">Contextual Behavior & Functional Description</th>
+            </tr>
+          </thead>
+          <tbody id="globalPlaceholderGuideTableBody">
+            <tr><td colspan="3" style="text-align:center; padding:30px; color:#64748b;">Assembling context dictionary matrix...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <? includeList.forEach(function(fileName) { ?>
     <? try { ?>
       <?!= include(fileName); ?>
@@ -105,6 +134,94 @@
 
     // UNIVERSAL ECOSYSTEM REGISTRY LOOKUP CACHE
     window.SYSTEM_LOOKUP_CACHE = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
+
+    /**
+     * Global Context-Aware Placeholder Documentation Matrix Compiler
+     */
+    function openGlobalPlaceholderGuide(contextType) {
+      var modal = document.getElementById('globalPlaceholderGuideModal');
+      var tbody = document.getElementById('globalPlaceholderGuideTableBody');
+      var subline = document.getElementById('global-guide-context-subline');
+      if (!modal || !tbody) return;
+
+      modal.style.display = 'flex';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748b;">Assembling context dictionary matrix...</td></tr>';
+
+      // Determine template parameters if called inside the communication module workspace
+      var dispatchMode = "Individual";
+      if (contextType === 'templates') {
+        var modeDropdown = document.getElementById('edt-tpl-dispatchMode');
+        if (modeDropdown) dispatchMode = modeDropdown.value;
+      }
+
+      // Configure environmental header context tags dynamically
+      if (contextType === 'clients') {
+        subline.innerHTML = `Active View Context: <strong>Cloud Storage Folder Blueprints</strong>`;
+      } else {
+        subline.innerHTML = `Active View Context: <strong>Template Composition</strong> &bull; Routing Rule Mode: <span class="badge" style="background:#e0f2fe; color:#0369a1; font-weight:700; text-transform:none; font-size:12px; padding:3px 8px;">${dispatchMode} Dispatch</span>`;
+      }
+
+      // Query the unified backend seeder to fetch active environment variables
+      google.script.run.withSuccessHandler(function(allTokens) {
+        // Complete structural definitions dictionary map built natively to ensure zero loose strings
+        var descriptions = {
+          "systemName": "The organizational title or white-label brand name defined inside general system settings.",
+          "details": "A descriptive plain-text summary payload printed automatically by background actions.",
+          "username": contextType === 'clients' ? "The immutable unique ID string anchor allocated to the client record (e.g., C-1024)." : (dispatchMode === 'Individual' ? "Resolves dynamically to the authentic login account handle string of the user opening the email envelope." : "Overloaded Token: Displays the master subject entity context string parameter of the transaction event (e.g., Brand Company Name or unique User ID)."),
+          "firstName": dispatchMode === 'Individual' && contextType === 'templates' ? "<span style='color:#b91c1c; font-weight:600;'>Collision Warning:</span> This token gets overwritten inside personalized loops and defaults to the recipient's first name. Use <code>{{userFirst}}</code> instead to preserve structural layout mappings." : "The given first name string registered under the target profile column.",
+          "lastName": "The registered surname string mapped to the target access directory index cell row.",
+          "userFirst": dispatchMode === 'Individual' ? "The highly secure personalized name selector. Safely matches the first name string of the person opening their alert inbox." : "<span style='color:#b91c1c; font-weight:600;'>Unavailable:</span> Collective dispatch methods send group assets and cannot compute unique individual recipient names.",
+          "userEmail": dispatchMode === 'Individual' ? "Resolves natively to the active alerts inbox routing target address of the person opening the envelope." : "<span style='color:#b91c1c; font-weight:600;'>Unavailable:</span> Omitted from group communication payloads to prevent data cross-contamination.",
+          "role": "The technical security role string variable attached to the system account profile (e.g., Manager).",
+          "resetLink": "programmatically compiled unique temporary secure password recovery token redirect URL share hyperlink.",
+          "companyName": "The official institutional corporate registration title variable provided on the client card profile.",
+          "brandName": "The customer-facing white-label trading style name generated on onboarding accordions.",
+          "priFirstName": "The individual first name string of the designated principal operational client contact.",
+          "priContactFull": "The concatenated full string name variable assigned to the client contact principal.",
+          "priEmail": "The direct point-of-contact company routing email inbox address of the brand account.",
+          "services": "A text cell string list showing every active operational capability attached to the brand record.",
+          "rate": "The financial contractual retainer currency values mapped to the customer file.",
+          "contractStartDate": "The primary execution date object marking when operational partnership cycles initialize.",
+          "notes": "Narrative textual rows captured inside localized history trails.",
+          "core_assetFolderLink": "The authentic underlying live directory shared file location parameter link for the brand workspace."
+        };
+
+        tbody.innerHTML = allTokens.map(t => {
+          var desc = descriptions[t] || "A localized custom input variable or dynamic metadata field sink element managed by system properties.";
+          var moduleTag = "Core System";
+          if (t.startsWith('cf_') || t.startsWith('core_') || ["companyName", "brandName", "priFirstName", "priContactFull", "priEmail", "services", "rate", "contractStartDate"].includes(t)) {
+            moduleTag = "Clients Module";
+          } else if (["username", "firstName", "lastName", "role", "userFirst", "resetLink", "userEmail"].includes(t)) {
+            moduleTag = "Users Module";
+          }
+          
+          return `
+            <tr style="cursor:pointer;" onclick="copyGlobalGuidePlaceholderToken('{{${t}}}', this)">
+              <td style="font-family: monospace; font-size:12px; color:var(--brand-primary); font-weight:700;">{{${t}}}</td>
+              <td><span class="badge" style="background:#f1f5f9; color:#475569;">${moduleTag}</span></td>
+              <td style="font-size:13px; line-height:1.5; color:#334155;">${desc}</td>
+            </tr>`;
+        }).join('');
+      }).getPlaceholderSuggestions();
+    }
+
+    function copyGlobalGuidePlaceholderToken(text, rowElement) {
+      var el = document.createElement('textarea'); 
+      el.value = text; 
+      document.body.appendChild(el);
+      el.select(); 
+      document.execCommand('copy'); 
+      document.body.removeChild(el);
+      
+      var tokenCell = rowElement.querySelector('td');
+      var original = tokenCell.innerText;
+      tokenCell.innerText = "Copied Token!";
+      tokenCell.style.color = "#15803d";
+      setTimeout(() => { 
+        tokenCell.innerText = original; 
+        tokenCell.style.color = ""; 
+      }, 800);
+    }
 
     /**
      * Executes a high-fidelity server round-trip to pull available lookup data

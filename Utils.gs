@@ -148,7 +148,6 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     var baseSubject = templateRow[7];
     var baseHtmlBody = templateRow[8];
     var wrapperName = templateRow[9];
-
     var wrapperHtml = "{{USER_MESSAGE_CONTENT}}";
     for (var w=1; w<wData.length; w++) {
       if (wData[w][2] === wrapperName && wData[w][5] === "Active") wrapperHtml = wData[w][4];
@@ -157,36 +156,77 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     baseHtmlBody = applyGlobalSignature(baseHtmlBody);
     var baseFullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", baseHtmlBody);
 
-    // 1. Evaluate routing conditions and resolve user accounts directly to active System Emails
-    var resolvedEmails = [];
-    var resolvedProfiles = [];
-
-    if (!toRule || toRule === "" || toRule === "TRIGGER_DEFAULT") {
-      resolvedEmails.push(toEmail);
-      resolvedProfiles.push({ systemEmail: toEmail, firstName: "User", lastName: "", username: toEmail.split('@')[0] });
-    } else {
-      try {
-        if (typeof getUsersList === 'function') {
-          var directory = getUsersList();
-          if (toRule === "ALL_ACTIVE_USERS") {
-            directory.forEach(function(u) {
+    // Dynamic Centralized Ecosystem Distribution Rule Processor Engine 
+    function resolveEcosystemRecipientRule(ruleStr, defaultEmail) {
+      var emails = [];
+      var profiles = [];
+      if (!ruleStr || ruleStr.trim() === "" || ruleStr === "NONE") return { emails: emails, profiles: profiles };
+      
+      var conditionPart = ruleStr;
+      var manualPart = "";
+      var pipeIdx = ruleStr.indexOf('|');
+      if (pipeIdx > -1) {
+        conditionPart = ruleStr.substring(0, pipeIdx).trim();
+        manualPart = ruleStr.substring(pipeIdx + 1).trim();
+      }
+      
+      if (conditionPart === "TRIGGER_DEFAULT") {
+        if (defaultEmail) {
+          emails.push(defaultEmail);
+          profiles.push({ systemEmail: defaultEmail, firstName: "Recipient", lastName: "", username: defaultEmail.split('@')[0] });
+        }
+      } else if (conditionPart === "ALL_ACTIVE_USERS") {
+        try {
+          if (typeof getUsersList === 'function') {
+            getUsersList().forEach(function(u) {
               if (u.status === 'Active' && u.systemEmail) {
-                resolvedEmails.push(u.systemEmail); resolvedProfiles.push(u);
-              }
-            });
-          } else if (toRule.indexOf("CUSTOM_LOOKUP:") === 0) {
-            var targetIds = toRule.replace("CUSTOM_LOOKUP:", "").split(",").map(id => id.trim());
-            directory.forEach(function(u) {
-              if (targetIds.indexOf(u.userId) > -1 && u.status === 'Active' && u.systemEmail) {
-                resolvedEmails.push(u.systemEmail); resolvedProfiles.push(u);
+                emails.push(u.systemEmail); profiles.push(u);
               }
             });
           }
-        }
-      } catch(resolveErr) { console.warn("Recipient extractor defaulted to baseline: " + resolveErr.message); }
+        } catch(e) { console.warn(e.message); }
+      } else if (conditionPart.indexOf("CUSTOM_LOOKUP:") === 0) {
+        try {
+          if (typeof getUsersList === 'function') {
+            var targetIds = conditionPart.replace("CUSTOM_LOOKUP:", "").split(",").map(function(id) { return id.trim(); });
+            getUsersList().forEach(function(u) {
+              if (targetIds.indexOf(u.userId) > -1 && u.status === 'Active' && u.systemEmail) {
+                emails.push(u.systemEmail); profiles.push(u);
+              }
+            });
+          }
+        } catch(e) { console.warn(e.message); }
+      } else if (conditionPart !== "NONE" && conditionPart !== "MANUAL_ONLY") {
+        manualPart = manualPart ? (conditionPart + "," + manualPart) : conditionPart;
+      }
+      
+      if (manualPart && manualPart.trim() !== "") {
+        manualPart.split(',').forEach(function(em) {
+          var cleanEm = em.trim();
+          if (cleanEm !== "" && emails.indexOf(cleanEm) === -1) {
+            emails.push(cleanEm);
+            profiles.push({ systemEmail: cleanEm, firstName: "Recipient", lastName: "", username: cleanEm.split('@')[0] });
+          }
+        });
+      }
+      return { emails: emails, profiles: profiles };
     }
 
-    if (resolvedEmails.length === 0) { resolvedEmails.push(toEmail); }
+    // 1. Evaluate routing conditions and resolve user accounts directly to active System Emails
+    var toResult = resolveEcosystemRecipientRule(toRule, toEmail);
+    var resolvedEmails = toResult.emails;
+    var resolvedProfiles = toResult.profiles;
+
+    if (resolvedEmails.length === 0 && toEmail) {
+      resolvedEmails.push(toEmail);
+      resolvedProfiles.push({ systemEmail: toEmail, firstName: "Recipient", lastName: "", username: toEmail.split('@')[0] });
+    }
+
+    // Extract CC and BCC distributions utilizing the matching dynamic framework tokens rule
+    var ccResult = resolveEcosystemRecipientRule(finalCcEmail, "");
+    var bccResult = resolveEcosystemRecipientRule(finalBccEmail, "");
+    var baseCcEmails = ccResult.emails.join(', ');
+    var baseBccEmails = bccResult.emails.join(', ');
 
     // 2. Branch processing execution logic to enforce the selected Dispatch Mode type
     if (dispatchMode === "Individual") {
@@ -210,7 +250,8 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
           currentHtml = currentHtml.replace(regex, localContextMap[token] || "");
         }
 
-        var currentCc = finalCcEmail; var currentBcc = finalBccEmail;
+        var currentCc = baseCcEmails;
+        var currentBcc = baseBccEmails;
         for (var token in localContextMap) {
           var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
           currentCc = currentCc.replace(regex, localContextMap[token] || "");
@@ -234,9 +275,8 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       var currentTo = resolvedEmails.join(', ');
       var currentSubject = baseSubject;
       var currentHtml = baseFullHtml;
-      var currentCc = finalCcEmail;
-      var currentBcc = finalBccEmail;
-
+      var currentCc = baseCcEmails;
+      var currentBcc = baseBccEmails;
       for (var token in dataMap) {
         var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
         currentTo = currentTo.replace(regex, dataMap[token] || "");
