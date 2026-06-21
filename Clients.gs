@@ -12,7 +12,10 @@
  */
 
 function Clients_getTriggers() { 
-  return ["Clients:CREATE", "Clients:UPDATE", "Clients:STATUS_CHANGE", "Clients:ANNOUNCE_NEW"];
+  return [
+    "Clients:CREATE", "Clients:UPDATE", "Clients:STATUS_CHANGE",
+    "Clients:Services:CREATE", "Clients:Services:UPDATE"
+  ];
 }
 
 function Clients_getPlaceholders() { 
@@ -102,13 +105,17 @@ function setupClientsDatabase() {
 function seedClientsTemplates(extWrapperName, intWrapperName) {
   try {
     var tplList = typeof getTemplatesList === 'function' ? getTemplatesList() : [];
-    if (!tplList.some(function(t) { return t.trigger === "Clients:CREATE"; }) && typeof saveTemplateRecord === 'function') {
-      saveTemplateRecord({ name: "Client Welcome Email", description: "External welcome to the implementation.", category: "Operations", trigger: "Clients:CREATE", subject: "Welcome to {{systemName}} - {{brandName}}", body: "<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to {{systemName}}</h2><p>Hi {{priFirstName}},</p><p>We are thrilled to officially partner with <strong>{{brandName}}</strong>.</p><p>Your workspace logic for <strong style='color:#666DF2;'>{{services}}</strong> is provisioned.</p></div>", wrapper: extWrapperName, status: "Active" });
+    
+    // 1. Seed External Welcome Template for the incoming client target
+    if (!tplList.some(function(t) { return t.name === "Client Welcome Email"; }) && typeof saveTemplateRecord === 'function') {
+      saveTemplateRecord({ name: "Client Welcome Email", description: "External welcome to the implementation.", category: "Operations", trigger: "Clients:CREATE", subject: "Welcome to {{systemName}} - {{brandName}}", body: "<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to {{systemName}}</h2><p>Hi {{priFirstName}},</p><p>We are thrilled to officially partner with <strong>{{brandName}}</strong>.</p><p>Your workspace logic for <strong style='color:#666DF2;'>{{services}}</strong> is provisioned.</p></div>", wrapper: extWrapperName, status: "Active", to: "TRIGGER_DEFAULT", dispatchMode: "Individual" });
     }
-    if (!tplList.some(function(t) { return t.trigger === "Clients:ANNOUNCE_NEW"; }) && typeof saveTemplateRecord === 'function') {
-      saveTemplateRecord({ name: "Internal Client Announcement", description: "Alerts staff when a client joins.", category: "Operations", trigger: "Clients:ANNOUNCE_NEW", subject: "New Client: {{brandName}}", body: "<div style='font-family: sans-serif; padding: 20px;'><h2>New Client Onboarded</h2><p>Team,</p><p><strong>{{brandName}}</strong> has joined the network.</p><ul><li><strong>Services:</strong> {{services}}</li><li><strong>Start:</strong> {{contractStartDate}}</li></ul></div>", wrapper: intWrapperName, status: "Active" });
+    
+    // 2. Seed Internal Notification Template targeted at staff distribution cohorts using the 15-column schema matrix
+    if (!tplList.some(function(t) { return t.name === "Internal Client Announcement"; }) && typeof saveTemplateRecord === 'function') {
+      saveTemplateRecord({ name: "Internal Client Announcement", description: "Alerts staff when a client joins.", category: "Operations", trigger: "Clients:CREATE", subject: "New Client Onboarded: {{brandName}}", body: "<div style='font-family: sans-serif; padding: 20px;'><h2>New Client Onboarded</h2><p>Team,</p><p><strong>{{brandName}}</strong> has joined the network.</p><ul><li><strong>Services:</strong> {{services}}</li><li><strong>Start:</strong> {{contractStartDate}}</li></ul></div>", wrapper: intWrapperName, status: "Active", to: "ALL_ACTIVE_USERS", dispatchMode: "Collective" });
     }
-  } catch(e) {}
+  } catch(e) { console.error("Error seeding unified client templates: " + e.message); }
 }
 
 /**
@@ -252,19 +259,23 @@ function saveServiceRecord(p) {
     var sheet = getClientsDb().getSheetByName("Services");
     if (p.rowIndex) { 
       sheet.getRange(parseInt(p.rowIndex,10)+1, 3, 1, 3).setValues([[p.name, p.description, p.status]]); 
-      SpreadsheetApp.flush(); // ENFORCED: Prevent Stale Data
+      SpreadsheetApp.flush();
+      // ENFORCED: Prevent Stale Data
       
       try {
-        SystemEvent.emit("Clients", "UPDATE", "Service Updated", "INFO", p.name, "Service definition details modified.", "system");
+        // Aligns sub-entity module routing with structural sub-trigger definitions
+        SystemEvent.emit("Clients:Services", "UPDATE", "Service Updated", "INFO", p.name, "Service definition details modified.", "system");
       } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
       
       return { success: true };
     } else { 
       sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]);
-      SpreadsheetApp.flush(); // ENFORCED: Prevent Stale Data
+      SpreadsheetApp.flush();
+      // ENFORCED: Prevent Stale Data
       
       try {
-        SystemEvent.emit("Clients", "CREATE", "Service Created", "INFO", p.name, "New service capability defined.", "system");
+        // Aligns sub-entity module routing with structural sub-trigger definitions
+        SystemEvent.emit("Clients:Services", "CREATE", "Service Created", "INFO", p.name, "New service capability defined.", "system");
       } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
       
       return { success: true };
@@ -321,16 +332,8 @@ function createClientRecord(p) {
 
       var sysName = getSystemSettings().systemName || "SparkHub";
       var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName };
+      // Issues a single atomic transaction signal. Core lookup matrices handle internal/external routing automatically
       SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
-      
-      if (typeof getUsersList === 'function') {
-        var staff = getUsersList().data.filter(function(u){ return u.status === 'Active' && u.email; });
-        if (staff.length > 0) {
-          var bccEmails = staff.map(function(u){ return u.email; }).join(',');
-          dataMap.bcc = bccEmails;
-          SystemEvent.emit("Clients", "ANNOUNCE_NEW", "Announcement", "INFO", brand, brand+" joined.", staff[0].email, dataMap);
-        }
-      }
     } catch(postError) {
       console.warn("Client saved, but post-save actions failed: " + postError.message);
     }

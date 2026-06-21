@@ -263,7 +263,8 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
 
 function sendTestEmail(rowIndex, testEmail) {
   try {
-    var rowData = getMainDb().getSheetByName("Templates").getRange(rowIndex, 1, 1, 11).getValues()[0];
+    // Aligns database range capture limits to full 15-column schema boundaries
+    var rowData = getMainDb().getSheetByName("Templates").getRange(rowIndex, 1, 1, 15).getValues()[0];
     var fullHtml = getWrapperContent(rowData[9]).replace("{{USER_MESSAGE_CONTENT}}", rowData[8]);
     var finalHtml = fullHtml.replace("{{username}}", "jdoe").replace("{{systemName}}", getSystemSettings().systemName);
     

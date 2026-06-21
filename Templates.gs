@@ -59,20 +59,9 @@ function getDynamicTriggerRegistry() {
   var triggers = [];
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
   
-  // 1. Whitelist the Immutable Core Modules
-  var activeModules = ["System", "Users", "Templates", "Settings", "Logs"];
-  
-  // 2. Add officially installed External Modules
-  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
-  if (installed) {
-    installed.split(',').forEach(function(modName) {
-      var mod = modName.trim();
-      if (mod && activeModules.indexOf(mod) === -1) {
-        activeModules.push(mod);
-      }
-    });
-  }
-  
+  // Pulls the unified collection natively from our central config module service
+  var activeModules = getActiveModules();
+
   // 3. Only execute triggers for active modules
   activeModules.forEach(function(modName) {
     var funcName = modName + "_getTriggers";
@@ -84,11 +73,6 @@ function getDynamicTriggerRegistry() {
       triggers.push(modName + ":UPDATE");
     }
   });
-  
-  // 4. Manually include core sub-entities that might be deeply nested
-  triggers.push("Users:Roles:CREATE");
-  triggers.push("Users:Roles:UPDATE");
-  
   // 5. IMMUTABLE ANCHOR: Hide hardcoded core templates from the UI dropdown
   var hiddenTriggers = ["Logs:EXPORT", "Logs:PURGE", "Settings:UPDATE", "System:INSTALL", "System:MODULE_INSTALLED"];
   triggers = triggers.filter(function(t) { return hiddenTriggers.indexOf(t) === -1; });
@@ -100,19 +84,8 @@ function getPlaceholderSuggestions() {
   var placeholders = ["details", "systemName"];
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
   
-  // 1. Whitelist the Immutable Core Modules
-  var activeModules = ["System", "Users", "Templates", "Settings", "Logs"];
-  
-  // 2. Add officially installed External Modules
-  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
-  if (installed) {
-    installed.split(',').forEach(function(modName) {
-      var mod = modName.trim();
-      if (mod && activeModules.indexOf(mod) === -1) {
-        activeModules.push(mod);
-      }
-    });
-  }
+  // Pulls the unified collection natively from our central config module service
+  var activeModules = getActiveModules();
   
   // 3. Only fetch placeholders for active modules
   activeModules.forEach(function(modName) {

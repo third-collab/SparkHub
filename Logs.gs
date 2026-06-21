@@ -56,63 +56,33 @@ function getLogsList() {
     var data = sheet.getDataRange().getDisplayValues();
     data.shift(); 
     
-    // Fetch multi-module cross-reference mapping caches to decode background keys dynamically
-    var userLookupCache = {};
-    var entityLookupCache = {};
+    // Decodes database operational tracking identifiers in a completely decoupled, modular manner
+    var universalTranslationCache = {};
 
-    // 1. Hydrate User Profiles & Handles (Decodes U-XXXX keys)
     try {
-      if (typeof getUsersList === 'function') {
-        getUsersList().forEach(function(u) {
-          var userLabel = u.firstName + " " + u.lastName + " (" + u.username + ")";
-          userLookupCache[u.userId] = userLabel;
-          entityLookupCache[u.userId] = userLabel;
-        });
+      if (typeof getSystemDynamicLookups === 'function') {
+        var masterLookups = getSystemDynamicLookups();
+        for (var vectorIndexKey in masterLookups) {
+          var dataVectorArray = masterLookups[vectorIndexKey];
+          if (Array.isArray(dataVectorArray)) {
+            dataVectorArray.forEach(function(entityRecord) {
+              if (entityRecord && entityRecord.id && entityRecord.name) {
+                // Generates flat cross-reference mapping matrices on-the-fly for any module type cleanly
+                universalTranslationCache[entityRecord.id] = entityRecord.name;
+              }
+            });
+          }
+        }
       }
-    } catch(uErr) { console.warn("Logs lookup user mapping failed: " + uErr.message); }
-    
-    // 2. Hydrate Client Records & Brands (Decodes C-XXXX keys)
-    try {
-      if (typeof getClientsList === 'function') {
-        getClientsList().forEach(function(c) {
-          if (c.clientId) entityLookupCache[c.clientId] = c.brandName;
-        });
-      }
-    } catch(cErr) { console.warn("Logs lookup client mapping failed: " + cErr.message); }
-
-    // 3. Hydrate Email Communication Templates (Decodes TPL-XXXX keys)
-    try {
-      if (typeof getTemplatesList === 'function') {
-        getTemplatesList().forEach(function(t) {
-          if (t.id) entityLookupCache[t.id] = t.name;
-        });
-      }
-    } catch(tErr) { console.warn("Logs lookup template mapping failed: " + tErr.message); }
-
-    // 4. Hydrate Global Layout Wrappers (Decodes W-XXXX keys)
-    try {
-      if (typeof getWrappersList === 'function') {
-        getWrappersList().forEach(function(w) {
-          if (w.id) entityLookupCache[w.id] = w.name;
-        });
-      }
-    } catch(wErr) { console.warn("Logs lookup wrapper mapping failed: " + wErr.message); }
-
-    // 5. Hydrate Security Roles (Decodes R-XXXX keys)
-    try {
-      if (typeof getRolesList === 'function') {
-        getRolesList().forEach(function(r) {
-          if (r.id) entityLookupCache[r.id] = r.name;
-        });
-      }
-    } catch(rErr) { console.warn("Logs lookup role mapping failed: " + rErr.message); }
+    } catch(lookupErr) { console.warn("Audit logs reference cache hydration bypassed: " + lookupErr.message); }
     
     var formattedLogs = data.map(function(row, i) {
       var actorTrackingKey = row[5];
       var entityTrackingKey = row[6];
       
-      var friendlyDisplayActor = userLookupCache[actorTrackingKey] || actorTrackingKey || "System";
-      var friendlyDisplayEntity = entityLookupCache[entityTrackingKey] || entityTrackingKey || "-";
+      // Translates entries natively via the zero-knowledge universal translation dictionary cache
+      var friendlyDisplayActor = universalTranslationCache[actorTrackingKey] || actorTrackingKey || "System";
+      var friendlyDisplayEntity = universalTranslationCache[entityTrackingKey] || entityTrackingKey || "-";
       
       return {
         rowIndex: i + 2,

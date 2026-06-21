@@ -64,30 +64,6 @@ function Users_getLookups() {
   return vectors;
 }
 
-function getDynamicPermissionMatrix() {
-  var matrix = {
-    "Core System": ["View Settings", "Manage Settings"],
-    "Access & Users": ["View Users", "Add Users", "Manage Users", "View Roles", "Create Roles", "Manage Roles", "Manage Settings"],
-    "Templates & Wrappers": ["View Templates", "Create Templates", "Manage Templates", "View Wrappers", "Create Wrappers", "Manage Wrappers", "Manage Settings"],
-    "Clients & Services": ["View Clients", "Onboard Clients", "Manage Clients", "View Services", "Define Services", "Manage Services", "Manage Settings"],
-    "System Logs": ["View Logs", "Manage Settings"]
-  };
-  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
-  if (installed) {
-    installed.split(',').forEach(function(modName) {
-      var mod = modName.trim();
-      if (mod.toLowerCase() === 'clients') return; // Core architectural mapping is explicitly handled above
-      var funcName = mod + "_getPermissions";
-      if (typeof this[funcName] === 'function') {
-        matrix[mod + " Module"] = this[funcName]();
-      } else {
-        matrix[mod + " Module"] = ["View " + mod, "Manage " + mod];
-      }
-    });
-  }
-  return matrix;
-}
-
 // ========================================================================
 // 2. CORE PROCESSORS
 // ========================================================================

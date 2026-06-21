@@ -50,26 +50,34 @@ function getLogsDb() {
 }
 
 /**
+ * Centralized Ecosystem Active Modules Registry.
+ * Combines immutable core architectural layers with dynamically registered extensions.
+ * Reusable globally across all cross-module discovery and routing workflows.
+ */
+function getActiveModules() {
+  var modules = ["System", "Users", "Templates", "Settings", "Logs"];
+  var installed = PropertiesService.getScriptProperties().getProperty('INSTALLED_MODULES');
+  if (installed) {
+    installed.split(',').forEach(function(m) {
+      var mod = m.trim();
+      if (mod && modules.indexOf(mod) === -1) modules.push(mod);
+    });
+  }
+  return modules;
+}
+
+/**
  * Centralized Ecosystem Lookup Aggregator
  * Automatically discovers and harvests all lookable entity reference models 
  * across core infrastructure and dynamically installed external extensions.
  * Follows the V8 Auto-Discovery pattern.
  */
 function getSystemDynamicLookups() {
-  var masterLookups = { users: [], roles: [], templates: [], wrappers: [], clients: [], services: [] };
-  var activeModules = ["System", "Users", "Templates", "Settings", "Logs"];
-  var props = PropertiesService.getScriptProperties();
-  var installed = props.getProperty('INSTALLED_MODULES');
-  
-  if (installed) {
-    installed.split(',').forEach(function(m) {
-      var mod = m.trim();
-      if (mod && activeModules.indexOf(mod) === -1) activeModules.push(mod);
-    });
-  }
+  // Initialized as a pure open object to ensure zero hardcoded trace of any core or external module keys
+  var masterLookups = {};
+  var activeModules = getActiveModules();
   
   var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
-  
   activeModules.forEach(function(modName) {
     var funcName = modName + "_getLookups";
     if (typeof globalScope[funcName] === 'function') {
@@ -84,6 +92,43 @@ function getSystemDynamicLookups() {
     }
   });
   return masterLookups;
+}
+
+/**
+ * Universal Ecosystem Permission Discovery Engine.
+ * Promoted to the centralized system config layer to enforce complete module independence.
+ * Loops over active extensions and auto-builds user-friendly permission capability maps.
+ */
+function getDynamicPermissionMatrix() {
+  var matrix = {};
+  
+  // Explicitly seeds the fundamental baseline Core System settings group
+  matrix["Core System"] = ["View Settings", "Manage Settings"];
+  
+  var activeModules = getActiveModules();
+  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
+  
+  activeModules.forEach(function(modName) {
+    var funcName = modName + "_getPermissions";
+    if (typeof globalScope[funcName] === 'function') {
+      try {
+        var perms = globalScope[funcName]();
+        if (Array.isArray(perms)) {
+          // Maps technical module handles dynamically into standard operational UI category labels
+          var groupLabel = modName + " Module";
+          if (modName === "Users") groupLabel = "Access & Users";
+          else if (modName === "Templates") groupLabel = "Templates & Wrappers";
+          else if (modName === "Clients") groupLabel = "Clients & Services";
+          else if (modName === "Logs") groupLabel = "System Logs";
+          else if (modName === "System" || modName === "Settings") return; // Covered under Core System settings
+          
+          matrix[groupLabel] = perms;
+        }
+      } catch(e) { console.warn("Permission matrix extraction bypassed for " + modName + ": " + e.message); }
+    }
+  });
+  
+  return matrix;
 }
 
 /**
