@@ -82,8 +82,8 @@
 
 <template id="tpl-settings-clients-edt">
   <div>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
-      <h2 class="settings-section-header" style="margin:0;">Edit Client Configuration</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+      <h2 style="margin:0;">Edit System Settings</h2>
       <button type="button" class="btn-cancel" onclick="toggleModuleEdit('clients', false); renderRoClientsConfig();">Cancel</button>
     </div>
     
@@ -242,18 +242,6 @@
 
     <div id="ro-history" class="tab-content" style="display: none;">
        <div id="ro-history-list" style="margin-top:25px;"></div>
-    </div>
-  </div>
-
-  <div id="note-confirm-modal" class="system-overlay" style="display:none; z-index: 10005;">
-    <div class="overlay-card" style="max-width: 400px; padding: 30px;">
-      <h3>Confirm Deletion</h3>
-      <p style="margin: 15px 0 25px; font-size: 14px; color: #475569;">Are you sure you want to permanently delete this operational note? This action will update the historical narrative trail immediately.</p>
-      <input type="hidden" id="delete-note-index-target">
-      <div style="display:flex; justify-content:flex-end; gap:15px;">
-        <button type="button" class="btn-cancel" onclick="document.getElementById('note-confirm-modal').style.display='none'">Cancel</button>
-        <button type="button" class="btn-primary" onclick="executeOpNoteDeletionAsync()">Confirm</button>
-      </div>
     </div>
   </div>
 </div>
@@ -755,34 +743,30 @@
   }
 
   function triggerOpNoteDeleteLayover(idx) {
-     document.getElementById('delete-note-index-target').value = idx;
-     document.getElementById('note-confirm-modal').style.display = 'flex';
-  }
-
-  function executeOpNoteDeletionAsync() {
-     var idx = parseInt(document.getElementById('delete-note-index-target').value, 10);
-     document.getElementById('note-confirm-modal').style.display = 'none';
-     
-     var overlay = document.getElementById('ro-client-overlay');
-     if (overlay) {
-        overlay.querySelector('span').innerText = "Deleting Note...";
-        overlay.style.display = 'flex';
-     }
-     
-     var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
-     notes.splice(idx,1);
-     window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
-     
-     google.script.run.withSuccessHandler(function(res) {
-        if (overlay) overlay.style.display = 'none';
-        if(res && res.success && res.data) {
-           window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
-           window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
-           renderOpNotesList(res.data.operationalNotes);
-           renderHistoryTab(res.data.history);
-           if(typeof showToast === 'function') showToast("Success", "Operational note purged.", "success");
-        } else if (res && res.error) { alert("Error: " + res.error); }
-     }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+     // Route confirmation cleanly through our central cross-module overlay service engine
+     showSystemConfirm(
+       "Confirm Deletion", 
+       "Are you sure you want to permanently delete this operational note? This action will update the historical narrative trail immediately.",
+       function() {
+          var overlay = document.getElementById('ro-client-overlay');
+          if (overlay) { overlay.querySelector('span').innerText = "Deleting Note..."; overlay.style.display = 'flex'; }
+          
+          var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
+          notes.splice(idx, 1);
+          window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
+          
+          google.script.run.withSuccessHandler(function(res) {
+             if (overlay) overlay.style.display = 'none';
+             if(res && res.success && res.data) {
+                window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
+                window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
+                renderOpNotesList(res.data.operationalNotes);
+                renderHistoryTab(res.data.history);
+                if(typeof showToast === 'function') showToast("Success", "Operational note purged.", "success");
+             } else if (res && res.error) { showSystemModal("Error", res.error); }
+          }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; showSystemModal("Failed", err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+       }
+     );
   }
 
   // Purged: Outdated legacy note modification handlers removed to secure strict state integrity
@@ -1186,7 +1170,14 @@
      ======================================================================== */
 
   function handleDynamicSubmit(e) {
-    e.preventDefault(); 
+    if (e) e.preventDefault(); 
+    
+    // Programmatic HTML5 Form Constraint Validation Step
+    var targetFormNode = document.getElementById('dynamicClientForm');
+    if (targetFormNode && !targetFormNode.checkValidity()) {
+       targetFormNode.reportValidity();
+       return;
+    }
     
     // Triggers the standardized white-labeled onboarding overlay blocker
     var overlay = document.getElementById('dyn-client-overlay');
@@ -1482,7 +1473,7 @@
       <div style="position:absolute; top:15px; right:15px; display:flex; gap:5px;">
         <button type="button" onclick="moveDomRow(this, -1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; width:30px; height:30px;">▲</button>
         <button type="button" onclick="moveDomRow(this, 1)" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer; width:30px; height:30px;">▼</button>
-        <button type="button" onclick="if(confirm('Delete this field?')) this.parentElement.parentElement.remove()" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:4px; width:30px; height:30px; font-weight:bold;">&times;</button>
+        <button type="button" onclick="triggerNativeClientFieldDelete(this)" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5; border-radius:4px; width:30px; height:30px; font-weight:bold;">&times;</button>
       </div>
       <div style="display:flex; align-items:center; margin-bottom:15px;"><span class="badge" style="background:#dbeafe; color:#1e40af;">Custom Field</span></div>
       <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:12px; align-items:end; margin-bottom: 5px;">
@@ -1783,11 +1774,14 @@
 
     google.script.run
       .withSuccessHandler(function(res) {
-         btn.disabled = false; btn.innerHTML = originalText;
          if(res.success) {
-            CLIENTS_CONFIG = payload; toggleModuleEdit('clients', false); renderRoClientsConfig();
-            if(typeof showToast === 'function') showToast("Success", "Configuration saved.", "success");
-         } else { alert(res.error || "Failed to save configuration."); }
+            google.script.run.withSuccessHandler(function(url) {
+               window.top.location.href = url;
+            }).getAppUrl();
+         } else { 
+            btn.disabled = false; btn.innerHTML = originalText;
+            showSystemModal("Configuration Error", res.error || "Failed to save configuration."); 
+         }
       })
       .withFailureHandler(function(err) { btn.disabled = false; btn.innerHTML = originalText; alert(err.message); })
       .saveClientsModuleConfig(payload);
@@ -1798,6 +1792,18 @@
     if (conditionalBox) {
       conditionalBox.style.display = isChecked ? 'flex' : 'none';
     }
+  }
+
+  function triggerNativeClientFieldDelete(btn) {
+    // Route dynamic configuration removals cleanly through the centralized system confirmation helper
+    showSystemConfirm(
+      "Confirm Deletion",
+      "Are you sure you want to permanently delete this custom field? This will remove it from the template configuration setup layout.",
+      function() {
+         var targetRow = btn.closest('.cf-row');
+         if (targetRow) targetRow.remove();
+      }
+    );
   }
 
   function moveDomRow(btn, direction) {

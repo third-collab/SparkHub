@@ -114,11 +114,10 @@ function saveLogsModuleConfig(payload) {
     // Move the ID here and save the new retention policy
     props.setProperty('LOGS_DATABASE_ID', payload.logsDbId);
     props.setProperty('LOGS_RETENTION_DAYS', payload.retentionDays);
-    
     // Ensure the nightly trigger is active
     setupLogJanitorTrigger();
-    
-    SystemEvent.emit("Logs", "UPDATE", "Config Updated", "INFO", "Logs", "Logs registry and retention settings updated.");
+    // Group updates inside the primary 'System' routing layer per core directive standard
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Logs", "Logs registry and retention settings updated.");
     return { success: true };
   } catch (e) { 
     return { error: "Logs.gs: " + e.message }; 

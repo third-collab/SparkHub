@@ -195,7 +195,8 @@ function saveUsersModuleConfig(payload) {
     if (payload.adminEmail) props.setProperty('ADMIN_EMAIL', payload.adminEmail);
     if (payload.authMode) props.setProperty('AUTH_MODE', payload.authMode);
     
-    SystemEvent.emit("Users", "INFO", "Config Updated", "SYSTEM", "Users", "User module settings updated locally.");
+    // Group updates inside the primary 'System' routing layer per core directive standard
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Users", "User module settings updated locally.");
     return { success: true, message: "User settings saved." };
   } catch (e) {
     return { error: "Users.gs: " + e.message };
@@ -452,8 +453,25 @@ function createUserRecord(obj, isAutomatedOnboarding) {
     var targetRow = sheet.getLastRow();
     SpreadsheetApp.flush(); // Mandated race condition safeguard
     
-    // Packages firstName in extraData to feed the installation welcome template greeting cleanly
-    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", generatedId, "New user profile established.", obj.email, { firstName: obj.firstName || "User" });
+    var dataContextMap = {
+      username: finalizedUsername, 
+      firstName: obj.firstName || "User", 
+      lastName: obj.lastName || "", 
+      roleName: obj.role || "Client",
+      target_username: finalizedUsername,
+      target_firstName: obj.firstName || "User",
+      target_lastName: obj.lastName || "",
+      target_role: obj.role || "Client"
+    };
+
+    // Packages detailed contextual data parameters into extraData to shield against placeholder collisions
+    SystemEvent.emit("Users", "CREATE", "Add User", "INFO", generatedId, "New user profile established.", obj.email, dataContextMap);
+    
+    // Fire separate security privilege assignment trigger if user is created as an Administrator
+    if (obj.role === 'Administrator') {
+      SystemEvent.emit("Users", "ADMIN_ASSIGNED", "Admin Privileges Assigned", "WARN", generatedId, "User created with Administrator role privileges.", obj.email, dataContextMap);
+    }
+
     return { success: true, rowIndex: targetRow, username: finalizedUsername, userId: generatedId };
   } catch (e) { 
     return { error: "Error: " + e.message }; 
@@ -467,10 +485,22 @@ function updateUserRecord(obj) {
     var row = parseInt(obj.rowIndex, 10);
 
     var existingUserId = data[row-1][1];
-    var existingUsername = data[row-1][2];
+    var oldUsername = data[row-1][2];
     var existingRole = data[row-1][5];
     var existingStatus = data[row-1][11];
     
+    var newUsername = String(obj.username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!newUsername) throw new Error("A valid alphanumeric username handle is required.");
+    
+    // Validate uniqueness if the username handle is modified
+    if (newUsername !== oldUsername.toLowerCase()) {
+      for (var i = 1; i < data.length; i++) {
+        if (i !== (row - 1) && String(data[i][2]).toLowerCase() === newUsername) {
+          return { success: false, error: "Error: The username handle '" + newUsername + "' is already allocated." };
+        }
+      }
+    }
+
     // Standardized onto the explicit string token string to prevent loose syntax evaluation risks
     if (existingRole === 'Administrator' && existingStatus === 'Active') {
       if (obj.role !== existingRole || obj.status !== 'Active') {
@@ -487,7 +517,7 @@ function updateUserRecord(obj) {
 
     sheet.getRange(row, 2, 1, 11).setValues([[
       existingUserId,
-      existingUsername,
+      newUsername,
       obj.email,
       obj.systemEmail || obj.email,
       obj.role,
@@ -496,11 +526,27 @@ function updateUserRecord(obj) {
       obj.lastName,
       data[row-1][9],  // Preserve Last Login column placement
       data[row-1][10], // Preserve Dashboard Config layout
-      obj.status       // Status locks column 12 per Section 3.F mandate
+      obj.status       // Status locks column 12 per Section 
     ]]);
     SpreadsheetApp.flush(); // Mandated race condition safeguard
     
-    SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", existingUserId, "User access profile updated.");
+    var dataContextMap = {
+      username: newUsername,
+      firstName: obj.firstName,
+      lastName: obj.lastName,
+      roleName: obj.role,
+      target_username: newUsername,
+      target_firstName: obj.firstName,
+      target_lastName: obj.lastName,
+      target_role: obj.role
+    };
+
+    SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", existingUserId, "User access profile updated.", obj.email, dataContextMap);
+    
+    // Fire separate security privilege assignment trigger if user is elevated to an Administrator role
+    if (obj.role === 'Administrator' && existingRole !== 'Administrator') {
+      SystemEvent.emit("Users", "ADMIN_ASSIGNED", "Admin Privileges Assigned", "WARN", existingUserId, "User role elevated to Administrator.", obj.email, dataContextMap);
+    }
     if (existingStatus !== obj.status) {
       var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
       SystemEvent.emit("Users", "UPDATE", "User Status Changed", "WARN", existingUserId, "User account was manually " + actionVerb + ".");
@@ -518,9 +564,8 @@ function updateMyProfileRecord(obj) {
     var rowToUpdate = -1;
     
     var loggedInUser = getLoggedInUsername();
-    if (obj.username !== loggedInUser) return "Error: Unauthorized profile modification.";
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][2]) === obj.username) {
+      if (String(data[i][2]).toLowerCase() === loggedInUser.toLowerCase()) {
         rowToUpdate = i + 1;
         break;
       }
@@ -528,9 +573,24 @@ function updateMyProfileRecord(obj) {
 
     if (rowToUpdate === -1) return "Error: User profile not found.";
     var existingUserId = data[rowToUpdate-1][1];
+    var oldUsername = data[rowToUpdate-1][2];
+    
+    var newUsername = String(obj.username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!newUsername) return "Error: A valid alphanumeric username handle is required.";
+    
+    // Validate uniqueness if the username handle is modified during self-profile editing
+    if (newUsername !== oldUsername.toLowerCase()) {
+      for (var i = 1; i < data.length; i++) {
+        if (i !== (rowToUpdate - 1) && String(data[i][2]).toLowerCase() === newUsername) {
+          return "Error: The username handle '" + newUsername + "' is already allocated.";
+        }
+      }
+    }
+
+    sheet.getRange(rowToUpdate, 3).setValue(newUsername);
+
     var oldPassword = data[rowToUpdate-1][6];
     var newPassword = obj.password ? hashPassword(obj.password) : oldPassword;
-    
     // GOVERNANCE MANTRA: Force use of data[rowToUpdate-1][3] to keep the Google SSO Email authentication token locked
     sheet.getRange(rowToUpdate, 4, 1, 2).setValues([[ data[rowToUpdate-1][3], obj.systemEmail || data[rowToUpdate-1][3] ]]);
     sheet.getRange(rowToUpdate, 7, 1, 3).setValues([[ newPassword, obj.firstName, obj.lastName ]]);
@@ -538,12 +598,12 @@ function updateMyProfileRecord(obj) {
     SpreadsheetApp.flush(); // Mandated race condition safeguard
     SystemEvent.emit("Users", "UPDATE", "Update Profile", "INFO", existingUserId, "User updated their personal profile details.");
     if (obj.password) {
-      SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", existingUserId, "User updated their password via their profile.", obj.email, { userFirst: obj.firstName });
+      SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", existingUserId, "User updated their password via their profile.", data[rowToUpdate-1][3], { userFirst: obj.firstName });
     }
 
-    return { success: true, firstName: obj.firstName, message: "Success! Profile updated." };
+    return { success: true, username: newUsername, firstName: obj.firstName, message: "Success! Profile updated." };
   } catch (e) { 
-    return "Error: " + e.message; 
+    return "Error: " + e.message;
   }
 }
 

@@ -23,7 +23,7 @@
   <div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">User Access & Security</h2>
-      <button class="btn-edit perm-protected" onclick="openEditUsersConfig()" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Users Config</button>
+      <button class="btn-primary perm-protected" onclick="openEditUsersConfig()" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Users Config</button>
     </div>
     <p><strong>Master Administrator Email:</strong><br><span id="ro-settings-email"></span></p>
     <p><strong>System Authentication Mode:</strong><br><span id="ro-settings-authmode"></span></p>
@@ -32,8 +32,8 @@
 
 <template id="tpl-settings-users-edt">
   <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 class="settings-section-header" style="margin:0;">Edit Access Security</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+      <h2 style="margin:0;">Edit System Settings</h2>
       <button type="button" class="btn-cancel" onclick="toggleModuleEdit('users', false)">Cancel</button>
     </div>
     
@@ -209,7 +209,10 @@
             <div id="ro-user-status-pill" style="margin-top: 5px;"></div>
           </div>
        </div>
-       <button id="ro-user-edit-btn" class="btn-edit perm-protected" style="padding: 10px 20px;" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Access</button>
+       <div style="display:flex; gap:10px; align-items:center;">
+          <button id="ro-user-reset-btn" class="btn-reset-filters perm-protected" style="padding: 10px 20px;" data-perm-category="Access & Users" data-perm-action="Manage Users">Reset Password</button>
+          <button id="ro-user-edit-btn" class="btn-primary perm-protected" style="padding: 10px 20px;" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Access</button>
+       </div>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
@@ -377,10 +380,10 @@
           <div class="user-avatar-placeholder" id="my-profile-initial">U</div>
           <div>
             <h2 id="my-profile-fullname" style="margin:0;"></h2>
-            <p id="my-profile-username" style="margin: 5px 0 0 0; color: #666; font-size: 15px; font-family: monospace;"></p>
+            <p id="my-profile-username" style="margin: 5px 0 0 0; color: #666; font-size: 15px;"></p>
           </div>
        </div>
-       <button class="btn-edit" onclick="openEditMyProfile()" style="padding: 10px 20px;">Edit Profile</button>
+       <button class="btn-primary" onclick="openEditMyProfile()" style="padding: 10px 20px;">Edit Profile</button>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 30px;">
@@ -788,9 +791,9 @@
       
       var userField = document.getElementById('edt-user-username');
       userField.value = data.username || "";
-      userField.readOnly = true;
-      userField.style.backgroundColor = "#f8fafc";
-      userField.style.color = "#94a3b8";
+      userField.readOnly = false;
+      userField.style.backgroundColor = "";
+      userField.style.color = "";
 
       document.getElementById('edt-user-email').value = data.email || "";
       document.getElementById('edt-user-system-email').value = data.systemEmail || "";
@@ -829,6 +832,38 @@
     google.script.run.withSuccessHandler(function(data) {
       toggleUserOverlay('ro-user-overlay', false);
       document.getElementById('ro-user-fullname').innerText = data.firstName + " " + data.lastName;
+      document.getElementById('ro-user-subline').innerText = data.role;
+      document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
+      
+      var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
+      document.getElementById('ro-user-status-pill').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
+      
+      document.getElementById('ro-user-username').innerText = data.username;
+      document.getElementById('ro-user-role').innerText = data.role;
+      document.getElementById('ro-user-email').innerText = data.email;
+      document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
+      document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
+      
+      document.getElementById('ro-user-created').innerText = data.timestamp || "Not recorded";
+      document.getElementById('ro-user-updated').innerText = data.lastUpdated || "Not recorded";
+      
+      document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex, 'view'); };
+
+      var resetBtn = document.getElementById('ro-user-reset-btn');
+      if (resetBtn) {
+        resetBtn.onclick = function() {
+          if (!confirm("Send a secure password reset link to " + data.email + "?")) return;
+          resetBtn.disabled = true; resetBtn.innerText = "Sending Link...";
+          google.script.run.withSuccessHandler(function(res) {
+            resetBtn.disabled = false; resetBtn.innerText = "Reset Password";
+            showSystemModal("Reset Password Triggered", res);
+          }).sendPasswordResetEmail(data.email);
+        };
+      }
+    }).getUserById(rowIndex);
+  }
+  
+  function openReadOnlyUser_legacy_fallback(rowIndex) {
       document.getElementById('ro-user-subline').innerText = data.role;
       document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
       
@@ -895,7 +930,15 @@
         
         document.getElementById('edt-my-first').value = data.firstName || "";
         document.getElementById('edt-my-last').value = data.lastName || "";
-        document.getElementById('edt-my-username').value = data.username || "";
+        
+        var myUserField = document.getElementById('edt-my-username');
+        if (myUserField) {
+          myUserField.value = data.username || "";
+          myUserField.readOnly = false;
+          myUserField.style.backgroundColor = "";
+          myUserField.style.color = "";
+        }
+        
         document.getElementById('edt-my-email').value = data.email || "";
         document.getElementById('edt-my-system-email').value = data.systemEmail || "";
         
@@ -947,7 +990,31 @@
     document.getElementById('edt-role-rowIndex').value = role.rowIndex;
     document.getElementById('edt-role-name').value = role.name;
     document.getElementById('edt-role-desc').value = role.description;
-    document.getElementById('edt-role-status').value = role.status;
+    
+    var statusDrop = document.getElementById('edt-role-status');
+    statusDrop.value = role.status;
+    
+    var inUseCount = GLOBAL_USER_DATA.filter(u => u.role === role.name).length;
+    var warnText = document.getElementById('role-status-warning');
+    if (!warnText) {
+       warnText = document.createElement('div');
+       warnText.id = 'role-status-warning';
+       warnText.style.cssText = "font-size:12px; color:#9f1239; margin-top:8px; font-weight:600;";
+       statusDrop.parentNode.appendChild(warnText);
+    }
+    
+    if (role.name === 'Administrator') {
+       statusDrop.value = "Active";
+       statusDrop.disabled = true;
+       warnText.innerText = "The Administrator role cannot be deactivated.";
+    } else if (inUseCount > 0) {
+       statusDrop.value = "Active";
+       statusDrop.disabled = true;
+       warnText.innerText = "Cannot deactivate: Currently assigned to " + inUseCount + " active user(s).";
+    } else {
+       statusDrop.disabled = false;
+       warnText.innerText = "";
+    }
 
     var isSystemAdmin = (role.name === 'Administrator');
     document.getElementById('edt-role-name').readOnly = isSystemAdmin;
@@ -1004,12 +1071,13 @@
     const btn = e.target;
     btn.disabled = true; btn.innerHTML = "Saving...";
     google.script.run.withSuccessHandler(res => {
-      btn.disabled = false; btn.innerHTML = "Save Configuration";
       if (res.success) {
-        // FIX: Force the view switch first
-        toggleModuleEdit('users', false);
-        if(typeof showToast === 'function') showToast("Success", "User settings updated.", "success");
-        if(typeof loadSettings === 'function') loadSettings(); 
+        google.script.run.withSuccessHandler(function(url) {
+          window.top.location.href = url;
+        }).getAppUrl();
+      } else {
+        btn.disabled = false; btn.innerHTML = "Save Configuration";
+        showSystemModal("Configuration Error", res.error || "Failed to save user settings.");
       }
     }).saveUsersModuleConfig(payload);
   }
@@ -1131,17 +1199,19 @@
       
       if (res.success) {
         CURRENT_USER_FIRSTNAME = res.firstName;
+        CURRENT_USERNAME = res.username || CURRENT_USERNAME;
         initUserBarPlugin();
         
         var savedSession = localStorage.getItem('sparkhub_session');
         if (savedSession) {
            var sessionData = JSON.parse(savedSession);
            sessionData.firstName = res.firstName;
+           sessionData.username = res.username || sessionData.username;
            localStorage.setItem('sparkhub_session', JSON.stringify(sessionData));
         }
         
         openMyProfile(); 
-      } else { 
+      } else {
         if(msg) { msg.style.color = "red"; msg.innerHTML = res; } else { showSystemModal("Error Updating You Profile", res.error) }
       }
     }).updateMyProfileRecord(profileData);

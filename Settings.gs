@@ -61,9 +61,23 @@ function getSystemSettings() {
       return clean(val, fallback);
     }
 
+    var currentUserEmail = Session.getActiveUser().getEmail();
+    var hasPasswordConfigured = false;
+    try {
+      var userMatrixData = getMainDb().getSheetByName("Users").getDataRange().getValues();
+      for (var uRow = 1; uRow < userMatrixData.length; uRow++) {
+        if (String(userMatrixData[uRow][3]).toLowerCase() === currentUserEmail.toLowerCase() && userMatrixData[uRow][6]) {
+          hasPasswordConfigured = true;
+          break;
+        }
+      }
+    } catch(err){}
+
     return {
-      environment: props.getProperty('ENVIRONMENT') || 'Sandbox',
-      authMode: props.getProperty('AUTH_MODE') || 'SSO', 
+      currentUserHasPassword: hasPasswordConfigured,
+      environment: props.getProperty('ENVIRONMENT') ||
+      'Sandbox',
+      authMode: props.getProperty('AUTH_MODE') || 'SSO',
       adminEmail: props.getProperty('ADMIN_EMAIL') || '',
       systemName: props.getProperty('SYSTEM_NAME') || 'SparkHub',
       systemLogoUrl: logoUrl,
@@ -136,9 +150,9 @@ function saveGeneralSettings(settings) {
     if (settings.themeHover) props.setProperty('THEME_HOVER', settings.themeHover);
     if (settings.themeBg) props.setProperty('THEME_BG', settings.themeBg);
     
-    // 5. Broadcast Event via Broker
+    // 5. Broadcast Event via Broker tagged strictly onto the core 'System' workspace block
     SystemEvent.emit(
-      "Settings", 
+      "System", 
       "UPDATE", 
       "System Configuration", 
       "WARN", 

@@ -38,38 +38,43 @@
 </template>
 
 <template id="tpl-settings-templates-edt">
-  <h2 class="settings-section-header" style="margin:0;">Templates Configuration</h2>
+  <div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
+      <h2 style="margin:0;">Edit System Settings</h2>
+      <button type="button" class="btn-cancel" onclick="toggleModuleEdit('templates', false)">Cancel</button>
+    </div>
   
-  <div class="form-row" style="margin-top: 25px;">
-    <div class="form-group">
-      <label>Default System Wrapper</label>
-      <select id="edt-settings-tpl-wrapper" class="form-control"></select>
+    <div class="form-row" style="margin-top: 25px;">
+      <div class="form-group">
+        <label>Default System Wrapper</label>
+        <select id="edt-settings-tpl-wrapper" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label>Compliance BCC Address</label>
+        <input type="email" id="edt-settings-tpl-bcc" class="form-control" placeholder="archive@yourdomain.com">
+      </div>
     </div>
-    <div class="form-group">
-      <label>Compliance BCC Address</label>
-      <input type="email" id="edt-settings-tpl-bcc" class="form-control" placeholder="archive@yourdomain.com">
+
+    <div class="form-group" style="margin-top:15px;">
+      <label>Sandbox Whitelist (Comma separated)</label>
+      <input type="text" id="edt-settings-tpl-whitelist" class="form-control" placeholder="admin@sparkhub.com, dev@sparkhub.com">
+      <small style="color:#64748b;">Only these emails receive dispatches when the System Sandbox is ON.</small>
     </div>
-  </div>
 
-  <div class="form-group" style="margin-top:15px;">
-    <label>Sandbox Whitelist (Comma separated)</label>
-    <input type="text" id="edt-settings-tpl-whitelist" class="form-control" placeholder="admin@sparkhub.com, dev@sparkhub.com">
-    <small style="color:#64748b;">Only these emails receive dispatches when the System Sandbox is ON.</small>
-  </div>
+    <div class="form-group" style="margin-top:15px;">
+      <label class="perm-cb-label">
+        <input type="checkbox" id="edt-settings-tpl-tracking"> Enable Link Click Tracking
+      </label>
+    </div>
 
-  <div class="form-group" style="margin-top:15px;">
-    <label class="perm-cb-label">
-      <input type="checkbox" id="edt-settings-tpl-tracking"> Enable Link Click Tracking
-    </label>
-  </div>
+    <div class="form-group" style="margin-top:15px;">
+      <label>Global Email Signature (Plain Text or HTML)</label>
+      <textarea id="edt-settings-tpl-sig" class="form-control" style="height: 80px; font-family: monospace;"></textarea>
+    </div>
 
-  <div class="form-group" style="margin-top:15px;">
-    <label>Global Email Signature (Plain Text or HTML)</label>
-    <textarea id="edt-settings-tpl-sig" class="form-control" style="height: 80px; font-family: monospace;"></textarea>
-  </div>
-
-  <div style="margin-top: 30px; text-align: right;">
-    <button type="button" class="btn-primary" onclick="handleSaveTemplatesConfig(event)">Save Template Settings</button>
+    <div style="margin-top: 30px; text-align: right;">
+      <button type="button" class="btn-primary" onclick="handleSaveTemplatesConfig(event)">Save Template Settings</button>
+    </div>
   </div>
 </template>
 
@@ -192,9 +197,9 @@
           <h2 id="ro-tpl-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
           <p id="ro-tpl-subline" style="margin:8px 0 0 0; color:#64748b; font-size:14px; font-weight: 500;"></p>
        </div>
-       <div style="display: flex; gap: 10px;">
+       <div style="display: flex; gap: 10px; align-items: center;">
           <button id="ro-tpl-test-btn" class="btn-reset-filters" style="padding: 10px 24px;">Send Test Email</button>
-          <button id="ro-tpl-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Template</button>
+          <button id="ro-tpl-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates & Wrappers" data-perm-action="Manage Templates">Edit Template</button>
        </div>
     </div>
 
@@ -1105,18 +1110,14 @@
 
     google.script.run
       .withSuccessHandler(function(res) {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        
         if (res && res.error) {
-          alert("Error saving templates: " + res.error);
+          btn.innerText = originalText; btn.disabled = false;
+          showSystemModal("Configuration Error", res.error);
           return;
         }
-
-        // 1. Close the edit view
-        toggleModuleEdit('templates', false);
-        // 2. Reload the registry to update the UI
-        loadSettings();
+        google.script.run.withSuccessHandler(function(url) {
+          window.top.location.href = url;
+        }).getAppUrl();
       })
       .withFailureHandler(function(err) {
         btn.innerText = originalText;

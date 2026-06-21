@@ -19,6 +19,9 @@ function performUiInstallation(data) {
     props.setProperty('ROOT_FOLDER_ID', data.rootId);
     props.setProperty('SYSTEM_NAME', data.sysName);
     props.setProperty('ADMIN_EMAIL', installerEmail);
+    // Cache personal names temporarily for the multi-step structural spreadsheet generation process
+    props.setProperty('TMP_FIRST_NAME', data.firstName || "System");
+    props.setProperty('TMP_LAST_NAME', data.lastName || "Admin");
     // Set default communication and maintenance standards
     props.setProperty('LOGS_RETENTION_DAYS', '90'); 
     props.setProperty('TPL_WHITELIST', installerEmail);
@@ -138,7 +141,11 @@ function setupCoreDatabase(rootFolder) {
   // 4. Admin Creation
   var adminEmail = Session.getActiveUser().getEmail();
   var adminUsername = adminEmail.split('@')[0];
-  verifiedDb.getSheetByName("Users").appendRow([new Date(), "U-1001", adminUsername, adminEmail, adminEmail, "Administrator", "", "System", "Admin", new Date(), "", "Active"]);
+  var props = PropertiesService.getScriptProperties();
+  var finalFirst = props.getProperty('TMP_FIRST_NAME') || "System";
+  var finalLast = props.getProperty('TMP_LAST_NAME') || "Admin";
+  
+  verifiedDb.getSheetByName("Users").appendRow([new Date(), "U-1001", adminUsername, adminEmail, adminEmail, "Administrator", "", finalFirst, finalLast, new Date(), "", "Active"]);
   
   // Seeds the exact granular actions, tabs, and categories mapped inside our Ecosystem Permission Matrix Blueprint
   var adminPerms = JSON.stringify({ 
@@ -155,12 +162,32 @@ function setupCoreDatabase(rootFolder) {
   
   SpreadsheetApp.flush();
   
-  // Emit Role Creation with the necessary email payload
-  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail, { username: "Administrator", details: "Unrestricted system access." });
+  // Clean up temporary bootstrap keys from properties registry
+  props.deleteProperty('TMP_FIRST_NAME');
+  props.deleteProperty('TMP_LAST_NAME');
+  
+  // Emit Role Creation with the necessary email payload matching exact variable tokens
+  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "R-ADMIN", "Default Administrator role generated during installation.", adminEmail, { roleName: "Administrator", details: "Unrestricted system access." });
   // IMMUTABLE ANCHOR: Prevent Google Sheets concurrent write-locks from overwriting logs
   Utilities.sleep(1500);
-  // Emit User Creation with the necessary email payload including firstName to prevent broken template placeholders
-  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail, { username: adminUsername, firstName: "System" });
+  
+  var initialDataContext = { 
+    username: adminUsername, 
+    firstName: finalFirst, 
+    lastName: finalLast, 
+    roleName: "Administrator",
+    target_username: adminUsername,
+    target_firstName: finalFirst,
+    target_lastName: finalLast,
+    target_role: "Administrator"
+  };
+
+  // Emit User Creation utilizing the concrete record anchor ID (U-1001) instead of raw username handles
+  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", "U-1001", "Master admin created.", adminEmail, initialPayloadContextMap || initialDataContext);
+  Utilities.sleep(1500);
+  // Emit dynamic Administrator Assignment event for the Master Admin on deployment
+  SystemEvent.emit("Users", "ADMIN_ASSIGNED", "Admin Privileges Assigned", "WARN", "U-1001", "Master administrator account provisioned during setup.", adminEmail, initialPayloadContextMap || initialDataContext);
+  
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
 }
 
@@ -199,12 +226,16 @@ padding: 20px;'><h2>Welcome to your Workspace</h2><p>Hello {{firstName}},</p><p>
     
     var resetHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Reset Request</h2><p>Hi {{userFirst}},</p><p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p><a href='{{resetLink}}' style='display:inline-block; padding: 10px 20px; background: #666DF2; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a></div>`;
     
-    var updatedHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Updated</h2><p>Hi {{userFirst}},</p><p>This is a confirmation that your system password has been successfully updated. If you did not make this change, please contact your administrator immediately.</p></div>`;
+    var updatedHtml = `<div style='font-family: sans-serif;
+    padding: 20px;'><h2>Password Updated</h2><p>Hi {{userFirst}},</p><p>This is a confirmation that your system password has been successfully updated.
+    If you did not make this change, please contact your administrator immediately.</p></div>`;
     
-    // Append all core templates safely with the exact 11-column data structure
-    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Access email", "Security", "Users", "Users:CREATE", "Welcome to the Workspace", welcomeHtml, "Internal Communication", "Active"]);
-    
+    var adminElevatedHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Security Privilege Escalation</h2><p>Hello {{firstName}},</p><p>An account has been assigned Administrator privileges.</p><p><strong>Target User:</strong> {{target_firstName}} {{target_lastName}} (@{{target_username}})</p><p>If you did not authorized this elevation, audit system security settings instantly.</p></div>`;
+
+    // Seed core templates mapping the Welcome template precisely onto User Communications wrapper
+    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Access email", "Security", "Users", "Users:CREATE", "Welcome to the Workspace", welcomeHtml, "User Communications", "Active"]);
     tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Role creation alert", "Security", "Users:Roles", "Users:Roles:CREATE", "New System Role: {{username}}", roleHtml, "Internal Communication", "Active"]);
+    tplSheet.appendRow([now, "TPL-ADMIN-NEW", "Administrator Elevation Alert", "Alerts when an administrator is set", "Security", "Users", "Users:ADMIN_ASSIGNED", "Security Alert: Administrator Privileges Assigned", adminElevatedHtml, "User Communications", "Active"]);
     
     // Updated wrappers for Password Templates -> "User Communications"
     tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Forgot password link", "Security", "Users", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "User Communications", "Active"]);

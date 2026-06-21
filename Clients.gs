@@ -263,8 +263,12 @@ function getClientsModuleConfig() {
 function saveClientsModuleConfig(p) {
   try { 
     PropertiesService.getScriptProperties().setProperty('CLIENTS_MODULE_CONFIG', JSON.stringify(p));
+    // Emit active trace records straight to the central 'System' workspace block registry
+    try {
+      SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Clients", "Client module settings updated locally.");
+    } catch(logErr) {}
     return { success: true };
-  } catch(e) { 
+  } catch(e) {
     return { error: e.message };
   }
 }

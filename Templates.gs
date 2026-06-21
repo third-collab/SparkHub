@@ -219,9 +219,11 @@ function saveTemplatesModuleConfig(payload) {
     props.setProperty('TPL_GLOBAL_SIGNATURE', payload.signature);
     props.setProperty('TPL_BCC_ARCHIVE', payload.bccArchive);
     props.setProperty('TPL_LINK_TRACKING', payload.linkTracking); // "true" or "false"
-    props.setProperty('TPL_WHITELIST', payload.whitelist); // Comma-separated string
+    props.setProperty('TPL_WHITELIST', payload.whitelist);
+    // Comma-separated string
     
-    SystemEvent.emit("Templates", "UPDATE", "Config Updated", "INFO", "Templates", "Communication and safety standards updated.");
+    // Group updates inside the primary 'System' routing layer per core directive standard
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Templates", "Communication and safety standards updated.");
     return { success: true };
   } catch (e) { 
     return { error: "Templates.gs: " + e.message }; 

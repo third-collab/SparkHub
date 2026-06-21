@@ -33,8 +33,12 @@
         <h1>Welcome to SparkHub</h1>
         <p>Please provide the root folder ID to initialize your core system files.</p>
         <form id="installForm" onsubmit="handleInstallSubmit(event)">
+          <div class="form-row" style="margin: 0 0 15px 0; gap: 15px;">
+            <div class="form-group" style="text-align: left;"><label>First Name *</label><input type="text" id="ins-first-name" class="form-control" required placeholder="John"></div>
+            <div class="form-group" style="text-align: left;"><label>Last Name *</label><input type="text" id="ins-last-name" class="form-control" required placeholder="Doe"></div>
+          </div>
           <div class="form-group" style="text-align: left;"><label>Root Folder ID *</label><input type="text" id="ins-root-id" class="form-control" required placeholder="Enter Folder ID"></div>
-          <div class="form-group" style="text-align: left; margin-top: 15px;"><label>System Name</label><input type="text" id="ins-sys-name" class="form-control" required placeholder="e.g., Acme Corp Hub"></div>
+          <div class="form-group" style="text-align: left; margin-top: 15px;"><label>System Name *</label><input type="text" id="ins-sys-name" class="form-control" required placeholder="e.g., Acme Corp Hub"></div>
           <button type="submit" class="btn-primary" style="width: 100%; margin-top: 30px;">Run Installation</button>
         </form>
       </div>
@@ -75,6 +79,17 @@
       <h2 id="globalAlertTitle" style="margin-top: 0; color: var(--brand-dark); font-size: 22px;"></h2>
       <p id="globalAlertMsg" style="font-size: 15px; color: #475569; margin-bottom: 30px; white-space: pre-wrap; line-height: 1.6;"></p>
       <button class="btn-primary" onclick="document.getElementById('globalAlertModal').style.display='none'" style="width: 100%; padding: 12px; font-weight: bold; border-radius: 8px;">Acknowledge</button>
+    </div>
+  </div>
+
+  <div id="globalConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 100001; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; transition: all 0.3s ease;">
+    <div style="background: white; padding: 35px; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); max-width: 450px; width: 100%; border-top: 5px solid var(--brand-primary);">
+      <h2 id="globalConfirmTitle" style="margin-top: 0; color: var(--brand-dark); font-size: 20px; font-weight: 800; text-align: left;"></h2>
+      <p id="globalConfirmMsg" style="font-size: 14px; color: #475569; margin: 15px 0 25px 0; text-align: left; line-height: 1.6;"></p>
+      <div style="display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn-cancel" style="padding: 10px 20px; font-weight: 600;" onclick="document.getElementById('globalConfirmModal').style.display='none'">Cancel</button>
+        <button type="button" class="btn-primary" id="globalConfirmSubmitBtn" style="padding: 10px 24px; font-weight: 700;">Confirm Action</button>
+      </div>
     </div>
   </div>
 
@@ -395,7 +410,9 @@
       
       var data = { 
         rootId: document.getElementById('ins-root-id').value, 
-        sysName: sysNameInput 
+        sysName: sysNameInput,
+        firstName: document.getElementById('ins-first-name').value.trim(),
+        lastName: document.getElementById('ins-last-name').value.trim()
       };
       
       document.getElementById('wizardContent').style.display = 'none';
@@ -512,6 +529,29 @@
         document.getElementById('globalAlertMsg').innerText = message;
         m.style.display = 'flex';
       }
+    }
+
+    /**
+     * Unified Declarative Confirmation Engine Controller
+     * postposes execution blocks safely until the operator grants verification authorization
+     */
+    function showSystemConfirm(title, message, onConfirmCallback) {
+      var modal = document.getElementById('globalConfirmModal');
+      var titleEl = document.getElementById('globalConfirmTitle');
+      var msgEl = document.getElementById('globalConfirmMsg');
+      var actionBtn = document.getElementById('globalConfirmSubmitBtn');
+      if (!modal || !titleEl || !msgEl || !actionBtn) return;
+
+      titleEl.innerText = title;
+      msgEl.innerText = message;
+      modal.style.display = 'flex';
+
+      actionBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (typeof onConfirmCallback === 'function') {
+          onConfirmCallback();
+        }
+      };
     }
 
     function toggleFilter(id) {

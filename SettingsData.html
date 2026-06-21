@@ -40,7 +40,7 @@
     <div id="set-ro-core" class="tab-content" style="display: block;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
         <h2 class="settings-section-header" style="margin:0;">Core Engine Configuration</h2>
-        <button class="btn-edit perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Engine</button>
+        <button class="btn-primary perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Engine</button>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 14px; margin-top: 25px;">
          <div>
@@ -414,7 +414,25 @@
         var edtEmail = document.getElementById('edt-settings-email');
         if (edtEmail) edtEmail.value = data.adminEmail || '';
         var edtAuth = document.getElementById('edt-settings-authmode');
-        if (edtAuth) edtAuth.value = data.authMode || 'SSO';
+        if (edtAuth) {
+          edtAuth.value = data.authMode || 'SSO';
+          
+          var existingWarn = document.getElementById('auth-password-warning');
+          if (existingWarn) existingWarn.remove();
+          
+          if (!data.currentUserHasPassword) {
+            edtAuth.value = "SSO";
+            edtAuth.disabled = true;
+            
+            var warn = document.createElement('div');
+            warn.id = 'auth-password-warning';
+            warn.style.cssText = "font-size:12px; color:#9f1239; margin-top:8px; font-weight:600;";
+            warn.innerText = "Cannot switch to Local: Your administrator profile does not have a fallback password configured. Please set a local password in your profile first.";
+            edtAuth.parentNode.appendChild(warn);
+          } else {
+            edtAuth.disabled = false;
+          }
+        }
       }, 100);
 
       document.getElementById('edt-settings-logo-preview').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
@@ -502,9 +520,10 @@
             showSystemModal("Configuration Error", res.error);
             return;
           }
-          toggleModuleEdit('core', false); 
-          if(typeof showToast === 'function') showToast("Success", "Core system settings updated.", "success");
-          loadSettings();
+          toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
+          google.script.run.withSuccessHandler(function(url) {
+            window.top.location.href = url;
+          }).getAppUrl();
         })
         .withFailureHandler(err => {
           toggleSettingsOverlay('edt-settings-overlay', false);
