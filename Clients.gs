@@ -263,8 +263,8 @@ function saveServiceRecord(p) {
       // ENFORCED: Prevent Stale Data
       
       try {
-        // Aligns sub-entity module routing with structural sub-trigger definitions
-        SystemEvent.emit("Clients:Services", "UPDATE", "Service Updated", "INFO", p.name, "Service definition details modified.", "system");
+        // Aligns sub-entity module routing with structural sub-trigger definitions and builds functional extraData contexts
+        SystemEvent.emit("Clients:Services", "UPDATE", "Service Updated", "INFO", p.name, "Service definition details modified.", "system", { serviceName: p.name, description: p.description, status: p.status });
       } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
       
       return { success: true };
@@ -274,13 +274,13 @@ function saveServiceRecord(p) {
       // ENFORCED: Prevent Stale Data
       
       try {
-        // Aligns sub-entity module routing with structural sub-trigger definitions
-        SystemEvent.emit("Clients:Services", "CREATE", "Service Created", "INFO", p.name, "New service capability defined.", "system");
+        // Aligns sub-entity module routing with structural sub-trigger definitions and builds functional extraData contexts
+        SystemEvent.emit("Clients:Services", "CREATE", "Service Created", "INFO", p.name, "New service capability defined.", "system", { serviceName: p.name, description: p.description, status: p.status });
       } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
       
       return { success: true };
     }
-  } catch(e) { 
+  } catch(e) {
     return { error: e.message };
   }
 }

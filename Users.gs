@@ -247,21 +247,22 @@ function getUserById(rowIndex) {
 function getUserProfileByUsername(username) {
   try {
     var sheet = getMainDb().getSheetByName("Users");
-    var data = sheet.getDataRange().getDisplayValues(); 
+    // Swap array ingestion line to utilize raw values comparisons to protect unassigned password data-type checks
+    var data = sheet.getDataRange().getValues(); 
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][2]).toLowerCase() === String(username).toLowerCase()) { 
         return {
           rowIndex: i + 1,
-          userId: data[i][1],
-          username: data[i][2],
-          email: data[i][3],
-          systemEmail: data[i][4],
-          role: data[i][5],
-          password: data[i][6],
-          firstName: data[i][7],
-          lastName: data[i][8],
-          lastLogin: data[i][9],
-          status: data[i][11]
+          userId: String(data[i][1]),
+          username: String(data[i][2]),
+          email: String(data[i][3]),
+          systemEmail: String(data[i][4]),
+          role: String(data[i][5]),
+          password: String(data[i][6] || ""),
+          firstName: String(data[i][7]),
+          lastName: String(data[i][8]),
+          lastLogin: data[i][9] instanceof Date ? Utilities.formatDate(data[i][9], getMainDb().getSpreadsheetTimeZone(), "yyyy-MM-dd HH:mm:ss") : String(data[i][9] || ""),
+          status: String(data[i][11])
         };
       }
     }
@@ -303,7 +304,8 @@ function getRoleById(rowIndex) {
 }
 
 function getUserPermissions(roleName) {
-  if (roleName === 'Administrator' || roleName === 'Admin') return '{"ALL":["ALL"]}';
+  // Standardized onto the explicit string token string to prevent loose syntax evaluation risks
+  if (roleName === 'Administrator') return '{"ALL":["ALL"]}';
   try {
     var sheet = ensureRolesSheet();
     var data = sheet.getDataRange().getValues();
@@ -469,11 +471,12 @@ function updateUserRecord(obj) {
     var existingRole = data[row-1][5];
     var existingStatus = data[row-1][11];
     
-    if ((existingRole === 'Administrator' || existingRole === 'Admin') && existingStatus === 'Active') {
+    // Standardized onto the explicit string token string to prevent loose syntax evaluation risks
+    if (existingRole === 'Administrator' && existingStatus === 'Active') {
       if (obj.role !== existingRole || obj.status !== 'Active') {
         var activeAdminCount = 0;
         for (var i = 1; i < data.length; i++) {
-          if ((data[i][5] === 'Administrator' || data[i][5] === 'Admin') && data[i][11] === 'Active') activeAdminCount++;
+          if (data[i][5] === 'Administrator' && data[i][11] === 'Active') activeAdminCount++;
         }
         if (activeAdminCount <= 1) return { error: "Error: Cannot modify the role or status of the last active Administrator." };
       }
@@ -549,8 +552,8 @@ function saveRoleRecord(obj) {
     var sheet = ensureRolesSheet();
     var activeUserEmail = Session.getActiveUser().getEmail(); 
     var targetRow;
-    
-    if (obj.name === 'Administrator' || obj.name === 'Admin') obj.permissions = '{"ALL":["ALL"]}';
+    // Standardized onto the explicit string token string to prevent loose syntax evaluation risks
+    if (obj.name === 'Administrator') obj.permissions = '{"ALL":["ALL"]}';
     if (obj.rowIndex) {
       targetRow = parseInt(obj.rowIndex);
       var oldData = sheet.getRange(targetRow, 1, 1, 6).getValues()[0];

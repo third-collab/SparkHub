@@ -198,7 +198,8 @@ function sendHardcodedEmail(triggerHandle, toEmail, dataMap) {
 }
 
 function getRenderedTemplatePreview(rowIndex) {
-  var rowData = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 11).getValues()[0];
+  // Widened scanning range block bounds to 15 columns to prevent parameter truncations
+  var rowData = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 15).getValues()[0];
   var rawHtml = rowData[8] || "";
   var wrapperType = rowData[9] || "Internal"; 
   

@@ -146,10 +146,10 @@ function setupCoreDatabase(rootFolder) {
     "Access & Users": ["View Users", "Add Users", "Manage Users", "View Roles", "Create Roles", "Manage Roles", "Manage Settings"], 
     "Templates & Wrappers": ["View Templates", "Create Templates", "Manage Templates", "View Wrappers", "Create Wrappers", "Manage Wrappers", "Manage Settings"], 
     "Clients & Services": ["View Clients", "Onboard Clients", "Manage Clients", "View Services", "Define Services", "Manage Services", "Manage Settings"], 
-    "System Logs": ["View Logs", "Manage Settings"] 
+    "System Logs": 
+    ["View Logs", "Manage Settings"] 
   });
   verifiedDb.getSheetByName("Roles").appendRow([new Date(), "R-ADMIN", "Administrator", "Unrestricted system access.", adminPerms, "Active", ""]);
-
   // 5. Asset Seeding
   seedCoreAssets(verifiedDb);
   
@@ -157,13 +157,10 @@ function setupCoreDatabase(rootFolder) {
   
   // Emit Role Creation with the necessary email payload
   SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "Administrator", "Default Administrator role generated during installation.", adminEmail, { username: "Administrator", details: "Unrestricted system access." });
-  
   // IMMUTABLE ANCHOR: Prevent Google Sheets concurrent write-locks from overwriting logs
-  Utilities.sleep(1500); 
-
-  // Emit User Creation with the necessary email payload
-  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail, { username: adminUsername });
-  
+  Utilities.sleep(1500);
+  // Emit User Creation with the necessary email payload including firstName to prevent broken template placeholders
+  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", adminUsername, "Master admin created.", adminEmail, { username: adminUsername, firstName: "System" });
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
 }
 

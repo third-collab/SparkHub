@@ -399,7 +399,7 @@
       document.getElementById('edt-settings-env').value = data.environment || 'Production';
       document.getElementById('edt-settings-rootid').value = data.rootFolderId || '';
       document.getElementById('edt-settings-dbid').value = data.mainDbId || '';
-      document.getElementById('edt-settings-logsid').value = data.logsDbId || '';
+      // Purged: Cross-view contamination node assignment removed; handled strictly inside module fragments
       document.getElementById('edt-settings-fallback').value = data.emailFallbackLogo || '';
       
       var themes = { primary: data.themePrimary, accent: data.themeAccent, dark: data.themeDark, hover: data.themeHover, bg: data.themeBg };

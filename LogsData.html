@@ -68,7 +68,8 @@
 
   <div class="filter-wrapper">
     <input type="text" id="log-filter-search" class="filter-input" placeholder="Search by details, user, or entity..." onkeyup="applyLogFilters()">
-    <button class="btn-filter-toggle" onclick="toggleFilter('log-adv')">Filters</button>
+    <button type="button" class="btn-filter-toggle" onclick="toggleFilter('log-adv')">Filters</button>
+    <button type="button" class="btn-filter-toggle" id="btn-logs-refresh" onclick="loadLogsTable()">Refresh</button>
     <div id="log-adv" class="filter-advanced">
       <div class="custom-dropdown">
         <button class="dropdown-btn" onclick="toggleDropdown('log-module-drop')">Module ▼</button>
@@ -119,32 +120,42 @@
     var tbody = document.getElementById('logTableBody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color:#64748b;">Synchronizing logs...</td></tr>';
     
-    google.script.run.withSuccessHandler(function(logs) {
-      GLOBAL_LOGS_DATA = logs || [];
-      
-      // Dynamically extract all unique modules from the database
-      var modDrop = document.getElementById('log-module-drop');
-      if (modDrop) {
-        // Track currently checked filters to preserve them across reloads
-        var currentlyChecked = Array.from(document.querySelectorAll('.log-filter-mod-cb:checked')).map(cb => cb.value);
-        var isFirstLoad = modDrop.innerHTML.trim() === "";
+    // Engages standard frontend interaction blockers during server round-trips
+    var refreshBtn = document.getElementById('btn-logs-refresh');
+    if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.innerText = 'Refreshing...'; }
 
-        var uniqueMods = [];
-        GLOBAL_LOGS_DATA.forEach(function(l) {
-          if (l.module && uniqueMods.indexOf(l.module) === -1) uniqueMods.push(l.module);
-        });
+    google.script.run
+      .withFailureHandler(function(err) {
+        if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.innerText = 'Refresh'; }
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 30px; color:#ef4444; font-weight:600;">Failed to synchronize logs: ${err.message}</td></tr>`;
+      })
+      .withSuccessHandler(function(logs) {
+        if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.innerText = 'Refresh'; }
+        GLOBAL_LOGS_DATA = logs || [];
         
-        // Build the checkboxes automatically
-        var html = '';
-        uniqueMods.sort().forEach(function(m) {
-          var isChecked = isFirstLoad || currentlyChecked.includes(m) ? 'checked' : '';
-          html += '<label><input type="checkbox" class="log-filter-mod-cb" value="' + m + '" ' + isChecked + ' onchange="applyLogFilters()"> ' + m + '</label>';
-        });
-        modDrop.innerHTML = html;
-      }
+        // Dynamically extract all unique modules from the database
+        var modDrop = document.getElementById('log-module-drop');
+        if (modDrop) {
+          // Track currently checked filters to preserve them across reloads
+          var currentlyChecked = Array.from(document.querySelectorAll('.log-filter-mod-cb:checked')).map(cb => cb.value);
+          var isFirstLoad = modDrop.innerHTML.trim() === "";
+
+          var uniqueMods = [];
+          GLOBAL_LOGS_DATA.forEach(function(l) {
+            if (l.module && uniqueMods.indexOf(l.module) === -1) uniqueMods.push(l.module);
+          });
+          
+          // Build the checkboxes automatically
+          var html = '';
+          uniqueMods.sort().forEach(function(m) {
+            var isChecked = isFirstLoad || currentlyChecked.includes(m) ? 'checked' : '';
+            html += '<label><input type="checkbox" class="log-filter-mod-cb" value="' + m + '" ' + isChecked + ' onchange="applyLogFilters()"> ' + m + '</label>';
+          });
+          modDrop.innerHTML = html;
+        }
       
-      applyLogFilters();
-    }).getLogsList();
+        applyLogFilters();
+      }).getLogsList();
   }
 
   /* ========================================================================

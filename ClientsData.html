@@ -759,32 +759,7 @@
      }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
-  function removeOpNoteAt(idx) {
-    if(!confirm('Delete this note?')) return;
-    document.getElementById('ro-client-overlay').style.display = 'flex';
-    
-    var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes);
-    notes.splice(idx,1);
-    window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
-    
-    google.script.run.withSuccessHandler(function(res) {
-       document.getElementById('ro-client-overlay').style.display = 'none';
-       if(res.success && res.data) {
-          window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
-          window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
-          renderOpNotesList(res.data.operationalNotes);
-          renderHistoryTab(res.data.history);
-       }
-    }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
-  }
-
-  function saveOpNoteEdit(idx) {
-    var val = document.getElementById('note-input-'+idx).value.trim(); if (!val) return;
-    var notes = JSON.parse(window.CURRENT_VIEW_CLIENT_DATA.operationalNotes || "[]");
-    notes[idx].content = val; notes[idx].timestamp = new Date().toISOString();
-    window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
-    google.script.run.withSuccessHandler(() => openReadOnlyClient(window.CURRENT_VIEW_CLIENT_DATA.rowIndex)).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
-  }
+  // Purged: Outdated legacy note modification handlers removed to secure strict state integrity
 
   function dragOpNoteStart(e, i) { draggedOpNoteIndex = i; e.dataTransfer.effectAllowed = 'move'; }
   function dragOpNoteOver(e) { e.preventDefault(); }
