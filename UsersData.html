@@ -33,7 +33,7 @@
 <template id="tpl-settings-users-edt">
   <div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
-      <h2 style="margin:0;">Edit System Settings</h2>
+      <h2 style="margin:0;">Edit Users Settings</h2>
       <button type="button" class="btn-cancel" onclick="toggleModuleEdit('users', false)">Cancel</button>
     </div>
     
@@ -860,26 +860,6 @@
           }).sendPasswordResetEmail(data.email);
         };
       }
-    }).getUserById(rowIndex);
-  }
-  
-  function openReadOnlyUser_legacy_fallback(rowIndex) {
-      document.getElementById('ro-user-subline').innerText = data.role;
-      document.getElementById('ro-user-initial').innerText = data.firstName ? data.firstName.charAt(0).toUpperCase() : "U";
-      
-      var sClass = data.status === 'Active' ? 'badge-active' : 'badge-inactive';
-      document.getElementById('ro-user-status-pill').innerHTML = `<span class="badge ${sClass}">${data.status}</span>`;
-      
-      document.getElementById('ro-user-username').innerText = data.username;
-      document.getElementById('ro-user-role').innerText = data.role;
-      document.getElementById('ro-user-email').innerText = data.email;
-      document.getElementById('ro-user-lastlogin').innerText = data.lastLogin || "Never logged in";
-      document.getElementById('ro-user-password').innerText = data.password ? "********" : "Not Set";
-      
-      document.getElementById('ro-user-created').innerText = data.timestamp || "Not recorded";
-      document.getElementById('ro-user-updated').innerText = data.lastUpdated || "Not recorded";
-      
-      document.getElementById('ro-user-edit-btn').onclick = function() { openEditUserForm(data.rowIndex, 'view'); };
     }).getUserById(rowIndex);
   }
 

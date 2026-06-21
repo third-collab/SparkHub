@@ -222,7 +222,7 @@ function seedCoreAssets(ss) {
     var welcomeHtml = `<div style='font-family: sans-serif;
 padding: 20px;'><h2>Welcome to your Workspace</h2><p>Hello {{firstName}},</p><p>Your account is ready. You can now access your workspace using your system credentials.</p></div>`;
     
-    var roleHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>New System Role</h2><p>The system role <strong>{{username}}</strong> has been successfully established.</p><p>Details: {{details}}</p></div>`;
+    var roleHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>New System Role</h2><p>The system role <strong>{{roleName}}</strong> has been successfully established.</p><p>Details: {{details}}</p></div>`;
     
     var resetHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Reset Request</h2><p>Hi {{userFirst}},</p><p>We received a request to reset your local password. Click the link below to set a new password. This link will expire in 15 minutes.</p><a href='{{resetLink}}' style='display:inline-block; padding: 10px 20px; background: #666DF2; color: white; text-decoration: none; border-radius: 5px; margin-top: 15px;'>Reset Password</a></div>`;
     
