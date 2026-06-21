@@ -253,22 +253,21 @@
     btn.disabled = true;
 
     google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.error) {
+        .withSuccessHandler(function(res) {
+          if (res && res.error) {
+            btn.innerText = originalText; btn.disabled = false;
+            showSystemModal("Configuration Error", res.error);
+            return;
+          }
+          google.script.run.withSuccessHandler(function(url) {
+            window.top.location.href = url;
+          }).getAppUrl();
+        })
+        .withFailureHandler(function(err) {
           btn.innerText = originalText; btn.disabled = false;
-          showSystemModal("Configuration Error", res.error);
-          return;
-        }
-        google.script.run.withSuccessHandler(function(url) {
-          window.top.location.href = url;
-        }).getAppUrl();
-      })
-      .withFailureHandler(function(err) {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        alert("Server Error: " + err.message);
-      })
-      .saveLogsModuleConfig(payload);
+          showSystemModal("Server Error", "Server Error: " + err.message);
+        })
+        .saveLogsModuleConfig(payload);
   }
 
   /* ========================================================================

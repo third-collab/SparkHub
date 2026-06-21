@@ -181,14 +181,13 @@ function setupCoreDatabase(rootFolder) {
     target_lastName: finalLast,
     target_role: "Administrator"
   };
-
-  // Emit User Creation utilizing the concrete record anchor ID (U-1001) instead of raw username handles
-  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", "U-1001", "Master admin created.", adminEmail, initialPayloadContextMap || initialDataContext);
+  // Emit User Creation utilizing the concrete record anchor ID (U-1001) instead of raw username handles safely
+  SystemEvent.emit("Users", "CREATE", "Add User", "INFO", "U-1001", "Master admin created.", adminEmail, initialDataContext);
   Utilities.sleep(1500);
-  // Emit dynamic Administrator Assignment event for the Master Admin on deployment
-  SystemEvent.emit("Users", "ADMIN_ASSIGNED", "Admin Privileges Assigned", "WARN", "U-1001", "Master administrator account provisioned during setup.", adminEmail, initialPayloadContextMap || initialDataContext);
-  
+  // Emit dynamic Administrator Assignment event for the Master Admin on deployment safely
+  SystemEvent.emit("Users", "ADMIN_ASSIGNED", "Admin Privileges Assigned", "WARN", "U-1001", "Master administrator account provisioned during setup.", adminEmail, initialDataContext);
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
+
 }
 
 /**

@@ -404,7 +404,7 @@
       var sysNameInput = document.getElementById('ins-sys-name').value.trim();
       
       if (sysNameInput.toLowerCase() === 'sparkhub') {
-        alert("Please choose a unique system name for your organization. 'SparkHub' is reserved.");
+        showSystemModal("System Limitation", "Please choose a unique system name for your organization. 'SparkHub' is reserved.");
         return;
       }
       
@@ -437,7 +437,7 @@
             switchView('dashboardView');
           }, 2000); 
         } else { 
-          alert("Installation Error: " + res); 
+          showSystemModal("Installation Failed", "Installation Error: " + res); 
           document.getElementById('wizardContent').style.display = 'block';
           document.getElementById('wizardLoading').style.display = 'none';
         }

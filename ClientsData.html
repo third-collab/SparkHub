@@ -738,8 +738,8 @@
            window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
            renderOpNotesList(res.data.operationalNotes);
            renderHistoryTab(res.data.history);
-        } else if (res && res.error) { alert("Error: " + res.error); }
-     }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; alert("Failed: " + err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+        } else if (res && res.error) { showSystemModal("Error", res.error); }
+     }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; showSystemModal("Execution Failure", err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
   function triggerOpNoteDeleteLayover(idx) {
@@ -756,16 +756,16 @@
           window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = JSON.stringify(notes);
           
           google.script.run.withSuccessHandler(function(res) {
-             if (overlay) overlay.style.display = 'none';
-             if(res && res.success && res.data) {
+              if (overlay) overlay.style.display = 'none';
+              if(res && res.success && res.data) {
                 window.CURRENT_VIEW_CLIENT_DATA.operationalNotes = res.data.operationalNotes;
                 window.CURRENT_VIEW_CLIENT_DATA.history = res.data.history;
                 renderOpNotesList(res.data.operationalNotes);
                 renderHistoryTab(res.data.history);
                 if(typeof showToast === 'function') showToast("Success", "Operational note purged.", "success");
-             } else if (res && res.error) { showSystemModal("Error", res.error); }
-          }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; showSystemModal("Failed", err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
-       }
+              } else if (res && res.error) { showSystemModal("Error", res.error); }
+          }).withFailureHandler(function(err) { if (overlay) overlay.style.display = 'none'; showSystemModal("Execution Failure", err.message); }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
+        }
      );
   }
 
@@ -810,11 +810,11 @@
          renderHistoryTab(res.data.history);
          if(typeof showToast === 'function') showToast("Success", "Operational note logged.", "success");
       } else if (res && res.error) {
-         alert("Error saving note: " + res.error);
+         showSystemModal("Error", "Error saving note: " + res.error);
       }
     }).withFailureHandler(function(err) {
       if (overlay) overlay.style.display = 'none';
-      alert("Note transmission failed: " + err.message);
+      showSystemModal("Transmission Failure", "Note transmission failed: " + err.message);
     }).updateClientRecord(window.CURRENT_VIEW_CLIENT_DATA);
   }
 
@@ -1783,7 +1783,7 @@
             showSystemModal("Configuration Error", res.error || "Failed to save configuration."); 
          }
       })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.innerHTML = originalText; alert(err.message); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.innerHTML = originalText; showSystemModal("Server Error", err.message); })
       .saveClientsModuleConfig(payload);
   }
 

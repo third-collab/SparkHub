@@ -853,8 +853,8 @@
       if (resetBtn) {
         resetBtn.onclick = function() {
           showSystemConfirm(
-            "Confirm Password Reset", 
-            "Send a secure password reset link to " + data.email + "?", 
+            "Confirm Password Reset",
+            "Send a secure password reset link to " + data.email + "?",
             function() {
               resetBtn.disabled = true; resetBtn.innerText = "Sending Link...";
               google.script.run.withSuccessHandler(function(res) {
