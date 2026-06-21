@@ -139,63 +139,125 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
   for (var t = 0; t < matchedTemplates.length; t++) {
     var templateRow = matchedTemplates[t];
     
-    // Resolves To Override (Index 11), CC Recipients (Index 12), and BCC Recipients (Index 13) fields natively from data rows
-    var finalToEmail = (templateRow[11] && String(templateRow[11]).trim() !== "") ? String(templateRow[11]).trim() : toEmail;
+    // Extracts advanced custom recipient strings and distribution rules from columns 12, 13, 14, and 15
+    var toRule = templateRow[11] ? String(templateRow[11]).trim() : "";
     var finalCcEmail = templateRow[12] ? String(templateRow[12]).trim() : "";
     var finalBccEmail = templateRow[13] ? String(templateRow[13]).trim() : "";
+    var dispatchMode = templateRow[14] ? String(templateRow[14]).trim() : "Individual";
     
-    var finalSubject = templateRow[7];
-    var finalHtmlBody = templateRow[8];
+    var baseSubject = templateRow[7];
+    var baseHtmlBody = templateRow[8];
     var wrapperName = templateRow[9];
 
-    // Fetch wrapper HTML
     var wrapperHtml = "{{USER_MESSAGE_CONTENT}}";
     for (var w=1; w<wData.length; w++) {
       if (wData[w][2] === wrapperName && wData[w][5] === "Active") wrapperHtml = wData[w][4];
     }
 
-    finalHtmlBody = applyGlobalSignature(finalHtmlBody);
-    
-    var fullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", finalHtmlBody);
-    
-    // Processes structural token merge translations over custom route configuration strings uniformly
-    for (var key in dataMap) {
-      var regex = new RegExp("\\{\\{" + key + "\\}\\}", "gi");
-      finalToEmail = finalToEmail.replace(regex, dataMap[key] || "");
-      finalCcEmail = finalCcEmail.replace(regex, dataMap[key] || "");
-      finalBccEmail = finalBccEmail.replace(regex, dataMap[key] || "");
-      finalSubject = finalSubject.replace(regex, dataMap[key] || "");
-      fullHtml = fullHtml.replace(regex, dataMap[key] || "");
+    baseHtmlBody = applyGlobalSignature(baseHtmlBody);
+    var baseFullHtml = wrapperHtml.replace("{{USER_MESSAGE_CONTENT}}", baseHtmlBody);
+
+    // 1. Evaluate routing conditions and resolve user accounts directly to active System Emails
+    var resolvedEmails = [];
+    var resolvedProfiles = [];
+
+    if (!toRule || toRule === "" || toRule === "TRIGGER_DEFAULT") {
+      resolvedEmails.push(toEmail);
+      resolvedProfiles.push({ systemEmail: toEmail, firstName: "User", lastName: "", username: toEmail.split('@')[0] });
+    } else {
+      try {
+        if (typeof getUsersList === 'function') {
+          var directory = getUsersList();
+          if (toRule === "ALL_ACTIVE_USERS") {
+            directory.forEach(function(u) {
+              if (u.status === 'Active' && u.systemEmail) {
+                resolvedEmails.push(u.systemEmail); resolvedProfiles.push(u);
+              }
+            });
+          } else if (toRule.indexOf("CUSTOM_LOOKUP:") === 0) {
+            var targetIds = toRule.replace("CUSTOM_LOOKUP:", "").split(",").map(id => id.trim());
+            directory.forEach(function(u) {
+              if (targetIds.indexOf(u.userId) > -1 && u.status === 'Active' && u.systemEmail) {
+                resolvedEmails.push(u.systemEmail); resolvedProfiles.push(u);
+              }
+            });
+          }
+        }
+      } catch(resolveErr) { console.warn("Recipient extractor defaulted to baseline: " + resolveErr.message); }
     }
 
-    if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
-      finalToEmail = settings.adminEmail;
-      finalCcEmail = ""; // Suppresses external carbon copy loops while sandbox interception is engaged
-      finalBccEmail = "";
-      finalSubject = "[Sandbox Mail] " + finalSubject;
-      var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
-      sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
-      sandboxWarning += "&gt; INTENDED RECIPIENT: " + toEmail + "<br></div>";
-      fullHtml += sandboxWarning;
+    if (resolvedEmails.length === 0) { resolvedEmails.push(toEmail); }
+
+    // 2. Branch processing execution logic to enforce the selected Dispatch Mode type
+    if (dispatchMode === "Individual") {
+      // Loop execution spins up a separate high-fidelity personalized email package transaction per user
+      resolvedProfiles.forEach(function(profile) {
+        var currentTo = profile.systemEmail;
+        var currentSubject = baseSubject;
+        var currentHtml = baseFullHtml;
+        
+        var localContextMap = {};
+        for (var key in dataMap) { localContextMap[key] = dataMap[key]; }
+        localContextMap.username = profile.username || "";
+        localContextMap.firstName = profile.firstName || "User";
+        localContextMap.lastName = profile.lastName || "";
+        localContextMap.userFirst = profile.firstName || "User";
+        localContextMap.userEmail = profile.systemEmail || "";
+
+        for (var token in localContextMap) {
+          var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
+          currentSubject = currentSubject.replace(regex, localContextMap[token] || "");
+          currentHtml = currentHtml.replace(regex, localContextMap[token] || "");
+        }
+
+        var currentCc = finalCcEmail; var currentBcc = finalBccEmail;
+        for (var token in localContextMap) {
+          var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
+          currentCc = currentCc.replace(regex, localContextMap[token] || "");
+          currentBcc = currentBcc.replace(regex, localContextMap[token] || "");
+        }
+
+        if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
+          currentTo = settings.adminEmail; currentCc = ""; currentBcc = "";
+          currentSubject = "[Sandbox Mail] " + currentSubject;
+          currentHtml += "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333;'>SYSTEM OVERRIDE: SANDBOX INTERCEPTED<br>&gt; INTENDED RECIPIENT: " + profile.systemEmail + "<br></div>";
+        }
+
+        currentHtml = applyLinkTracking(currentHtml, currentTo);
+        var mailOptions = { to: currentTo, subject: currentSubject, htmlBody: currentHtml, noReply: true, name: settings.systemName, inlineImages: { logo: getLogoBlob() } };
+        if (currentCc) mailOptions.cc = currentCc;
+        if (currentBcc) mailOptions.bcc = currentBcc;
+        MailApp.sendEmail(mailOptions);
+      });
+    } else {
+      // Collective group dispatches execute a single shared email payload asset delivery
+      var currentTo = resolvedEmails.join(', ');
+      var currentSubject = baseSubject;
+      var currentHtml = baseFullHtml;
+      var currentCc = finalCcEmail;
+      var currentBcc = finalBccEmail;
+
+      for (var token in dataMap) {
+        var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
+        currentTo = currentTo.replace(regex, dataMap[token] || "");
+        currentCc = currentCc.replace(regex, dataMap[token] || "");
+        currentBcc = currentBcc.replace(regex, dataMap[token] || "");
+        currentSubject = currentSubject.replace(regex, dataMap[token] || "");
+        currentHtml = currentHtml.replace(regex, dataMap[token] || "");
+      }
+
+      if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
+        currentTo = settings.adminEmail; currentCc = ""; currentBcc = "";
+        currentSubject = "[Sandbox Mail] " + currentSubject;
+        currentHtml += "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333;'>SYSTEM OVERRIDE: SANDBOX INTERCEPTED<br>&gt; INTENDED RECIPIENTS: " + resolvedEmails.join(', ') + "<br></div>";
+      }
+
+      currentHtml = applyLinkTracking(currentHtml, currentTo.split(',')[0].trim());
+      var mailOptions = { to: currentTo, subject: currentSubject, htmlBody: currentHtml, noReply: true, name: settings.systemName, inlineImages: { logo: getLogoBlob() } };
+      if (currentCc) mailOptions.cc = currentCc;
+      if (finalBccEmail || currentBcc) mailOptions.bcc = finalBccEmail || currentBcc;
+      MailApp.sendEmail(mailOptions);
     }
-
-    // 2. Wrap all links for tracking right before sending
-    fullHtml = applyLinkTracking(fullHtml, finalToEmail);
-    
-    // Package parameters securely into native MailApp structural option schemas
-    var mailOptions = {
-      to: finalToEmail, 
-      subject: finalSubject, 
-      htmlBody: fullHtml, 
-      noReply: true, 
-      name: settings.systemName, 
-      inlineImages: { logo: getLogoBlob() }
-    };
-    
-    if (finalCcEmail) mailOptions.cc = finalCcEmail;
-    if (finalBccEmail) mailOptions.bcc = finalBccEmail;
-
-    MailApp.sendEmail(mailOptions);
   }
 }
 

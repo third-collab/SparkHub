@@ -292,9 +292,15 @@ function patch_v5_1_TemplatesDatabaseSchema() {
     if (lastCol < 14) {
       sheet.getRange(1, 12, 1, 3).setValues([["To Recipients", "CC Recipients", "BCC Recipients"]]).setFontWeight("bold").setBackground("#f1f5f9");
       SpreadsheetApp.flush();
-      return "Success! Mapped 14-column layout architecture onto active spreadsheet elements successfully.";
     }
-    return "Notice: Sheet layout was already upgraded to v5.1 template schema ruleset bounds.";
+    
+    // Upgrades legacy 14-column systems safely up to a standard 15-column matrix ruleset bounds
+    if (sheet.getLastColumn() < 15) {
+      sheet.getRange(1, 15).setValue("Dispatch Mode").setFontWeight("bold").setBackground("#f1f5f9");
+      SpreadsheetApp.flush();
+      return "Success! Database successfully migrated to v5.2 15-Column template configuration engine schema.";
+    }
+    return "Notice: Sheet layout was already upgraded to v5.2 template schema bounds.";
   } catch(e) {
     return "Migration Failed: " + e.message;
   }

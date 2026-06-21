@@ -131,8 +131,8 @@ function setupCoreDatabase(rootFolder) {
   // 3. Schema Initialization (Remapped to support side-by-side emails and locked Status column layout)
   initializeSheet(verifiedDb, "Users", ["Timestamp", "User ID", "Username", "Google Email", "System Email", "Role", "Password", "First Name", "Last Name", "Last Login", "Dashboard Config", "Status"]);
   initializeSheet(verifiedDb, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status", "Dashboard Config"]);
-  // Initializing with structural 14-column layout headers for full backward compatibility
-  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status", "To Recipients", "CC Recipients", "BCC Recipients"]);
+  // Initializes fresh deployments with a standardized 15-column templates table configuration matrix
+  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status", "To Recipients", "CC Recipients", "BCC Recipients", "Dispatch Mode"]);
   initializeSheet(verifiedDb, "Wrappers", ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"]);
 
   // 4. Admin Creation
