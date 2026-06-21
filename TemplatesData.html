@@ -1115,14 +1115,14 @@
           showSystemModal("Configuration Error", res.error);
           return;
         }
+        // Force application environment reload upon configuration save
         google.script.run.withSuccessHandler(function(url) {
           window.top.location.href = url;
         }).getAppUrl();
       })
       .withFailureHandler(function(err) {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        alert("Server Error: " + err.message);
+        btn.innerText = originalText; btn.disabled = false;
+        showSystemModal("Server Error", err.message);
       })
       .saveTemplatesModuleConfig(payload);
   }

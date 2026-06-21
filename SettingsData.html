@@ -527,7 +527,7 @@
         })
         .withFailureHandler(err => {
           toggleSettingsOverlay('edt-settings-overlay', false);
-          alert("Server Error: " + err.message);
+          showSystemModal("Server Error", err.message);
         })
         .saveGeneralSettings(p);
     }

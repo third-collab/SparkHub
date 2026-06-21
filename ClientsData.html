@@ -1230,8 +1230,8 @@
 
     if (mode === 'add') {
       google.script.run
-        .withSuccessHandler(function(res) { btn.disabled = false; btn.innerText = "Save Details"; if(res.success){ loadClientsTable(); switchView('clientListView'); } else { alert(res.error); } })
-        .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; alert(err.message); })
+        .withSuccessHandler(function(res) { btn.disabled = false; btn.innerText = "Save Details"; if(res.success){ loadClientsTable(); switchView('clientListView'); } else { showSystemModal("Form Error", res.error); } })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; showSystemModal("Server Error", err.message); })
         .createClientRecord(payload);
     } else {
       google.script.run
@@ -1244,9 +1244,9 @@
               } else { 
                 switchView('clientListView'); 
               }
-           } else { alert(res.error); } 
+           } else { showSystemModal("Form Error", res.error); } 
         })
-        .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; alert(err.message); })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.innerText = "Save Details"; showSystemModal("Server Error", err.message); })
         .updateClientRecord(payload);
     }
   }
@@ -1425,7 +1425,7 @@
         <div style="display:flex; gap:5px;">
           <button type="button" onclick="moveDomRow(this, -1)" class="btn-cancel" style="padding:10px;">▲</button>
           <button type="button" onclick="moveDomRow(this, 1)" class="btn-cancel" style="padding:10px;">▼</button>
-          ${!isDef ? `<button type="button" onclick="if(confirm('Delete group?')) this.closest('.accordion-grp-row').remove();" class="btn-cancel" style="color:#ef4444; border-color:#fecaca; background:#fff0f2;">Remove Group</button>` : ''}
+          ${!isDef ? `<button type="button" onclick="triggerNativeClientGroupDelete(this)" class="btn-cancel" style="color:#ef4444; border-color:#fecaca; background:#fff0f2;">Remove Group</button>` : ''}
         </div>
       </div>
       <div class="fields-container"></div>
@@ -1722,7 +1722,7 @@
     document.querySelectorAll('.accordion-grp-row').forEach(function(groupRow) {
       var groupId = groupRow.dataset.id; var groupLabel = groupRow.querySelector('.acc-label').value.trim();
       var isDef = groupRow.dataset.def === 'true'; var layout = [];
-      if(!groupLabel) { alert("All groups must have a label."); executionCrashed = true; return; }
+      if(!groupLabel) { showSystemModal("Validation Error", "All groups must have a label."); executionCrashed = true; return; }
 
       groupRow.querySelectorAll('.fields-container > div').forEach(function(fieldRow) {
         if (fieldRow.classList.contains('core-row')) {
@@ -1733,7 +1733,7 @@
            var type = fieldRow.querySelector('.cf-type').value;
            var req = fieldRow.querySelector('.cf-req').value === 'true';
            
-           if(!label || !cfId) { alert("Custom fields require a label and unique ID."); executionCrashed = true; return; }
+           if(!label || !cfId) { showSystemModal("Validation Error", "Custom fields require a label and unique ID."); executionCrashed = true; return; }
            layout.push(cfId); var finalOptionsStr = '';
 
            if (type === 'select') {
@@ -1742,7 +1742,7 @@
               if (tier1Mode === 'system') {
                  var t2Mod = mBlock.querySelector('.tier2-module').value; var t3Ent = mBlock.querySelector('.tier3-entity').value;
                  var chosenVals = Array.from(mBlock.querySelectorAll('.tier4-checkbox-node:checked')).map(c => c.value).join(',');
-                 if(!t2Mod || !t3Ent) { alert(`Field [${label}] has an incomplete lookup configuration.`); executionCrashed = true; return; }
+                 if(!t2Mod || !t3Ent) { showSystemModal("Validation Error", "Field [" + label + "] has an incomplete lookup configuration."); executionCrashed = true; return; }
                  finalOptionsStr = `SYS_LOOKUP:${t2Mod}:${t3Ent}:${chosenVals}`;
               } else { finalOptionsStr = mBlock.querySelector('.tier-static-opts').value.trim(); }
            } else if (type === 'json') {
@@ -1792,6 +1792,17 @@
     if (conditionalBox) {
       conditionalBox.style.display = isChecked ? 'flex' : 'none';
     }
+  }
+
+  function triggerNativeClientGroupDelete(btn) {
+    showSystemConfirm(
+      "Confirm Deletion",
+      "Are you sure you want to permanently delete this accordion group? This will strip all core and custom elements assigned inside this container segment.",
+      function() {
+         var targetGroup = btn.closest('.accordion-grp-row');
+         if (targetGroup) targetGroup.remove();
+      }
+    );
   }
 
   function triggerNativeClientFieldDelete(btn) {

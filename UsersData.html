@@ -852,12 +852,17 @@
       var resetBtn = document.getElementById('ro-user-reset-btn');
       if (resetBtn) {
         resetBtn.onclick = function() {
-          if (!confirm("Send a secure password reset link to " + data.email + "?")) return;
-          resetBtn.disabled = true; resetBtn.innerText = "Sending Link...";
-          google.script.run.withSuccessHandler(function(res) {
-            resetBtn.disabled = false; resetBtn.innerText = "Reset Password";
-            showSystemModal("Reset Password Triggered", res);
-          }).sendPasswordResetEmail(data.email);
+          showSystemConfirm(
+            "Confirm Password Reset", 
+            "Send a secure password reset link to " + data.email + "?", 
+            function() {
+              resetBtn.disabled = true; resetBtn.innerText = "Sending Link...";
+              google.script.run.withSuccessHandler(function(res) {
+                resetBtn.disabled = false; resetBtn.innerText = "Reset Password";
+                showSystemModal("Reset Password Triggered", res);
+              }).sendPasswordResetEmail(data.email);
+            }
+          );
         };
       }
     }).getUserById(rowIndex);
