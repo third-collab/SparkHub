@@ -173,7 +173,23 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       if (conditionPart === "TRIGGER_DEFAULT") {
         if (defaultEmail) {
           emails.push(defaultEmail);
-          profiles.push({ systemEmail: defaultEmail, firstName: "Recipient", lastName: "", username: defaultEmail.split('@')[0] });
+          var foundUser = null;
+          try {
+            if (typeof getUsersList === 'function') {
+              var uList = getUsersList();
+              for (var u = 0; u < uList.length; u++) {
+                if (String(uList[u].email).toLowerCase() === defaultEmail.toLowerCase() || String(uList[u].systemEmail).toLowerCase() === defaultEmail.toLowerCase()) {
+                  foundUser = uList[u];
+                  break;
+                }
+              }
+            }
+          } catch(e) {}
+          if (foundUser) {
+            profiles.push(foundUser);
+          } else {
+            profiles.push({ systemEmail: defaultEmail, firstName: "Recipient", lastName: "", username: defaultEmail.split('@')[0], role: "User" });
+          }
         }
       } else if (conditionPart === "ALL_ACTIVE_USERS") {
         try {
@@ -237,12 +253,14 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
         var currentHtml = baseFullHtml;
         
         var localContextMap = {};
+  
         for (var key in dataMap) { localContextMap[key] = dataMap[key]; }
         localContextMap.username = profile.username || "";
         localContextMap.firstName = profile.firstName || "User";
         localContextMap.lastName = profile.lastName || "";
         localContextMap.userFirst = profile.firstName || "User";
         localContextMap.userEmail = profile.systemEmail || "";
+        localContextMap.userRole = profile.role || "User";
 
         for (var token in localContextMap) {
           var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
