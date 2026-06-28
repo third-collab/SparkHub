@@ -243,6 +243,8 @@
          <p><strong>To Override:</strong> <span id="ro-tpl-to" style="font-weight:600; color:var(--brand-primary);"></span></p>
          <p><strong>CC Options:</strong> <span id="ro-tpl-cc"></span></p>
          <p><strong>BCC Options:</strong> <span id="ro-tpl-bcc"></span></p>
+         <p><strong>Trigger Routing Filters:</strong> <br><small style="color:#475569;">Inc: <code id="ro-tpl-inc-view">-</code> | Exc: <code id="ro-tpl-exc-view">-</code></small></p>
+         <p><strong>Audience Drop-Rules:</strong> <br><small style="color:#475569;">Inc: <code id="ro-tpl-recinc-view">-</code> | Exc: <code id="ro-settings-rec-exc-view">-</code></small></p>
          <p><strong>Distribution:</strong> <span id="ro-tpl-dispatchMode" style="font-weight:700;"></span></p>
          <p><strong>Description:</strong> <span id="ro-tpl-desc"></span></p>
          <p><strong>Created On:</strong> <span id="ro-tpl-created" style="color: #64748b; font-size:13px;"></span></p>
@@ -300,6 +302,35 @@
 
       <button type="button" class="accordion" onclick="toggleAccordion(this)">2. Composition & Placeholders</button>
       <div class="panel">
+        
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:20px; border-radius:8px; margin-bottom:20px; grid-column:1/-1;">
+           <label style="color:var(--brand-primary); font-weight:800; font-size:11px; text-transform:uppercase; display:block; margin-bottom:10px; letter-spacing:0.5px;">Trigger Event Filters (Inclusions & Exclusions)</label>
+           <div class="form-row" style="margin:0; gap:15px;">
+              <div class="form-group">
+                 <label>Inclusions (e.g., Administrator, Active)</label>
+                 <input type="text" id="edt-tpl-trigger-inclusions" class="form-control" placeholder="Comma separated roles/statuses">
+              </div>
+              <div class="form-group">
+                 <label>Exclusions (e.g., Client, Inactive)</label>
+                 <input type="text" id="edt-tpl-trigger-exclusions" class="form-control" placeholder="Comma separated roles/statuses">
+              </div>
+           </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:20px; border-radius:8px; margin-bottom:20px; grid-column:1/-1;">
+           <label style="color:var(--brand-primary); font-weight:800; font-size:11px; text-transform:uppercase; display:block; margin-bottom:10px; letter-spacing:0.5px;">Audience Drop-Rules (Recipient Inclusions & Exclusions)</label>
+           <div class="form-row" style="margin:0; gap:15px;">
+              <div class="form-group">
+                 <label>Recipient Inclusions (e.g., Staff)</label>
+                 <input type="text" id="edt-tpl-recipient-inclusions" class="form-control" placeholder="Comma separated roles">
+              </div>
+              <div class="form-group">
+                 <label>Recipient Exclusions (e.g., target_user)</label>
+                 <input type="text" id="edt-tpl-recipient-exclusions" class="form-control" placeholder="Use target_user to exclude primary subject">
+              </div>
+           </div>
+        </div>
+
         <div class="form-row">
           <div class="form-group"><label>To Recipient Conditions *</label>
             <select id="edt-tpl-to-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('to', this.value)">
@@ -569,58 +600,44 @@
   /* ========================================================================
      4. DATA MANIPULATION & STATE FILTERS
      ======================================================================== */
-  function populateTemplatesSettings(data) {
-    // 1. Populate Read-Only View
-    const roWrap = document.getElementById('ro-settings-tpl-wrapper');
-    if (roWrap) roWrap.innerText = data.tplDefaultWrapper || 'Internal Communication';
-    
-    const roBcc = document.getElementById('ro-settings-tpl-bcc');
-    if (roBcc) roBcc.innerText = data.tplBccArchive || 'Not Set';
-
-    const roQueue = document.getElementById('ro-settings-queue-id');
-    if (roQueue) roQueue.innerText = data.queueDbId || 'Not Configured';
-
-    const roWhitelist = document.getElementById('ro-settings-tpl-whitelist');
-    if (roWhitelist) roWhitelist.innerText = data.tplWhitelist || 'None';
-    
-    const roTrack = document.getElementById('ro-settings-tpl-tracking');
-    if (roTrack) roTrack.innerText = data.tplLinkTracking === 'true' ? 'Enabled' : 'Disabled';
-
-    const roSig = document.getElementById('ro-settings-tpl-sig');
-    if (roSig) roSig.innerText = data.tplGlobalSignature || '';
-
-    // 2. Populate Edit View standard fields
-    if(document.getElementById('edt-settings-tpl-tracking')) {
-      document.getElementById('edt-settings-tpl-tracking').checked = (data.tplLinkTracking === 'true');
-    }
-    
-    const edtBcc = document.getElementById('edt-settings-tpl-bcc');
-    if (edtBcc) edtBcc.value = data.tplBccArchive || '';
-
-    const edtQueue = document.getElementById('edt-settings-queue-id');
-    if (edtQueue) edtQueue.value = data.queueDbId || '';
-
-    const edtWhitelist = document.getElementById('edt-settings-tpl-whitelist');
-    if (edtWhitelist) edtWhitelist.value = data.tplWhitelist || '';
-
-    const edtSig = document.getElementById('edt-settings-tpl-sig');
-    if (edtSig) edtSig.value = data.tplGlobalSignature || '';
-
-    // 3. Force-fetch the dropdown options directly from the registry
-    const edtWrap = document.getElementById('edt-settings-tpl-wrapper');
-    if (edtWrap) {
-      google.script.run.withSuccessHandler(function(wrappers) {
-         GLOBAL_WRAPPER_DATA = wrappers || [];
-         if (GLOBAL_WRAPPER_DATA.length > 0) {
-           edtWrap.innerHTML = GLOBAL_WRAPPER_DATA.map(w => 
-             `<option value="${w.name}">${w.name}</option>`
-           ).join('');
-         } else {
-           edtWrap.innerHTML = `<option value="Internal Communication">Internal Communication</option>`;
-         }
-         edtWrap.value = data.tplDefaultWrapper || 'Internal Communication';
-      }).getWrappersList();
-    }
+  function populateTemplatesSettings() {
+    google.script.run.withSuccessHandler(function(data) {
+      const roWrap = document.getElementById('ro-settings-tpl-wrapper');
+      if (roWrap) roWrap.innerText = data.tplDefaultWrapper || 'Internal Communication';
+      const roBcc = document.getElementById('ro-settings-tpl-bcc');
+      if (roBcc) roBcc.innerText = data.tplBccArchive || 'Not Set';
+      const roQueue = document.getElementById('ro-settings-queue-id');
+      if (roQueue) roQueue.innerText = data.queueDbId || 'Not Configured';
+      const roWhitelist = document.getElementById('ro-settings-tpl-whitelist');
+      if (roWhitelist) roWhitelist.innerText = data.tplWhitelist || 'None';
+      const roTrack = document.getElementById('ro-settings-tpl-tracking');
+      if (roTrack) roTrack.innerText = data.tplLinkTracking === 'true' ? 'Enabled' : 'Disabled';
+      const roSig = document.getElementById('ro-settings-tpl-sig');
+      if (roSig) roSig.innerText = data.tplGlobalSignature || '';
+      if(document.getElementById('edt-settings-tpl-tracking')) {
+        document.getElementById('edt-settings-tpl-tracking').checked = (data.tplLinkTracking === 'true');
+      }
+      const edtBcc = document.getElementById('edt-settings-tpl-bcc');
+      if (edtBcc) edtBcc.value = data.tplBccArchive || '';
+      const edtQueue = document.getElementById('edt-settings-queue-id');
+      if (edtQueue) edtQueue.value = data.queueDbId || '';
+      const edtWhitelist = document.getElementById('edt-settings-tpl-whitelist');
+      if (edtWhitelist) edtWhitelist.value = data.tplWhitelist || '';
+      const edtSig = document.getElementById('edt-settings-tpl-sig');
+      if (edtSig) edtSig.value = data.tplGlobalSignature || '';
+      const edtWrap = document.getElementById('edt-settings-tpl-wrapper');
+      if (edtWrap) {
+        google.script.run.withSuccessHandler(function(wrappers) {
+           GLOBAL_WRAPPER_DATA = wrappers || [];
+           if (GLOBAL_WRAPPER_DATA.length > 0) {
+             edtWrap.innerHTML = GLOBAL_WRAPPER_DATA.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+           } else {
+             edtWrap.innerHTML = `<option value="Internal Communication">Internal Communication</option>`;
+           }
+           edtWrap.value = data.tplDefaultWrapper || 'Internal Communication';
+        }).getWrappersList();
+      }
+    }).getTemplatesModuleConfig();
   }
 
   function populateTemplateFilters() {
@@ -965,6 +982,11 @@
       unpackEcosystemRecipientRuleToUi('cc', data.cc);
       unpackEcosystemRecipientRuleToUi('bcc', data.bcc);
       
+      document.getElementById('edt-tpl-trigger-inclusions').value = data.triggerInclusions || "";
+      document.getElementById('edt-tpl-trigger-exclusions').value = data.triggerExclusions || "";
+      document.getElementById('edt-tpl-recipient-inclusions').value = data.recipientInclusions || "";
+      document.getElementById('edt-tpl-recipient-exclusions').value = data.recipientExclusions || "";
+      
       var wrapperSelect = document.getElementById('edt-tpl-wrapper');
       wrapperSelect.value = data.wrapper || "Internal Communication";
       
@@ -1002,6 +1024,10 @@
       document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
       
       document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
+      document.getElementById('ro-tpl-inc-view').innerText = data.triggerInclusions || "None";
+      document.getElementById('ro-tpl-exc-view').innerText = data.triggerExclusions || "None";
+      document.getElementById('ro-tpl-recinc-view').innerText = data.recipientInclusions || "None";
+      document.getElementById('ro-settings-rec-exc-view').innerText = data.recipientExclusions || "None";
       document.getElementById('ro-tpl-dispatchMode').innerText = data.dispatchMode === "Individual" ? "Send Separately (Personalized Loops)" : "Send Combined (Group Dispatch)";
 
       function formatEcosystemRecipientRuleForDisplay(rawRule, isToField) {
@@ -1254,6 +1280,10 @@
       cc: compileEcosystemRecipientRule('cc'),
       bcc: compileEcosystemRecipientRule('bcc'),
       dispatchMode: document.getElementById('edt-tpl-dispatchMode').value,
+      triggerInclusions: document.getElementById('edt-tpl-trigger-inclusions').value.trim(),
+      triggerExclusions: document.getElementById('edt-tpl-trigger-exclusions').value.trim(),
+      recipientInclusions: document.getElementById('edt-tpl-recipient-inclusions').value.trim(),
+      recipientExclusions: document.getElementById('edt-tpl-recipient-exclusions').value.trim(),
       body: tplQuill ? tplQuill.root.innerHTML : ""
     };
 

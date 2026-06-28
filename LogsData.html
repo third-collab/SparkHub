@@ -185,24 +185,20 @@
     applyLogFilters();
   }
   
-  function populateLogsSettings(configs) {
-    // Populate Read-Only View
-    const roId = document.getElementById('ro-settings-logsid');
-    const roRet = document.getElementById('ro-settings-retention-txt');
-    
-    // Now matches the camelCase from Settings.gs
-    if (roId) roId.innerText = configs.logsDbId || 'Not Set'; 
-    if (roRet) {
-      const days = configs.logsRetentionDays || "90"; 
-      roRet.innerText = days === "0" ? "Indefinite" : days + " Days";
-    }
-
-    // Populate Edit View
-    const edtId = document.getElementById('edt-settings-logsid');
-    const edtRet = document.getElementById('edt-settings-retention');
-    
-    if (edtId) edtId.value = configs.logsDbId || '';
-    if (edtRet) edtRet.value = configs.logsRetentionDays || "90";
+  function populateLogsSettings() {
+    google.script.run.withSuccessHandler(function(configs) {
+      const roId = document.getElementById('ro-settings-logsid');
+      const roRet = document.getElementById('ro-settings-retention-txt');
+      if (roId) roId.innerText = configs.logsDbId || 'Not Set'; 
+      if (roRet) {
+        const days = configs.logsRetentionDays || "90"; 
+        roRet.innerText = days === "0" ? "Indefinite" : days + " Days";
+      }
+      const edtId = document.getElementById('edt-settings-logsid');
+      const edtRet = document.getElementById('edt-settings-retention');
+      if (edtId) edtId.value = configs.logsDbId || '';
+      if (edtRet) edtRet.value = configs.logsRetentionDays || "90";
+    }).getLogsModuleConfig();
   }
 
   /* ========================================================================

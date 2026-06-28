@@ -253,6 +253,22 @@ function saveTemplatesModuleConfig(payload) {
   }
 }
 
+function getTemplatesModuleConfig() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    return {
+      tplDefaultWrapper: props.getProperty('TPL_DEFAULT_WRAPPER') || 'Internal Communication',
+      tplBccArchive: props.getProperty('TPL_BCC_ARCHIVE') || '',
+      tplLinkTracking: props.getProperty('TPL_LINK_TRACKING') || 'false',
+      tplWhitelist: props.getProperty('TPL_WHITELIST') || '',
+      tplGlobalSignature: props.getProperty('TPL_GLOBAL_SIGNATURE') || '',
+      queueDbId: props.getProperty('QUEUE_DATABASE_ID') || ''
+    };
+  } catch(e) {
+    return { tplDefaultWrapper: 'Internal Communication', tplBccArchive: '', tplLinkTracking: 'false', tplWhitelist: '', tplGlobalSignature: '', queueDbId: '' };
+  }
+}
+
 // ========================================================================
 // 3. READ / GET FUNCTIONS
 // ========================================================================

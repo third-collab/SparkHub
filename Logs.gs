@@ -154,7 +154,17 @@ function runLogJanitor() {
 // ========================================================================
 // 5. INTERNAL HELPERS
 // ========================================================================
-// No internal helpers currently needed for Logs
+function getLogsModuleConfig() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    return {
+      logsDbId: props.getProperty('LOGS_DATABASE_ID') || '',
+      logsRetentionDays: props.getProperty('LOGS_RETENTION_DAYS') || '90'
+    };
+  } catch(e) {
+    return { logsDbId: '', logsRetentionDays: '90' };
+  }
+}
 
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]

@@ -259,9 +259,49 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       resolvedProfiles.push({ systemEmail: toEmail, firstName: "Recipient", lastName: "", username: toEmail.split('@')[0] });
     }
 
+    // Dynamic Recipient Inclusion/Exclusion Evaluation Engine (Columns 18 & 19)
+    var recIncRule = templateRow[17] ? String(templateRow[17]).trim().toLowerCase() : "";
+    var recExcRule = templateRow[18] ? String(templateRow[18]).trim().toLowerCase() : "";
+    
+    if (recIncRule !== "" || recExcRule !== "") {
+      var filteredEmails = []; var filteredProfiles = [];
+      for (var pIdx = 0; pIdx < resolvedProfiles.length; pIdx++) {
+        var prof = resolvedProfiles[pIdx];
+        var trackingRole = String(prof.role || "User").trim().toLowerCase();
+        var targetEmailMatch = String(dataMap.priEmail || dataMap.userEmail || "").trim().toLowerCase();
+        var currentProfileEmail = String(prof.systemEmail || "").trim().toLowerCase();
+        
+        var isTargetUser = (targetEmailMatch !== "" && currentProfileEmail === targetEmailMatch);
+        var evalMatchToken = isTargetUser ? "target_user" : trackingRole;
+        
+        if (recIncRule !== "") {
+          var allowedRec = recIncRule.split(',').map(function(s){ return s.trim(); });
+          if (allowedRec.indexOf(evalMatchToken) === -1) continue;
+        }
+        if (recExcRule !== "") {
+          var blockedRec = recExcRule.split(',').map(function(s){ return s.trim(); });
+          if (blockedRec.indexOf(evalMatchToken) > -1) continue;
+        }
+        filteredEmails.push(resolvedEmails[pIdx]);
+        filteredProfiles.push(prof);
+      }
+      resolvedEmails = filteredEmails;
+      resolvedProfiles = filteredProfiles;
+    }
+
     // Extract CC and BCC distributions utilizing the matching dynamic framework tokens rule
     var ccResult = resolveEcosystemRecipientRule(finalCcEmail, "");
     var bccResult = resolveEcosystemRecipientRule(finalBccEmail, "");
+    
+    // Apply recipient exclusion drop-rules to CC and BCC rows if target_user is explicitly filtered
+    if (recExcRule !== "" && recExcRule.split(',').map(function(s){ return s.trim(); }).indexOf("target_user") > -1) {
+      var targetEmailMatch = String(dataMap.priEmail || dataMap.userEmail || "").trim().toLowerCase();
+      if (targetEmailMatch !== "") {
+        ccResult.emails = ccResult.emails.filter(function(e) { return e.trim().toLowerCase() !== targetEmailMatch; });
+        bccResult.emails = bccResult.emails.filter(function(e) { return e.trim().toLowerCase() !== targetEmailMatch; });
+      }
+    }
+    
     var baseCcEmails = ccResult.emails.join(', ');
     var baseBccEmails = bccResult.emails.join(', ');
 

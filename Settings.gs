@@ -86,20 +86,6 @@ function getSystemSettings() {
       emailFallbackLogo: props.getProperty('EMAIL_FALLBACK_LOGO') || 'https://i.imgur.com/Nlcwog7.png',
       rootFolderId: props.getProperty('ROOT_FOLDER_ID') || '',
       mainDbId: props.getProperty('DATABASE_ID') || '',
-      logsDbId: props.getProperty('LOGS_DATABASE_ID') || '',
-      logsRetentionDays: props.getProperty('LOGS_RETENTION_DAYS') || '90',
-    
-      // Templates Module Settings
-      // Templates Module Settings
-      tplDefaultWrapper: props.getProperty('TPL_DEFAULT_WRAPPER') ||
-      'Internal Communication',
-      tplBccArchive: props.getProperty('TPL_BCC_ARCHIVE') || '',
-      tplLinkTracking: props.getProperty('TPL_LINK_TRACKING') ||
-      'false',
-      tplWhitelist: props.getProperty('TPL_WHITELIST') || '',
-      tplGlobalSignature: props.getProperty('TPL_GLOBAL_SIGNATURE') ||
-      '',
-      queueDbId: props.getProperty('QUEUE_DATABASE_ID') || '',
 
       hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'),
       installedModules: props.getProperty('INSTALLED_MODULES') || '',

@@ -222,8 +222,9 @@ function executeSendTemplateEmail(templateId, recipient, cc, bcc, contextMap, di
   };
   
   if (finalCc) mailOptions.cc = finalCc;
-  if (finalBcc || (settings.environment !== 'Sandbox' && settings.tplBccArchive)) {
-    mailOptions.bcc = finalBcc || settings.tplBccArchive;
+  var tplBccArchive = PropertiesService.getScriptProperties().getProperty('TPL_BCC_ARCHIVE') || '';
+  if (finalBcc || (settings.environment !== 'Sandbox' && tplBccArchive)) {
+    mailOptions.bcc = finalBcc || tplBccArchive;
   }
   
   MailApp.sendEmail(mailOptions);
