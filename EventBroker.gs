@@ -15,6 +15,9 @@ var SystemEvent = (function() {
     var actorTrackingId = "U-SYSTEM";
     try { if (typeof getLoggedInUserId === 'function') actorTrackingId = getLoggedInUserId(); } catch(e){}
     
+    var finalExtraData = extraData || {};
+    var computedEntityName = finalExtraData.targetName || entity || "-";
+
     var payload = {
       module: module, 
       type: type, 
@@ -22,12 +25,35 @@ var SystemEvent = (function() {
       name: name,
       severity: severity || "INFO",
       entity: entity, 
+      entityName: computedThemeTargetDisplayNameString(module, entity, computedFriendlyTargetName(module, entity, finalExtraData)),
       details: details,
       recipientEmail: recipientEmail || "",
-      extraData: extraData || {}, 
+      extraData: finalContextClean(dataMapCloneSafe(localContextCloner(finalExtraDataContext(extraData)))), 
       timestamp: new Date(), 
       user: actorTrackingId
     };
+
+    function executeLocalContextExpansion(ex) {
+      if (ex && ex.targetName) return ex.targetName;
+      if (module === "System" || module === "Settings") return "System Settings";
+      return entity;
+    }
+
+    function dataMapCloneSafe(o) { return o || finalExtraData; }
+    function localContextCloner(o) { return o; }
+    function finalContextClean(o) { return o; }
+    function finalExtraDataContext(o) { return o; }
+    function computedThemeTargetDisplayNameString(m, id, n) { return n || id || "-"; }
+    function computedFriendlyTargetName(m, id, ex) {
+      if (ex && ex.targetName) return ex.targetName;
+      if (m === "System" || m === "Settings") return "Core System";
+      return id;
+    }
+
+    // 1. Core Logging
+    if (typeof Logs !== 'undefined' && Logs.handleSystemEvent) {
+      Logs.handleSystemEvent(payload);
+    }
 
     // 1. Core Logging
     if (typeof Logs !== 'undefined' && Logs.handleSystemEvent) {

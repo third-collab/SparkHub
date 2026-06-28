@@ -90,13 +90,18 @@ function getSystemSettings() {
       logsRetentionDays: props.getProperty('LOGS_RETENTION_DAYS') || '90',
     
       // Templates Module Settings
-      tplDefaultWrapper: props.getProperty('TPL_DEFAULT_WRAPPER') || 'Internal Communication',
+      // Templates Module Settings
+      tplDefaultWrapper: props.getProperty('TPL_DEFAULT_WRAPPER') ||
+      'Internal Communication',
       tplBccArchive: props.getProperty('TPL_BCC_ARCHIVE') || '',
-      tplLinkTracking: props.getProperty('TPL_LINK_TRACKING') || 'false',
+      tplLinkTracking: props.getProperty('TPL_LINK_TRACKING') ||
+      'false',
       tplWhitelist: props.getProperty('TPL_WHITELIST') || '',
-      tplGlobalSignature: props.getProperty('TPL_GLOBAL_SIGNATURE') || '',
+      tplGlobalSignature: props.getProperty('TPL_GLOBAL_SIGNATURE') ||
+      '',
+      queueDbId: props.getProperty('QUEUE_DATABASE_ID') || '',
 
-      hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'), 
+      hasWebhookSecret: !!props.getProperty('WEBHOOK_SECRET'),
       installedModules: props.getProperty('INSTALLED_MODULES') || '',
       installedPlugins: props.getProperty('INSTALLED_PLUGINS') || '',
       themePrimary: getSafeProp('THEME_PRIMARY', '#666DF2'), 

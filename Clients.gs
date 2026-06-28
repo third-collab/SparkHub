@@ -277,24 +277,23 @@ function saveServiceRecord(p) {
   try {
     var sheet = getClientsDb().getSheetByName("Services");
     if (p.rowIndex) { 
+      var oldData = sheet.getRange(parseInt(p.rowIndex,10)+1, 1, 1, 5).getValues()[0];
+      var srvId = oldData[1];
       sheet.getRange(parseInt(p.rowIndex,10)+1, 3, 1, 3).setValues([[p.name, p.description, p.status]]); 
       SpreadsheetApp.flush();
-      // ENFORCED: Prevent Stale Data
       
       try {
-        // Aligns sub-entity module routing with structural sub-trigger definitions and builds functional extraData contexts
-        SystemEvent.emit("Clients:Services", "UPDATE", "Service Updated", "INFO", p.name, "Service definition details modified.", "system", { serviceName: p.name, description: p.description, status: p.status });
+        SystemEvent.emit("Clients:Services", "UPDATE", "Service Updated", "INFO", srvId, "Service definition details modified.", "system", { serviceName: p.name, description: p.description, status: p.status, targetName: p.name });
       } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
       
       return { success: true };
     } else { 
-      sheet.appendRow([new Date(), "SRV-"+Math.floor(1000+Math.random()*9000), p.name, p.description, p.status || "Active"]);
+      var srvId = "SRV-"+Math.floor(1000+Math.random()*9000);
+      sheet.appendRow([new Date(), srvId, p.name, p.description, p.status || "Active"]);
       SpreadsheetApp.flush();
-      // ENFORCED: Prevent Stale Data
       
       try {
-        // Aligns sub-entity module routing with structural sub-trigger definitions and builds functional extraData contexts
-        SystemEvent.emit("Clients:Services", "CREATE", "Service Created", "INFO", p.name, "New service capability defined.", "system", { serviceName: p.name, description: p.description, status: p.status });
+        SystemEvent.emit("Clients:Services", "CREATE", "Service Created", "INFO", srvId, "New service capability defined.", "system", { serviceName: p.name, description: p.description, status: p.status, targetName: p.name });
       } catch(logErr) { console.warn("Service log failed: " + logErr.message); }
       
       return { success: true };
@@ -615,10 +614,10 @@ function updateClientRecord(p) {
 
     // MANDATE: Generate global system-wide tracking logs for every profile or note modification
     try {
+      var clientId = oldRow[1];
       var brandName = p.companyName || "Unknown Brand";
       var logAction = "Client Updated";
       var logDetails = "Client profile details updated.";
-      
       // Interrogate calculated changes array to produce high-fidelity system logs
       var noteChange = changes.find(function(c) { return c.type === "note"; });
       if (noteChange) {
@@ -629,14 +628,15 @@ function updateClientRecord(p) {
         logDetails = "Updated fields: " + changes.map(function(c) { return c.field; }).join(", ");
       }
       
-      SystemEvent.emit("Clients", "UPDATE", logAction, "INFO", brandName, logDetails, p.pEmail || "system");
+      SystemEvent.emit("Clients", "UPDATE", logAction, "INFO", clientId, logDetails, p.pEmail || "system", { targetName: brandName });
     } catch(logErr) {
       console.warn("Global system log emission failed for client update: " + logErr.message);
     }
 
     if (hasStatusChanged) {
+      var clientId = oldRow[1];
       const brand = p.companyName || "Unknown Brand";
-      SystemEvent.emit("Clients", "STATUS_CHANGE", "Client Status Updated", "WARN", brand, `Status changed from ${oldStatus} to ${newStatus}.`, p.pEmail || "system", { oldStatus: oldStatus, newStatus: newStatus });
+      SystemEvent.emit("Clients", "STATUS_CHANGE", "Client Status Updated", "WARN", clientId, `Status changed from ${oldStatus} to ${newStatus}.`, p.pEmail || "system", { oldStatus: oldStatus, newStatus: newStatus, targetName: brand });
     }
 
     return { success: true, message: "Updated successfully.", data: { operationalNotes: newRow[21], history: newRow[24] } };

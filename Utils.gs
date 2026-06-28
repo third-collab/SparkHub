@@ -128,8 +128,29 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
 
   for (var i = 1; i < tData.length; i++) {
     // Trigger is Col G (Index 6), Status is Col K (Index 10), Wrapper is Col J (Index 9)
-    // CRITICAL: Block email dispatch if the assigned wrapper is inactive
     if (tData[i][6] === triggerHandle && tData[i][10] === "Active" && isWrapperActive(tData[i][9])) {
+      
+      // Dynamic Trigger Inclusion/Exclusion Evaluation Engine (Columns 16 & 17)
+      var incRule = tData[i][15] ? String(tData[i][15]).trim().toLowerCase() : "";
+      var excRule = tData[i][16] ? String(tData[i][16]).trim().toLowerCase() : "";
+      var contextValue = "";
+      
+      if (triggerHandle.indexOf("Users:") === 0) {
+        contextValue = dataMap.target_role || dataMap.roleName || "";
+      } else if (triggerHandle.indexOf("Clients:") === 0) {
+        contextValue = dataMap.status || "";
+      }
+      contextValue = String(contextValue).trim().toLowerCase();
+      
+      if (incRule !== "") {
+        var allowedArr = incRule.split(',').map(function(s){ return s.trim(); });
+        if (allowedArr.indexOf(contextValue) === -1) continue; // Skip: Fails inclusion check
+      }
+      if (excRule !== "") {
+        var blockedArr = excRule.split(',').map(function(s){ return s.trim(); });
+        if (blockedArr.indexOf(contextValue) > -1) continue; // Skip: Trapped by exclusion criteria
+      }
+
       matchedTemplates.push(tData[i]);
     }
   }
@@ -282,40 +303,24 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
           currentHtml += "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333;'>SYSTEM OVERRIDE: SANDBOX INTERCEPTED<br>&gt; INTENDED RECIPIENT: " + profile.systemEmail + "<br></div>";
         }
 
-        currentHtml = applyLinkTracking(currentHtml, currentTo);
-        var mailOptions = { to: currentTo, subject: currentSubject, htmlBody: currentHtml, noReply: true, name: settings.systemName, inlineImages: { logo: getLogoBlob() } };
-        if (currentCc) mailOptions.cc = currentCc;
-        if (currentBcc) mailOptions.bcc = currentBcc;
-        MailApp.sendEmail(mailOptions);
+        enqueueEmailRow(templateId, currentTo, baseCcEmails, baseBccEmails, localContextMap, "Individual");
       });
     } else {
-      // Collective group dispatches execute a single shared email payload asset delivery
       var currentTo = resolvedEmails.join(', ');
-      var currentSubject = baseSubject;
-      var currentHtml = baseFullHtml;
-      var currentCc = baseCcEmails;
-      var currentBcc = baseBccEmails;
-      for (var token in dataMap) {
-        var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
-        currentTo = currentTo.replace(regex, dataMap[token] || "");
-        currentCc = currentCc.replace(regex, dataMap[token] || "");
-        currentBcc = currentBcc.replace(regex, dataMap[token] || "");
-        currentSubject = currentSubject.replace(regex, dataMap[token] || "");
-        currentHtml = currentHtml.replace(regex, dataMap[token] || "");
-      }
-
-      if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
-        currentTo = settings.adminEmail; currentCc = ""; currentBcc = "";
-        currentSubject = "[Sandbox Mail] " + currentSubject;
-        currentHtml += "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333;'>SYSTEM OVERRIDE: SANDBOX INTERCEPTED<br>&gt; INTENDED RECIPIENTS: " + resolvedEmails.join(', ') + "<br></div>";
-      }
-
-      currentHtml = applyLinkTracking(currentHtml, currentTo.split(',')[0].trim());
-      var mailOptions = { to: currentTo, subject: currentSubject, htmlBody: currentHtml, noReply: true, name: settings.systemName, inlineImages: { logo: getLogoBlob() } };
-      if (currentCc) mailOptions.cc = currentCc;
-      if (finalBccEmail || currentBcc) mailOptions.bcc = finalBccEmail || currentBcc;
-      MailApp.sendEmail(mailOptions);
+      enqueueEmailRow(templateId, currentTo, baseCcEmails, baseBccEmails, dataMap, "Collective");
     }
+  }
+}
+
+function enqueueEmailRow(templateId, toEmail, ccEmail, bccEmail, dataMap, dispatchMode) {
+  try {
+    var sheet = getQueueDb().getSheetByName("Email Queue");
+    if (!sheet) return;
+    var queueId = "Q-" + Math.floor(100000 + Math.random() * 900000);
+    sheet.appendRow([new Date(), queueId, templateId, toEmail, ccEmail, bccEmail, JSON.stringify(dataMap), dispatchMode, "Pending", "", ""]);
+    SpreadsheetApp.flush();
+  } catch(e) {
+    console.error("Failed to enqueue email row: " + e.message);
   }
 }
 

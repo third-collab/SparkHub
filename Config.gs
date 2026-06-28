@@ -49,6 +49,20 @@ function getLogsDb() {
   }
 }
 
+function getQueueDb() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('QUEUE_DATABASE_ID');
+  if (!id) {
+    throw new Error("Configuration Error: Queue Database ID is missing. Please initialize or map it via Templates configuration.");
+  }
+  
+  try {
+    return SpreadsheetApp.openById(id);
+  } catch (e) {
+    throw new Error("System Error: Unable to open Queue Database.");
+  }
+}
+
 /**
  * Centralized Ecosystem Active Modules Registry.
  * Combines immutable core architectural layers with dynamically registered extensions.

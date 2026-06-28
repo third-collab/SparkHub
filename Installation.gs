@@ -77,10 +77,32 @@ function runInstallation() {
   getOrCreateFolder(getOrCreateFolder(assetsFolder, "Settings"), "Images");
   getOrCreateFolder(getOrCreateFolder(assetsFolder, "Users"), "Photos");
   getOrCreateFolder(getOrCreateFolder(assetsFolder, "Templates"), "Emails");
-
   // Create Logs first so that SystemEvent.emit can record the core installation
   setupLogsDatabase(rootFolder);
+  setupQueueDatabase(rootFolder);
   setupCoreDatabase(rootFolder);
+}
+
+function setupQueueDatabase(rootFolder) {
+  var sysName = PropertiesService.getScriptProperties().getProperty('SYSTEM_NAME') || "SparkHub";
+  var ss = SpreadsheetApp.create(sysName + " Email Queue Database");
+  var dbId = ss.getId();
+  PropertiesService.getScriptProperties().setProperty('QUEUE_DATABASE_ID', dbId);
+  
+  var verifiedDb = null;
+  for (var i = 0; i < 5; i++) {
+    try {
+      verifiedDb = SpreadsheetApp.openById(dbId);
+      DriveApp.getFileById(dbId).moveTo(rootFolder);
+      break;
+    } catch(e) {
+      if (i === 4) throw new Error("Drive Indexing Timeout for Queue Database.");
+      Utilities.sleep(3000);
+    }
+  }
+
+  initializeSheet(verifiedDb, "Email Queue", ["Timestamp", "Queue ID", "Template ID", "To Email", "CC Email", "BCC Email", "Payload JSON", "Dispatch Mode", "Status", "Error Message", "Sent Timestamp"]);
+  if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
 }
 
 function setupLogsDatabase(rootFolder) {
@@ -105,7 +127,7 @@ function setupLogsDatabase(rootFolder) {
     }
   }
 
-  initializeSheet(verifiedDb, "System Logs", ["Timestamp", "Module", "Action Type", "Action Name", "Severity", "Actor", "Target Entity", "Log Details", "Environment"]);
+  initializeSheet(verifiedDb, "System Logs", ["Timestamp", "Module", "Action Type", "Action Name", "Severity", "Actor", "Target Entity ID", "Target Entity Name", "Log Details", "Environment"]);
   if (verifiedDb.getSheetByName("Sheet1")) verifiedDb.deleteSheet(verifiedDb.getSheetByName("Sheet1"));
 }
 
@@ -134,8 +156,8 @@ function setupCoreDatabase(rootFolder) {
   // 3. Schema Initialization (Remapped to support side-by-side emails and locked Status column layout)
   initializeSheet(verifiedDb, "Users", ["Timestamp", "User ID", "Username", "Google Email", "System Email", "Role", "Password", "First Name", "Last Name", "Last Login", "Dashboard Config", "Status"]);
   initializeSheet(verifiedDb, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status", "Dashboard Config"]);
-  // Initializes fresh deployments with a standardized 15-column templates table configuration matrix
-  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status", "To Recipients", "CC Recipients", "BCC Recipients", "Dispatch Mode"]);
+  // Initializes fresh deployments with a standardized 19-column templates table configuration matrix to support advanced criteria mapping
+  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status", "To Recipients", "CC Recipients", "BCC Recipients", "Dispatch Mode", "Trigger Inclusions", "Trigger Exclusions", "Recipient Inclusions", "Recipient Exclusions"]);
   initializeSheet(verifiedDb, "Wrappers", ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"]);
 
   // 4. Admin Creation

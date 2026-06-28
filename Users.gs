@@ -162,8 +162,12 @@ function processPasswordReset(token, newPassword) {
     tokenSheet.deleteRow(tokenRow);
 
     var username = userData[userRow-1][2]; // Index 2 maps to customizable Username handle string
-    var userFirst = userData[userRow-1][7]; // Index 7 maps to First Name string
-    SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", username, "User reset their password via email link.", emailToReset, { userFirst: userFirst });
+    var userFirst = userData[userRow-1][7];
+    var userLast = userData[userRow-1][8];
+    var userFullName = userFirst + " " + (userLast ? userLast.charAt(0).toUpperCase() + "." : "");
+    var userIdColumnValue = userData[userRow-1][1];
+    
+    SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", userIdColumnValue, "User reset their password via email link.", emailToReset, { userFirst: userFirst, targetName: userFullName });
     return { success: true, message: "Password updated successfully!" };
   } catch(e) { return { success: false, message: "Error: " + e.message };
   }
@@ -617,23 +621,22 @@ function saveRoleRecord(obj) {
     if (obj.rowIndex) {
       targetRow = parseInt(obj.rowIndex);
       var oldData = sheet.getRange(targetRow, 1, 1, 6).getValues()[0];
+      var roleId = oldData[1];
       var oldStatus = oldData[5];
       
       sheet.getRange(targetRow, 3, 1, 4).setValues([[ obj.name, obj.description, obj.permissions, obj.status ]]);
-      
-      SystemEvent.emit("Users:Roles", "UPDATE", "Edit Role", "INFO", obj.name, "Role permissions matrix updated.", activeUserEmail, { roleTimestamp: oldData[0], roleName: obj.name, roleDescription: obj.description });
-      
+      SystemEvent.emit("Users:Roles", "UPDATE", "Edit Role", "INFO", roleId, "Role permissions matrix updated.", activeUserEmail, { roleTimestamp: oldData[0], roleName: obj.name, roleDescription: obj.description, targetName: obj.name });
       if (oldStatus !== obj.status) {
-        var actionVerb = obj.status === 'Active' ? 'activated' : 'deactivated';
-        SystemEvent.emit("Users:Roles", "UPDATE", "Role Status Changed", "WARN", obj.name, "Role was manually " + actionVerb + ".", activeUserEmail, { roleTimestamp: oldData[0], roleName: obj.name, roleDescription: obj.description });
+        var actionVerb = obj.status === 'Active' ?
+        'activated' : 'deactivated';
+        SystemEvent.emit("Users:Roles", "UPDATE", "Role Status Changed", "WARN", roleId, "Role was manually " + actionVerb + ".", activeUserEmail, { roleTimestamp: oldData[0], roleName: obj.name, roleDescription: obj.description, targetName: obj.name });
       }
     } else {
       var roleId = "R-" + Utilities.getUuid().substring(0, 6).toUpperCase();
       var now = new Date();
       sheet.appendRow([ now, roleId, obj.name, obj.description, obj.permissions, obj.status, "" ]);
       targetRow = sheet.getLastRow();
-      
-      SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", obj.name, "New system role established.", activeUserEmail, { roleTimestamp: now, roleName: obj.name, roleDescription: obj.description });
+      SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", roleId, "New system role established.", activeUserEmail, { roleTimestamp: now, roleName: obj.name, roleDescription: obj.description, targetName: obj.name });
     }
     return { success: true, rowIndex: targetRow, message: "Success! Role saved." };
   } catch (e) { return { error: "Error: " + e.message }; }

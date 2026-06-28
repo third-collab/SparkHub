@@ -38,9 +38,10 @@ var Logs = {
         payload.name,
         payload.severity, 
         payload.user,
-        payload.entity,
-        payload.details,
-        env
+        payload.entity,       // Target Entity ID (Index 6)
+        payload.entityName,   // Target Entity Name (Index 7)
+        payload.details,      // Log Details (Index 8)
+        env                   // Environment (Index 9)
       ]);
       SpreadsheetApp.flush();
     } catch (e) { console.error("Logs Handler Error: " + e.message); }
@@ -56,33 +57,18 @@ function getLogsList() {
     var data = sheet.getDataRange().getDisplayValues();
     data.shift(); 
     
-    // Decodes database operational tracking identifiers in a completely decoupled, modular manner
-    var universalTranslationCache = {};
-
+    var userMap = {};
     try {
-      if (typeof getSystemDynamicLookups === 'function') {
-        var masterLookups = getSystemDynamicLookups();
-        for (var vectorIndexKey in masterLookups) {
-          var dataVectorArray = masterLookups[vectorIndexKey];
-          if (Array.isArray(dataVectorArray)) {
-            dataVectorArray.forEach(function(entityRecord) {
-              if (entityRecord && entityRecord.id && entityRecord.name) {
-                // Generates flat cross-reference mapping matrices on-the-fly for any module type cleanly
-                universalTranslationCache[entityRecord.id] = entityRecord.name;
-              }
-            });
-          }
-        }
+      if (typeof getUsersList === 'function') {
+        getUsersList().forEach(function(u) {
+          userMap[u.userId] = u.firstName + " " + (u.lastName ? u.lastName.charAt(0).toUpperCase() + "." : "");
+        });
       }
-    } catch(lookupErr) { console.warn("Audit logs reference cache hydration bypassed: " + lookupErr.message); }
+    } catch(e){}
     
     var formattedLogs = data.map(function(row, i) {
       var actorTrackingKey = row[5];
-      var entityTrackingKey = row[6];
-      
-      // Translates entries natively via the zero-knowledge universal translation dictionary cache
-      var friendlyDisplayActor = universalTranslationCache[actorTrackingKey] || actorTrackingKey || "System";
-      var friendlyDisplayEntity = universalTranslationCache[entityTrackingKey] || entityTrackingKey || "-";
+      var friendlyDisplayActor = userMap[actorTrackingKey] || actorTrackingKey || "System";
       
       return {
         rowIndex: i + 2,
@@ -92,10 +78,10 @@ function getLogsList() {
         name: row[3],
         severity: row[4],
         actor: friendlyDisplayActor,
-        entity: friendlyDisplayEntity,
-        details: 
-        row[7],
-        env: row[8]
+        entity: row[7] || "-",       // Natively pulls pre-saved friendly Target Entity Name directly
+        entityId: row[6] || "",      // Target Entity ID Column
+        details: row[8],             // Log Details
+        env: row[9]                  // Environment Profile
       };
     });
     return formattedLogs.reverse();

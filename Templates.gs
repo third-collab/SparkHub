@@ -126,10 +126,32 @@ var Templates = {
  * Generates and dispatches immutable system emails bypassing the database registry.
  * Forces the use of the "Internal Communication" wrapper.
  */
+function getQueueList() {
+  try {
+    var data = getQueueDb().getSheetByName("Email Queue").getDataRange().getDisplayValues();
+    data.shift();
+    return data.map(function(row, index) {
+      return {
+        rowIndex: index + 2,
+        timestamp: row[0],
+        id: row[1],
+        templateId: row[2],
+        recipient: row[3],
+        status: row[8],
+        details: row[9] || (row[8] === 'Sent' ? 'Dispatched at ' + row[10] : 'Awaiting trigger execution')
+      };
+    }).reverse();
+  } catch (e) { return []; }
+}
+
 function sendHardcodedEmail(triggerHandle, toEmail, dataMap) {
+  enqueueEmailRow(triggerHandle, toEmail, "", "", dataMap, "Collective");
+}
+
+function legacySendHardcodedEmailBypass(triggerHandle, toEmail, dataMap) {
   var subject = "";
   var htmlBody = "";
-  var wrapperName = "Internal Communication"; 
+  var wrapperName = "Internal Communication";
 
   switch (triggerHandle) {
     case "Logs:EXPORT":
@@ -214,19 +236,20 @@ function getRenderedTemplatePreview(rowIndex) {
  */
 function saveTemplatesModuleConfig(payload) {
   try {
-    var props = PropertiesService.getScriptProperties();
-    props.setProperty('TPL_DEFAULT_WRAPPER', payload.defaultWrapper);
-    props.setProperty('TPL_GLOBAL_SIGNATURE', payload.signature);
-    props.setProperty('TPL_BCC_ARCHIVE', payload.bccArchive);
-    props.setProperty('TPL_LINK_TRACKING', payload.linkTracking); // "true" or "false"
-    props.setProperty('TPL_WHITELIST', payload.whitelist);
-    // Comma-separated string
+    if (!payload) throw new Error("No payload provided.");
+    const props = PropertiesService.getScriptProperties();
     
-    // Group updates inside the primary 'System' routing layer per core directive standard
-    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Templates", "Communication and safety standards updated.");
+    props.setProperty('TPL_DEFAULT_WRAPPER', payload.defaultWrapper);
+    props.setProperty('TPL_BCC_ARCHIVE', payload.bccArchive);
+    props.setProperty('TPL_LINK_TRACKING', payload.linkTracking ? 'true' : 'false');
+    props.setProperty('TPL_WHITELIST', payload.whitelist);
+    props.setProperty('TPL_GLOBAL_SIGNATURE', payload.signature);
+    if (payload.queueDbId) props.setProperty('QUEUE_DATABASE_ID', payload.queueDbId);
+
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Templates", "Template module settings updated locally.");
     return { success: true };
-  } catch (e) { 
-    return { error: "Templates.gs: " + e.message }; 
+  } catch (e) {
+    return { error: "Templates.gs: " + e.message };
   }
 }
 
@@ -242,7 +265,9 @@ function getTemplatesList() {
         rowIndex: index + 2, timestamp: row[0], id: row[1], name: row[2], 
         description: row[3], category: row[4], module: row[5], trigger: row[6], 
         subject: row[7], wrapper: row[9], status: row[10],
-        to: row[11] || "", cc: row[12] || "", bcc: row[13] || "", dispatchMode: row[14] || "Individual"
+        to: row[11] || "", cc: row[12] || "", bcc: row[13] || "", dispatchMode: row[14] || "Individual",
+        triggerInclusions: row[15] || "", triggerExclusions: row[16] || "",
+        recipientInclusions: row[17] || "", recipientExclusions: row[18] || ""
       };
     });
   } catch (e) { return []; }
@@ -250,14 +275,16 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    // Extends spreadsheet lookup range to 15 columns to safely process advanced values
-    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 15).getDisplayValues()[0];
+    // Extends spreadsheet lookup range to 19 columns to safely process advanced values and exclusions
+    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 19).getDisplayValues()[0];
     var templateName = row[2];
     var lastUpdated = getEventTimestampFromLogs("Templates", "UPDATE", templateName);
     return {
       rowIndex: rowIndex, timestamp: row[0], id: row[1], name: templateName, description: row[3], category: row[4],
       module: row[5], trigger: row[6], subject: row[7], body: row[8], wrapper: row[9], status: row[10],
       to: row[11] || "", cc: row[12] || "", bcc: row[13] || "", dispatchMode: row[14] || "Individual",
+      triggerInclusions: row[15] || "", triggerExclusions: row[16] || "",
+      recipientInclusions: row[17] || "", recipientExclusions: row[18] || "",
       lastUpdated: lastUpdated
     };
   } catch (e) { return { error: e.message }; }
@@ -312,25 +339,28 @@ function saveTemplateRecord(data) {
       data.id || "TPL-" + Utilities.getUuid().substring(0,8),
       data.name, data.description, data.category, autoModule, 
       data.trigger, data.subject, data.body, data.wrapper, data.status,
-      data.to || "", data.cc || "", data.bcc || "", data.dispatchMode || "Individual"
+      data.to || "", data.cc || "", data.bcc || "", data.dispatchMode || "Individual",
+      data.triggerInclusions || "", data.triggerExclusions || "",
+      data.recipientInclusions || "", data.recipientExclusions || ""
     ];
     var targetRow;
+    var tplId = data.id || values[1];
     if (data.rowIndex) {
       targetRow = parseInt(data.rowIndex);
       var oldStatus = sheet.getRange(targetRow, 11).getValue();
-      // Expanded structural write array parameters to column index 15
-      sheet.getRange(targetRow, 1, 1, 15).setValues([values]);
-      SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", data.name, "Template content or logic updated.");
-      
+      // Expanded structural write array parameters to column index 19
+      sheet.getRange(targetRow, 1, 1, 19).setValues([values]);
+      SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", tplId, "Template content or logic updated.", "", { targetName: data.name });
       // Granular Activation Logging
       if (oldStatus !== data.status) {
-        var actionVerb = data.status === "Active" ? "activated" : "deactivated";
-        SystemEvent.emit("Templates", "UPDATE", "Template Status Changed", "WARN", data.name, "Template was manually " + actionVerb + ".");
+        var actionVerb = data.status === "Active" ?
+        "activated" : "deactivated";
+        SystemEvent.emit("Templates", "UPDATE", "Template Status Changed", "WARN", tplId, "Template was manually " + actionVerb + ".", "", { targetName: data.name });
       }
     } else {
       sheet.appendRow(values);
       targetRow = sheet.getLastRow();
-      SystemEvent.emit("Templates", "CREATE", "Create Template", "INFO", data.name, "New template created.");
+      SystemEvent.emit("Templates", "CREATE", "Create Template", "INFO", tplId, "New template created.", "", { targetName: data.name });
     }
     return { success: true, rowIndex: targetRow, message: "Success! Template synced." };
   } catch (e) { return { error: "Error: " + e.message }; }
@@ -345,21 +375,22 @@ function saveWrapperRecord(data) {
       data.name, data.description || "", data.html, data.status
     ];
     var targetRow;
+    var wrapId = data.id || values[1];
     if (data.rowIndex) {
       targetRow = parseInt(data.rowIndex);
       var oldStatus = sheet.getRange(targetRow, 6).getValue();
       sheet.getRange(targetRow, 1, 1, 6).setValues([values]);
-      SystemEvent.emit("Templates:Wrappers", "UPDATE", "Edit Wrapper", "INFO", data.name, "Wrapper layout HTML or settings updated.");
-      
+      SystemEvent.emit("Templates:Wrappers", "UPDATE", "Edit Wrapper", "INFO", wrapId, "Wrapper layout HTML or settings updated.", "", { targetName: data.name });
       // Granular Activation Logging
       if (oldStatus !== data.status) {
-        var actionVerb = data.status === "Active" ? "activated" : "deactivated";
-        SystemEvent.emit("Templates:Wrappers", "UPDATE", "Wrapper Status Changed", "WARN", data.name, "Wrapper layout was manually " + actionVerb + ".");
+        var actionVerb = data.status === "Active" ?
+        "activated" : "deactivated";
+        SystemEvent.emit("Templates:Wrappers", "UPDATE", "Wrapper Status Changed", "WARN", wrapId, "Wrapper layout was manually " + actionVerb + ".", "", { targetName: data.name });
       }
     } else {
       sheet.appendRow(values);
       targetRow = sheet.getLastRow();
-      SystemEvent.emit("Templates:Wrappers", "CREATE", "Create Wrapper", "INFO", data.name, "New wrapper layout created.");
+      SystemEvent.emit("Templates:Wrappers", "CREATE", "Create Wrapper", "INFO", wrapId, "New wrapper layout created.", "", { targetName: data.name });
     }
     return { success: true, rowIndex: targetRow, message: "Success! Wrapper updated." };
   } catch (e) { return { error: "Error: " + e.message }; }

@@ -9,13 +9,16 @@
   .placeholder-tag { display: inline-block; background: #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; border: 1px solid #cbd5e1; }
   .placeholder-tag:hover { background: var(--brand-primary); color: white; border-color: var(--brand-primary); transform: translateY(-1px); }
   .tpl-trigger-code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; color: var(--brand-primary); font-weight: 600; }
+  .status-badge-pending { background: #fef3c7; color: #d97706; }
+  .status-badge-sent { background: #dcfce7; color: #15803d; }
+  .status-badge-failed { background: #fee2e2; color: #b91c1c; }
 </style>
 
 <template class="module-card-template" data-category="core" data-perm-category="Templates & Wrappers" data-perm-action="View Templates">
   <div class="card" id="card-templates" onclick="initTemplatesModule();">
     <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
     <h3>Templates</h3>
-    <p>Manage email and system templates.</p>
+    <p>Manage email templates and monitor background transaction queues.</p>
   </div>
 </template>
 
@@ -28,6 +31,7 @@
 
     <div style="margin-top: 20px;">
       <p><strong>Default System Wrapper:</strong> <span id="ro-settings-tpl-wrapper" style="color:var(--brand-primary); font-weight:700;">Loading...</span></p>
+      <p><strong>Email Queue Registry ID:</strong> <br><code id="ro-settings-queue-id" style="font-size:11px;">Not Configured</code></p>
       <p><strong>Compliance BCC:</strong> <code id="ro-settings-tpl-bcc" style="font-size:11px;">Not Set</code></p>
       <p><strong>Link Tracking:</strong> <span id="ro-settings-tpl-tracking" style="font-weight:700;">Disabled</span></p>
       <p><strong>Sandbox Whitelist:</strong><br><code id="ro-settings-tpl-whitelist" style="font-size:11px;">None</code></p>
@@ -53,6 +57,11 @@
         <label>Compliance BCC Address</label>
         <input type="email" id="edt-settings-tpl-bcc" class="form-control" placeholder="archive@yourdomain.com">
       </div>
+    </div>
+
+    <div class="form-group" style="margin-top:15px;">
+      <label>Email Queue Registry ID *</label>
+      <input type="text" id="edt-settings-queue-id" class="form-control" required placeholder="Spreadsheet ID for Background Mail Queue">
     </div>
 
     <div class="form-group" style="margin-top:15px;">
@@ -116,6 +125,7 @@
     <div class="tab-nav" style="margin: 0; border: none;">
       <button class="tab-btn active" id="btn-tpl-lib" onclick="toggleTemplateSubView('lib')">Email Templates</button>
       <button class="tab-btn perm-protected" id="btn-tpl-wraps" data-perm-category="Templates & Wrappers" data-perm-action="View Wrappers" onclick="toggleTemplateSubView('wraps')">Wrapper Layouts</button>
+      <button class="tab-btn" id="btn-tpl-queue" onclick="toggleTemplateSubView('queue')">Email Queue</button>
     </div>
     <div id="tpl-action-btns">
        <button class="btn-primary perm-protected" onclick="openAddTemplateForm()" data-perm-category="Templates & Wrappers" data-perm-action="Create Templates">+ Create Template</button>
@@ -181,6 +191,30 @@
         </thead>
         <tbody id="wrapperTableBody">
           <tr><td colspan="4" style="text-align:center; padding: 30px; color:#64748b;">Loading layouts...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="queue-sub-view" style="display:none;">
+    <div class="filter-wrapper">
+       <input type="text" id="queue-filter-search" class="filter-input" placeholder="Search background queue rows..." onkeyup="applyQueueFilters()">
+       <button type="button" class="btn-reset-filters" id="btn-queue-refresh" style="margin-left: auto;" onclick="loadQueueTable()">Refresh Queue</button>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Queue ID</th>
+            <th>Template Handle</th>
+            <th>Recipient Email</th>
+            <th>Status</th>
+            <th>Execution Details</th>
+          </tr>
+        </thead>
+        <tbody id="queueTableBody">
+          <tr><td colspan="6" style="text-align:center; padding: 30px; color:#64748b;">Synchronizing queue logs...</td></tr>
         </tbody>
       </table>
     </div>
@@ -378,7 +412,7 @@
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 25px; border-bottom: 2px solid #E3E3E3; padding-bottom: 25px;">
        <div>
           <h2 id="ro-wrap-name" style="margin:0; font-size: 24px; color: var(--brand-dark);"></h2>
-          <p id="ro-wrap-desc" style="margin:8px 0 0 0; color:#64748b; font-size:14px;"></p>
+          <p id="ro-wrap-desc" style="margin:8px 0 0 0; color:#64748b; font-size:14px Pap;"></p>
           <div id="ro-wrap-status" style="margin-top: 8px;"></div>
        </div>
        <button id="ro-wrap-edit-btn" class="btn-primary perm-protected" style="padding: 10px 24px;" data-perm-category="Templates" data-perm-action="Manage Templates">Edit Layout</button>
@@ -440,6 +474,7 @@
   var GLOBAL_TEMPLATE_DATA = [];
   var GLOBAL_WRAPPER_DATA = [];
   var GLOBAL_SYSTEM_TRIGGERS = []; 
+  var GLOBAL_QUEUE_DATA = []; // Houses the active background email tasks cache
   var CURRENT_TPL_SORT_COLUMN = 'name';
   var CURRENT_TPL_SORT_DESC = false;
   var CURRENT_WRAP_SORT_COLUMN = 'name';
@@ -504,23 +539,36 @@
     }).getWrappersList();
   }
 
+  function loadQueueTable() {
+    var tbody = document.getElementById('queueTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color:#64748b;">Synchronizing queue logs...</td></tr>';
+    
+    var refreshBtn = document.getElementById('btn-queue-refresh');
+    if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.innerText = 'Refreshing...'; }
+
+    google.script.run
+      .withFailureHandler(function(err) {
+        if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.innerText = 'Refresh Queue'; }
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 30px; color:#ef4444; font-weight:600;">Failed to synchronize queue logs: ${err.message}</td></tr>`;
+      })
+      .withSuccessHandler(function(queueData) {
+        if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.innerText = 'Refresh Queue'; }
+        GLOBAL_QUEUE_DATA = queueData || [];
+        applyQueueFilters();
+      }).getQueueList();
+  }
+
   function loadPlaceholderSuggestions() {
     var container = document.getElementById('placeholder-container');
-    if (container.innerHTML !== "") return;
+    if (container && container.innerHTML !== "") return;
     google.script.run.withSuccessHandler(function(placeholders) {
-      container.innerHTML = placeholders.map(p => `<span class="placeholder-tag" onclick="copyPlaceholder('{{${p}}}')">{{${p}}}</span>`).join('');
+      if (container) container.innerHTML = placeholders.map(p => `<span class="placeholder-tag" onclick="copyPlaceholder('{{${p}}}')">{{${p}}}</span>`).join('');
     }).getPlaceholderSuggestions();
   }
 
   /* ========================================================================
-     4. DATA MANIPULATION
+     4. DATA MANIPULATION & STATE FILTERS
      ======================================================================== */
-  /**
-   * Populates the Templates Settings UI from the system config.
-   */
-  /**
-   * Populates the Templates Settings UI from the system config.
-   */
   function populateTemplatesSettings(data) {
     // 1. Populate Read-Only View
     const roWrap = document.getElementById('ro-settings-tpl-wrapper');
@@ -528,6 +576,9 @@
     
     const roBcc = document.getElementById('ro-settings-tpl-bcc');
     if (roBcc) roBcc.innerText = data.tplBccArchive || 'Not Set';
+
+    const roQueue = document.getElementById('ro-settings-queue-id');
+    if (roQueue) roQueue.innerText = data.queueDbId || 'Not Configured';
 
     const roWhitelist = document.getElementById('ro-settings-tpl-whitelist');
     if (roWhitelist) roWhitelist.innerText = data.tplWhitelist || 'None';
@@ -545,6 +596,9 @@
     
     const edtBcc = document.getElementById('edt-settings-tpl-bcc');
     if (edtBcc) edtBcc.value = data.tplBccArchive || '';
+
+    const edtQueue = document.getElementById('edt-settings-queue-id');
+    if (edtQueue) edtQueue.value = data.queueDbId || '';
 
     const edtWhitelist = document.getElementById('edt-settings-tpl-whitelist');
     if (edtWhitelist) edtWhitelist.value = data.tplWhitelist || '';
@@ -564,7 +618,6 @@
          } else {
            edtWrap.innerHTML = `<option value="Internal Communication">Internal Communication</option>`;
          }
-         // Set the selected value AFTER the options are loaded
          edtWrap.value = data.tplDefaultWrapper || 'Internal Communication';
       }).getWrappersList();
     }
@@ -666,6 +719,14 @@
     applyWrapperFilters();
   }
 
+  function applyQueueFilters() {
+    var search = document.getElementById('queue-filter-search').value.toLowerCase();
+    var filtered = GLOBAL_QUEUE_DATA.filter(function(q) {
+      return q.id.toLowerCase().includes(search) || q.templateId.toLowerCase().includes(search) || q.recipient.toLowerCase().includes(search) || q.status.toLowerCase().includes(search);
+    });
+    renderQueueTableRows(filtered);
+  }
+
   function syncWrapperDropdown() {
     var select = document.getElementById('edt-tpl-wrapper');
     if (!select) return;
@@ -712,6 +773,7 @@
 
   function renderWrapperTableRows(wrappers) {
     var tbody = document.getElementById('wrapperTableBody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     if (wrappers.length === 0) { 
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">No layouts match criteria.</td></tr>'; 
@@ -734,27 +796,63 @@
     });
   }
 
+  function renderQueueTableRows(queue) {
+    var tbody = document.getElementById('queueTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (queue.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px;">No queue logs found.</td></tr>';
+      return;
+    }
+    queue.forEach(function(q) {
+      var badgeClass = "status-badge-" + q.status.toLowerCase();
+      tbody.innerHTML += `
+        <tr>
+          <td><small style="color:#64748b;">${q.timestamp}</small></td>
+          <td><code>${q.id}</code></td>
+          <td><span class="tpl-trigger-code">${q.templateId}</span></td>
+          <td>${q.recipient}</td>
+          <td><span class="badge ${badgeClass}">${q.status}</span></td>
+          <td><span style="font-size:13px; color:#475569;">${q.details}</span></td>
+        </tr>
+      `;
+    });
+  }
+
   /* ========================================================================
      6. VIEW ROUTERS & FORM OPENERS
      ======================================================================== */
   function toggleTemplateSubView(view) {
     var lib = document.getElementById('template-sub-view');
     var wraps = document.getElementById('wrapper-sub-view');
+    var queue = document.getElementById('queue-sub-view');
     var actBtns = document.getElementById('tpl-action-btns');
     
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     
     if (view === 'lib') {
-      lib.style.display = 'block'; wraps.style.display = 'none';
+      if (lib) lib.style.display = 'block'; 
+      if (wraps) wraps.style.display = 'none'; 
+      if (queue) queue.style.display = 'none';
       document.getElementById('btn-tpl-lib').classList.add('active');
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddTemplateForm()" data-perm-category="Templates & Wrappers" data-perm-action="Create Templates">+ Create Template</button>`;
+      if (actBtns) actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddTemplateForm()" data-perm-category="Templates & Wrappers" data-perm-action="Create Templates">+ Create Template</button>`;
       loadTemplatesTable();
-    } else {
-      lib.style.display = 'none'; wraps.style.display = 'block';
+    } else if (view === 'wraps') {
+      if (lib) lib.style.display = 'none'; 
+      if (wraps) wraps.style.display = 'block'; 
+      if (queue) queue.style.display = 'none';
       document.getElementById('btn-tpl-wraps').classList.add('active');
-      actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddWrapperForm()" data-perm-category="Templates & Wrappers" data-perm-action="Create Wrappers">+ Create Wrapper</button>`;
+      if (actBtns) actBtns.innerHTML = `<button class="btn-primary perm-protected" onclick="openAddWrapperForm()" data-perm-category="Templates & Wrappers" data-perm-action="Create Wrappers">+ Create Wrapper</button>`;
       loadWrappersTable();
+    } else if (view === 'queue') {
+      if (lib) lib.style.display = 'none'; 
+      if (wraps) wraps.style.display = 'none'; 
+      if (queue) queue.style.display = 'block';
+      document.getElementById('btn-tpl-queue').classList.add('active');
+      if (actBtns) actBtns.innerHTML = '';
+      loadQueueTable();
     }
+    if (typeof enforceUIPermissions === 'function') enforceUIPermissions();
   }
 
   function openAddTemplateForm() {
@@ -829,7 +927,6 @@
       document.getElementById('edt-tpl-subject').value = data.subject || "";
       document.getElementById('edt-tpl-dispatchMode').value = data.dispatchMode || "Individual";
       
-      // Dynamic Unpacking Standard Method
       function unpackEcosystemRecipientRuleToUi(prefix, rawRule) {
         var conditionVal = (prefix === 'to') ? "TRIGGER_DEFAULT" : "NONE";
         var manualVal = ""; var lookupIdsStr = "";
@@ -905,26 +1002,25 @@
       document.getElementById('ro-tpl-subline').innerText = `Registry Category: ${data.category || 'Global'} • System Trigger: ${data.trigger || 'Manual'}`;
       
       document.getElementById('ro-tpl-subject').innerText = data.subject || "No subject set";
-    document.getElementById('ro-tpl-dispatchMode').innerText = data.dispatchMode === "Individual" ? "Send Separately (Personalized Loops)" : "Send Combined (Group Dispatch)";
+      document.getElementById('ro-tpl-dispatchMode').innerText = data.dispatchMode === "Individual" ? "Send Separately (Personalized Loops)" : "Send Combined (Group Dispatch)";
 
-    // Integrated Context-Aware Recipient Formatting for High-Fidelity Previews
-    function formatEcosystemRecipientRuleForDisplay(rawRule, isToField) {
-      if (!rawRule || rawRule.trim() === "" || rawRule === "NONE") return isToField ? "Default Trigger Recipient" : "None";
-      var mainRule = rawRule; var manualVal = ""; var pipeIdx = rawRule.indexOf('|');
-      if (pipeIdx > -1) { mainRule = rawRule.substring(0, pipeIdx).trim(); manualVal = rawRule.substring(pipeIdx + 1).trim(); }
-      var label = "";
-      if (mainRule === "TRIGGER_DEFAULT") label = "Default Trigger Recipient";
-      else if (mainRule === "ALL_ACTIVE_USERS") label = "All Active Users";
-      else if (mainRule === "NONE") label = "None";
-      else if (mainRule.indexOf("CUSTOM_LOOKUP:") === 0) label = "Users: " + resolveGlobalLookupIdToName("user", mainRule.replace("CUSTOM_LOOKUP:", ""));
-      else manualVal = manualVal ? (mainRule + ", " + manualVal) : mainRule;
-      if (manualVal) return label && label !== "None" ? `${label} + Manual: [${manualVal}]` : `Manual: [${manualVal}]`;
-      return label;
-    }
+      function formatEcosystemRecipientRuleForDisplay(rawRule, isToField) {
+        if (!rawRule || rawRule.trim() === "" || rawRule === "NONE") return isToField ? "Default Trigger Recipient" : "None";
+        var mainRule = rawRule; var manualVal = ""; var pipeIdx = rawRule.indexOf('|');
+        if (pipeIdx > -1) { mainRule = rawRule.substring(0, pipeIdx).trim(); manualVal = rawRule.substring(pipeIdx + 1).trim(); }
+        var label = "";
+        if (mainRule === "TRIGGER_DEFAULT") label = "Default Trigger Recipient";
+        else if (mainRule === "ALL_ACTIVE_USERS") label = "All Active Users";
+        else if (mainRule === "NONE") label = "None";
+        else if (mainRule.indexOf("CUSTOM_LOOKUP:") === 0) label = "Users: " + resolveGlobalLookupIdToName("user", mainRule.replace("CUSTOM_LOOKUP:", ""));
+        else manualVal = manualVal ? (mainRule + ", " + manualVal) : mainRule;
+        if (manualVal) return label && label !== "None" ? `${label} + Manual: [${manualVal}]` : `Manual: [${manualVal}]`;
+        return label;
+      }
 
-    document.getElementById('ro-tpl-to').innerText = formatEcosystemRecipientRuleForDisplay(data.to, true);
-    document.getElementById('ro-tpl-cc').innerText = formatEcosystemRecipientRuleForDisplay(data.cc, false);
-    document.getElementById('ro-tpl-bcc').innerText = formatEcosystemRecipientRuleForDisplay(data.bcc, false);
+      document.getElementById('ro-tpl-to').innerText = formatEcosystemRecipientRuleForDisplay(data.to, true);
+      document.getElementById('ro-tpl-cc').innerText = formatEcosystemRecipientRuleForDisplay(data.cc, false);
+      document.getElementById('ro-tpl-bcc').innerText = formatEcosystemRecipientRuleForDisplay(data.bcc, false);
       
       document.getElementById('ro-tpl-desc').innerText = data.description || "No description provided";
       document.getElementById('ro-tpl-module').innerHTML = `<span class="badge" style="background:#f1f5f9; color:#475569;">${data.module}</span>`;
@@ -1082,8 +1178,7 @@
     document.getElementById('test-email-msg').innerText = "";
     
     var btn = document.getElementById('btn-send-test-modal');
-    btn.innerText = "Dispatch Test Email";
-    btn.disabled = false;
+    if (btn) { btn.innerText = "Dispatch Test Email"; btn.disabled = false; }
     
     document.getElementById('testEmailModal').style.display = 'flex';
   }
@@ -1100,10 +1195,10 @@
       bccArchive: document.getElementById('edt-settings-tpl-bcc').value,
       whitelist: document.getElementById('edt-settings-tpl-whitelist').value,
       linkTracking: document.getElementById('edt-settings-tpl-tracking').checked,
-      signature: document.getElementById('edt-settings-tpl-sig').value
+      signature: document.getElementById('edt-settings-tpl-sig').value,
+      queueDbId: document.getElementById('edt-settings-queue-id').value.trim()
     };
 
-    // Optional: disable button to prevent double-clicks
     const btn = e.target;
     const originalText = btn.innerText;
     btn.innerText = "Saving...";
@@ -1134,7 +1229,6 @@
     if(e) e.preventDefault();
     toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');
     
-    // Aggregator routine packages condition frameworks and text vectors side-by-side
     function compileEcosystemRecipientRule(prefix) {
       var conditionVal = document.getElementById('edt-tpl-' + prefix + '-condition').value;
       var baseRule = conditionVal;
@@ -1209,17 +1303,20 @@
 
     var btn = document.getElementById('btn-send-test-modal');
     var msg = document.getElementById('test-email-msg');
-    btn.innerText = "Dispatching..."; btn.disabled = true; msg.innerText = "";
+    if (btn) { btn.innerText = "Dispatching..."; btn.disabled = true; }
+    if (msg) msg.innerText = "";
 
     google.script.run.withSuccessHandler(function(res) {
-      btn.innerText = "Dispatch Test Email"; btn.disabled = false;
-      msg.style.color = res.includes("Error") ? "#9f1239" : "#166534";
-      msg.innerText = res;
+      if (btn) { btn.innerText = "Dispatch Test Email"; btn.disabled = false; }
+      if (msg) {
+        msg.style.color = res.includes("Error") ? "#9f1239" : "#166534";
+        msg.innerText = res;
+      }
     }).sendTestEmail(rowIndex, email);
   }
 
   /* ========================================================================
-     8. UI HELPERS
+     8. UI HELPERS & DYNAMIC INTERACTS
      ======================================================================== */
   function toggleTemplateOverlay(id, show, text) {
     var overlay = document.getElementById(id);
@@ -1233,9 +1330,6 @@
     setTimeout(() => { btn.innerText = original; btn.style.background = ""; btn.style.color = ""; }, 1000);
   }
 
-  /**
-   * Toggles the display state of the searchable multi-select user checkbox tray dynamically across all prefixes
-   */
   function evaluateTemplateRecipientConditionChange(prefix, val) {
      var customGroup = document.getElementById('tpl-custom-' + prefix + '-lookup-group');
      if (!customGroup) return;
