@@ -240,6 +240,7 @@
 
   function handleSaveLogsConfig(e) {
     if (e) e.preventDefault();
+    if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving Logs Settings...');
     
     const payload = {
       logsDbId: document.getElementById('edt-settings-logsid').value,
@@ -253,22 +254,18 @@
     btn.disabled = true;
 
     google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.error) {
-            btn.innerText = originalText; btn.disabled = false;
-            showSystemModal("Configuration Error", res.error);
-            return;
-          }
-          google.script.run.withSuccessHandler(function(url) {
-            window.top.location.href = url;
-          }).getAppUrl();
-        })
-        .withFailureHandler(function(err) {
+      .withSuccessHandler(function(res) {
+        if (res && res.error) {
+          if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
           btn.innerText = originalText; btn.disabled = false;
-          showSystemModal("Server Error", "Server Error: " + err.message);
-        })
-        .saveLogsModuleConfig(payload);
-  }
+          showSystemModal("Configuration Error", res.error);
+          return;
+        }
+        if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
+        google.script.run.withSuccessHandler(function(url) {
+          setTimeout(function() { window.top.location.href = url; }, 500);
+        }).getAppUrl();
+      })
 
   /* ========================================================================
      8. UI HELPERS

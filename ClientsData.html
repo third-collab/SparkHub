@@ -1771,14 +1771,17 @@
       customFields: customFields 
     };
     const btn = e.target; var originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = "Saving Configuration...";
+    if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving Client Configuration...');
 
     google.script.run
       .withSuccessHandler(function(res) {
          if(res.success) {
+            if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
             google.script.run.withSuccessHandler(function(url) {
-               window.top.location.href = url;
+               setTimeout(function() { window.top.location.href = url; }, 500);
             }).getAppUrl();
          } else { 
+            if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
             btn.disabled = false; btn.innerHTML = originalText;
             showSystemModal("Configuration Error", res.error || "Failed to save configuration."); 
          }

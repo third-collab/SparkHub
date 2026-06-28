@@ -1093,6 +1093,7 @@
      ======================================================================== */
   function handleSaveTemplatesConfig(e) {
     if (e) e.preventDefault();
+    if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving Template Settings...');
     
     const payload = {
       defaultWrapper: document.getElementById('edt-settings-tpl-wrapper').value,
@@ -1111,17 +1112,20 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.error) {
+          if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
           btn.innerText = originalText; btn.disabled = false;
           showSystemModal("Configuration Error", res.error);
           return;
         }
+        if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
         google.script.run.withSuccessHandler(function(url) {
-          window.top.location.href = url;
+          setTimeout(function() { window.top.location.href = url; }, 500);
         }).getAppUrl();
       })
       .withFailureHandler(function(err) {
+        if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
         btn.innerText = originalText; btn.disabled = false;
-        showSystemModal("Server Error", "Server Error: " + err.message);
+        showSystemModal("Server Error", err.message);
       })
       .saveTemplatesModuleConfig(payload);
   }

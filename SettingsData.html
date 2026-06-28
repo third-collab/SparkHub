@@ -170,6 +170,7 @@
      1. GLOBAL STATE
      ======================================================================== */
   var CURRENT_SETTINGS_MODULE = 'core'; // Remembers the active edit tab
+  var GLOBAL_USER_HAS_PASSWORD = false; // Preserves active admin credential profile state globally
 
   /* ========================================================================
      2. BOOTSTRAPPERS
@@ -255,6 +256,7 @@
     toggleSettingsOverlay('ro-settings-overlay', true, 'Syncing Registry...');
     google.script.run.withSuccessHandler(function(data) {
       toggleSettingsOverlay('ro-settings-overlay', false);
+      GLOBAL_USER_HAS_PASSWORD = data.currentUserHasPassword;
       
       // Bind RO views
       document.getElementById('ro-settings-sysname').innerText = data.systemName || '';
@@ -522,7 +524,7 @@
           }
           toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
           google.script.run.withSuccessHandler(function(url) {
-            window.top.location.href = url;
+            setTimeout(function() { window.top.location.href = url; }, 500);
           }).getAppUrl();
         })
         .withFailureHandler(err => {

@@ -732,7 +732,26 @@
     var roEmail = document.getElementById('ro-settings-email').innerText;
     var roAuth = document.getElementById('ro-settings-authmode').innerText;
     document.getElementById('edt-settings-email').value = roEmail !== 'Not Set' ? roEmail : '';
-    document.getElementById('edt-settings-authmode').value = roAuth === 'Local Session' ? 'Local' : 'SSO';
+    
+    var edtAuth = document.getElementById('edt-settings-authmode');
+    if (edtAuth) {
+      edtAuth.value = roAuth === 'Local Session' ? 'Local' : 'SSO';
+      var existingWarn = document.getElementById('auth-password-warning-users');
+      if (existingWarn) existingWarn.remove();
+      
+      if (!GLOBAL_USER_HAS_PASSWORD) {
+        edtAuth.value = "SSO";
+        edtAuth.disabled = true;
+        
+        var warn = document.createElement('div');
+        warn.id = 'auth-password-warning-users';
+        warn.style.cssText = "font-size:12px; color:#9f1239; margin-top:8px; font-weight:600;";
+        warn.innerText = "Cannot switch to Local: Your administrator profile does not have a fallback password configured. Please set a local password in your profile first.";
+        edtAuth.parentNode.appendChild(warn);
+      } else {
+        edtAuth.disabled = false;
+      }
+    }
   }
 
   function toggleUserSubView(view) {
@@ -1048,6 +1067,7 @@
      ======================================================================== */
   function handleSaveUsersConfig(e) {
     if (e) e.preventDefault();
+    if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving User Access Settings...');
     const payload = {
       defaultRole: "Client", 
       adminEmail: document.getElementById('edt-settings-email').value,
@@ -1057,10 +1077,12 @@
     btn.disabled = true; btn.innerHTML = "Saving...";
     google.script.run.withSuccessHandler(res => {
       if (res.success) {
+        if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
         google.script.run.withSuccessHandler(function(url) {
-          window.top.location.href = url;
+          setTimeout(function() { window.top.location.href = url; }, 500);
         }).getAppUrl();
       } else {
+        if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
         btn.disabled = false; btn.innerHTML = "Save Configuration";
         showSystemModal("Configuration Error", res.error || "Failed to save user settings.");
       }
