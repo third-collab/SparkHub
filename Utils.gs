@@ -159,7 +159,7 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
 
   for (var t = 0; t < matchedTemplates.length; t++) {
     var templateRow = matchedTemplates[t];
-    
+    var templateId = templateRow[1];
     // Extracts advanced custom recipient strings and distribution rules from columns 12, 13, 14, and 15
     var toRule = templateRow[11] ? String(templateRow[11]).trim() : "";
     var finalCcEmail = templateRow[12] ? String(templateRow[12]).trim() : "";
