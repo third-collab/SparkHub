@@ -523,11 +523,7 @@
           }
           toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
           google.script.run.withSuccessHandler(function(url) {
-            var topRedirectAnchor = document.createElement('a');
-            topRedirectAnchor.href = url;
-            topRedirectAnchor.target = '_top';
-            document.body.appendChild(topRedirectAnchor);
-            topRedirectAnchor.click();
+            setTimeout(function() { window.top.location.href = url; }, 500);
           }).getAppUrl();
         })
         .withFailureHandler(err => {
@@ -555,6 +551,16 @@
   function toggleSettingsOverlay(id, show, text) {
     var overlay = document.getElementById(id);
     if (overlay) { overlay.style.display = show ? 'flex' : 'none'; if (text) overlay.querySelector('span').innerText = text; }
+  }
+
+  function returnToWorkspaceHome() {
+    google.script.run.withSuccessHandler(function(url) {
+      var a = document.createElement('a');
+      a.href = url;
+      a.target = '_top';
+      document.body.appendChild(a);
+      a.click();
+    }).getAppUrl();
   }
 
   function previewSettingsLogo(input) {

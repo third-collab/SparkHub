@@ -1240,11 +1240,7 @@
         }
         if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
         google.script.run.withSuccessHandler(function(url) {
-          var topRedirectAnchor = document.createElement('a');
-          topRedirectAnchor.href = url;
-          topRedirectAnchor.target = '_top';
-          document.body.appendChild(topRedirectAnchor);
-          topRedirectAnchor.click();
+          setTimeout(function() { window.top.location.href = url; }, 500);
         }).getAppUrl();
       })
       .withFailureHandler(function(err) {
