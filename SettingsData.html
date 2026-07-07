@@ -522,9 +522,7 @@
             return;
           }
           toggleSettingsOverlay('edt-settings-overlay', true, 'Restarting Workspace Environment...');
-          google.script.run.withSuccessHandler(function(url) {
-            window.open(url, '_top');
-          }).getAppUrl();
+          if (typeof returnToWorkspaceHome === 'function') returnToWorkspaceHome();
         })
         .withFailureHandler(err => {
           toggleSettingsOverlay('edt-settings-overlay', false);
@@ -555,11 +553,7 @@
 
   function returnToWorkspaceHome() {
     google.script.run.withSuccessHandler(function(url) {
-      var a = document.createElement('a');
-      a.href = url;
-      a.target = '_top';
-      document.body.appendChild(a);
-      a.click();
+      window.open(url, '_top');
     }).getAppUrl();
   }
 
