@@ -201,7 +201,7 @@ function executeSendTemplateEmail(templateId, recipient, cc, bcc, contextMap, di
     finalCc = "";
     finalBcc = "";
     baseSubject = "[Sandbox Mail] " + baseSubject;
-    var sandboxWarning = "<br><br><div style='padding: 20px; background-color: # Black; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
+    var sandboxWarning = "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333; margin-top: 50px;'>";
     sandboxWarning += "SYSTEM OVERRIDE: SANDBOX ENVIRONMENT INTERCEPTED<br>";
     sandboxWarning += "&gt; INTENDED RECIPIENT: " + recipient;
     if (cc) sandboxWarning += "<br>&gt; INTENDED CC: " + cc;

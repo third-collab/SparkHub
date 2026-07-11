@@ -661,7 +661,16 @@
   }
   @keyframes spin-core { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-  
+  /* --- Universal Searchable Multi-Select UI Component Specs --- */
+  .searchable-multiselect-wrapper { position: relative; width: 100%; text-align: left; }
+  .multiselect-toggle-box { background: #fff; border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; color: #334155; display: flex; justify-content: space-between; align-items: center; min-height: 40px; box-sizing: border-box; width: 100%; }
+  .multiselect-dropdown-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: var(--shadow-md); z-index: 2100; margin-top: 4px; padding: 12px; max-height: 220px; overflow-y: auto; box-sizing: border-box; }
+  .multiselect-search-input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
+  .multiselect-search-input:focus { outline: none; border-color: var(--brand-primary); }
+  .multiselect-options-list { display: flex; flex-direction: column; gap: 4px; }
+  .multiselect-item-label { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; color: #334155; border-radius: 4px; cursor: pointer; transition: background 0.15s; width: 100%; box-sizing: border-box; text-align: left; }
+  .multiselect-item-label:hover { background: #f1f5f9; }
+  .panel { overflow: visible !important; }
 
 </style>
 

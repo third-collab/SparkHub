@@ -165,6 +165,7 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
     var finalCcEmail = templateRow[12] ? String(templateRow[12]).trim() : "";
     var finalBccEmail = templateRow[13] ? String(templateRow[13]).trim() : "";
     var dispatchMode = templateRow[14] ? String(templateRow[14]).trim() : "Individual";
+    var deliveryMethod = templateRow[19] ? String(templateRow[19]).trim() : "Queue";
     
     var baseSubject = templateRow[7];
     var baseHtmlBody = templateRow[8];
@@ -313,6 +314,7 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
         var currentSubject = baseSubject;
         var currentHtml = baseFullHtml;
         
+        
         var localContextMap = {};
   
         for (var key in dataMap) { localContextMap[key] = dataMap[key]; }
@@ -323,6 +325,7 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
         localContextMap.userEmail = profile.systemEmail || "";
         localContextMap.userRole = profile.role || "User";
 
+      
         for (var token in localContextMap) {
           var regex = new RegExp("\\{\\{" + token + "\\}\\}", "gi");
           currentSubject = currentSubject.replace(regex, localContextMap[token] || "");
@@ -337,37 +340,26 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
           currentBcc = currentBcc.replace(regex, localContextMap[token] || "");
         }
 
-        if (settings.environment === 'Sandbox' && settings.adminEmail !== '') {
-          currentTo = settings.adminEmail; currentCc = ""; currentBcc = "";
-          currentSubject = "[Sandbox Mail] " + currentSubject;
-          currentHtml += "<br><br><div style='padding: 20px; background-color: #000; color: #0f0; font-family: monospace; font-size: 14px; border: 2px solid #333;'>SYSTEM OVERRIDE: SANDBOX INTERCEPTED<br>&gt; INTENDED RECIPIENT: " + profile.systemEmail + "<br></div>";
-        }
-
-        enqueueEmailRow(templateId, currentTo, baseCcEmails, baseBccEmails, localContextMap, "Individual");
+        enqueueEmailRow(templateId, currentTo, baseCcEmails, baseBccEmails, localContextMap, "Individual", deliveryMethod);
       });
     } else {
       var currentTo = resolvedEmails.join(', ');
-      enqueueEmailRow(templateId, currentTo, baseCcEmails, baseBccEmails, dataMap, "Collective");
+      enqueueEmailRow(templateId, currentTo, baseCcEmails, baseBccEmails, dataMap, "Collective", deliveryMethod);
     }
   }
 }
 
-function enqueueEmailRow(templateId, toEmail, ccEmail, bccEmail, dataMap, dispatchMode) {
+function enqueueEmailRow(templateId, toEmail, ccEmail, bccEmail, dataMap, dispatchMode, deliveryMethod) {
   try {
     var sheet = getQueueDb().getSheetByName("Email Queue");
     if (!sheet) return;
     var queueId = "Q-" + Math.floor(100000 + Math.random() * 900000);
     
-    // Explicit high-priority system handles and template IDs that bypass background cron latency
-    var immediateTriggers = [
-      "System:INSTALL", "Users:RESET_REQUEST", "Users:PASSWORD_UPDATED",
-      "TPL-USER-NEW", "TPL-ROLE-NEW", "TPL-ADMIN-NEW", "TPL-PWD-RESET", "TPL-PWD-UPDATE"
-    ];
     var status = "Pending";
     var errMsg = "";
     var sentDate = "";
     
-    if (immediateTriggers.indexOf(templateId) > -1) {
+    if (deliveryMethod === "Immediate") {
       try {
         var settings = getSystemSettings();
         var mainDb = getMainDb();

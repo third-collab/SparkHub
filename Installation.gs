@@ -156,8 +156,8 @@ function setupCoreDatabase(rootFolder) {
   // 3. Schema Initialization (Remapped to support side-by-side emails and locked Status column layout)
   initializeSheet(verifiedDb, "Users", ["Timestamp", "User ID", "Username", "Google Email", "System Email", "Role", "Password", "First Name", "Last Name", "Last Login", "Dashboard Config", "Status"]);
   initializeSheet(verifiedDb, "Roles", ["Timestamp", "Role ID", "Role Name", "Description", "Permissions JSON", "Status", "Dashboard Config"]);
-  // Initializes fresh deployments with a standardized 19-column templates table configuration matrix to support advanced criteria mapping
-  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status", "To Recipients", "CC Recipients", "BCC Recipients", "Dispatch Mode", "Trigger Inclusions", "Trigger Exclusions", "Recipient Inclusions", "Recipient Exclusions"]);
+  // Initializes fresh deployments with a standardized 20-column templates table configuration matrix to support explicit delivery method tracking
+  initializeSheet(verifiedDb, "Templates", ["Timestamp", "ID", "Name", "Description", "Category", "Module", "Trigger", "Subject", "Body", "Wrapper", "Status", "To Recipients", "CC Recipients", "BCC Recipients", "Dispatch Mode", "Trigger Inclusions", "Trigger Exclusions", "Recipient Inclusions", "Recipient Exclusions", "Delivery Method"]);
   initializeSheet(verifiedDb, "Wrappers", ["Timestamp", "Wrapper ID", "Name", "HTML Content", "Status"]);
 
   // 4. Admin Creation
@@ -248,13 +248,13 @@ padding: 20px;'><h2>Welcome to {{systemName}}</h2><p>Hello {{target_firstName}},
     var updatedHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Password Updated</h2><p>Hi {{userFirst}},</p><p>This is a confirmation that your system password has been successfully updated. If you did not make this change, please contact your administrator immediately.</p></div>`;
     
     var adminElevatedHtml = `<div style='font-family: sans-serif; padding: 20px;'><h2>Security Privilege Escalation</h2><p>Hello {{firstName}},</p><p>An account has been assigned Administrator privileges.</p><p><strong>Target User:</strong> {{target_firstName}} {{target_lastName}} (@{{target_username}})</p><p>If you did not authorized this elevation, audit system security settings instantly.</p></div>`;
-    // Seed core templates mapping the Welcome template precisely onto User Communications wrapper
-    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Access email", "Security", "Users", "Users:CREATE", "Welcome to {{systemName}}", welcomeHtml, "User Communications", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", ""]);
-    tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Role creation alert", "Security", "Users:Roles", "Users:Roles:CREATE", "New System Role: {{roleName}}", roleHtml, "Internal Communication", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", ""]);
-    tplSheet.appendRow([now, "TPL-ADMIN-NEW", "Administrator Elevation Alert", "Alerts when an administrator is set", "Security", "Users", "Users:ADMIN_ASSIGNED", "Security Alert: Administrator Privileges Assigned", adminElevatedHtml, "Internal Communication", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", ""]);
+    // Seed core templates mapping the Welcome template precisely onto User Communications wrapper with high-priority immediate delivery flags
+    tplSheet.appendRow([now, "TPL-USER-NEW", "User Welcome", "Access email", "Security", "Users", "Users:CREATE", "Welcome to {{systemName}}", welcomeHtml, "User Communications", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", "", "Immediate"]);
+    tplSheet.appendRow([now, "TPL-ROLE-NEW", "Role Created", "Role creation alert", "Security", "Users:Roles", "Users:Roles:CREATE", "New System Role: {{roleName}}", roleHtml, "Internal Communication", "Active", "ALL_ACTIVE_USERS", "", "", "Individual", "", "", "Administrator", "", "Immediate"]);
+    tplSheet.appendRow([now, "TPL-ADMIN-NEW", "Administrator Elevation Alert", "Alerts when an administrator is set", "Security", "Users", "Users:ADMIN_ASSIGNED", "Security Alert: Administrator Privileges Assigned", adminElevatedHtml, "Internal Communication", "Active", "ALL_ACTIVE_USERS", "", "", "Individual", "", "", "Administrator", "", "Immediate"]);
     // Updated wrappers for Password Templates -> "User Communications"
-    tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Forgot password link", "Security", "Users", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "User Communications", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", ""]);
-    tplSheet.appendRow([now, "TPL-PWD-UPDATE", "Password Updated", "Password change confirmation", "Security", "Users", "Users:PASSWORD_UPDATED", "Security Alert: Password Updated", updatedHtml, "User Communications", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", ""]);
+    tplSheet.appendRow([now, "TPL-PWD-RESET", "Password Reset Link", "Forgot password link", "Security", "Users", "Users:RESET_REQUEST", "Password Reset Request", resetHtml, "User Communications", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", "", "Immediate"]);
+    tplSheet.appendRow([now, "TPL-PWD-UPDATE", "Password Updated", "Password change confirmation", "Security", "Users", "Users:PASSWORD_UPDATED", "Security Alert: Password Updated", updatedHtml, "User Communications", "Active", "TRIGGER_DEFAULT", "", "", "Individual", "", "", "", "", "Immediate"]);
   }
 }
 

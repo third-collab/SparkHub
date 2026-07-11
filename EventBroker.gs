@@ -55,11 +55,6 @@ var SystemEvent = (function() {
       Logs.handleSystemEvent(payload);
     }
 
-    // 1. Core Logging
-    if (typeof Logs !== 'undefined' && Logs.handleSystemEvent) {
-      Logs.handleSystemEvent(payload);
-    }
-
     // 2. Dynamic Extensions Notification
     var props = PropertiesService.getScriptProperties();
     var installed = props.getProperty('INSTALLED_MODULES');

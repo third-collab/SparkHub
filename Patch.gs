@@ -307,5 +307,92 @@ function patch_v5_1_TemplatesDatabaseSchema() {
 }
 
 /**
+ * Upgrade structural table schema to support dynamic 20-column delivery method parameters.
+ * Automatically tags all core installation and password links as "Immediate".
+ * @return {string} Migration outcome metrics log summary.
+ */
+function patch_v5_3_TemplatesDeliveryMethodSchema() {
+  try {
+    var db = getMainDb();
+    var sheet = db.getSheetByName("Templates");
+    if (!sheet) return "Migration Aborted: Sheet 'Templates' not found.";
+    
+    var lastCol = sheet.getLastColumn();
+    // 1. Force structural sheet boundaries out to a standard 20 column layout ceiling
+    if (lastCol < 20) {
+      sheet.getRange(1, 20).setValue("Delivery Method").setFontWeight("bold").setBackground("#f1f5f9");
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    var immediateTriggers = ["TPL-USER-NEW", "TPL-ROLE-NEW", "TPL-ADMIN-NEW", "TPL-PWD-RESET", "TPL-PWD-UPDATE"];
+    var updatedCount = 0;
+    
+    // 2. Loop through row matrices to map parameters to matching rows safely
+    for (var i = 1; i < data.length; i++) {
+      var templateId = data[i][1];
+      var cell = sheet.getRange(i + 1, 20);
+      
+      if (immediateTriggers.indexOf(templateId) > -1) {
+        cell.setValue("Immediate");
+      } else if (cell.getValue() === "") {
+        cell.setValue("Queue");
+      }
+      updatedCount++;
+    }
+    
+    SpreadsheetApp.flush();
+    return "Success: Upgraded database to v5.3 20-column schema. Configured " + updatedCount + " record entries.";
+  } catch(e) {
+    return "Migration Failed: " + e.message;
+  }
+}
+
+/**
+ * Retroactively configures the pre-seeded administrative templates in the live database.
+ * Restricts delivery to active administrators, ensures immediate dispatch, and applies correct wrappers.
+ * @return {string} Migration status narrative log summary.
+ */
+function patch_v5_4_configureAdministrativeTemplates() {
+  try {
+    var db = getMainDb();
+    var sheet = db.getSheetByName("Templates");
+    if (!sheet) return "Migration Aborted: Sheet 'Templates' not found.";
+    
+    // Enforce 20-column schema expansion parameters if not already performed
+    var lastCol = sheet.getLastColumn();
+    if (lastCol < 20) {
+      sheet.getRange(1, 20).setValue("Delivery Method").setFontWeight("bold").setBackground("#f1f5f9");
+    }
+    
+    var data = sheet.getDataRange().getValues();
+    var updatedCount = 0;
+    
+    for (var i = 1; i < data.length; i++) {
+      var templateId = data[i][1]; // Column B (ID)
+      
+      if (templateId === "TPL-ROLE-NEW") {
+        // Col 12 (L): To Recipients | Col 18 (R): Recipient Inclusions | Col 20 (T): Delivery Method
+        sheet.getRange(i + 1, 12).setValue("ALL_ACTIVE_USERS");
+        sheet.getRange(i + 1, 18).setValue("Administrator");
+        sheet.getRange(i + 1, 20).setValue("Immediate");
+        updatedCount++;
+      } else if (templateId === "TPL-ADMIN-NEW") {
+        // Col 10 (J): Wrapper | Col 12 (L): To Recipients | Col 18 (R): Recipient Inclusions | Col 20 (T): Delivery Method
+        sheet.getRange(i + 1, 10).setValue("Internal Communication");
+        sheet.getRange(i + 1, 12).setValue("ALL_ACTIVE_USERS");
+        sheet.getRange(i + 1, 18).setValue("Administrator");
+        sheet.getRange(i + 1, 20).setValue("Immediate");
+        updatedCount++;
+      }
+    }
+    
+    SpreadsheetApp.flush();
+    return "Success: Retroactively reconfigured " + updatedCount + " administrative security templates.";
+  } catch(e) {
+    return "Migration Error: " + e.message;
+  }
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */

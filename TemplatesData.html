@@ -246,6 +246,7 @@
          <p><strong>Trigger Routing Filters:</strong> <br><small style="color:#475569;">Inc: <code id="ro-tpl-inc-view">-</code> | Exc: <code id="ro-tpl-exc-view">-</code></small></p>
          <p><strong>Audience Drop-Rules:</strong> <br><small style="color:#475569;">Inc: <code id="ro-tpl-recinc-view">-</code> | Exc: <code id="ro-settings-rec-exc-view">-</code></small></p>
          <p><strong>Distribution:</strong> <span id="ro-tpl-dispatchMode" style="font-weight:700;"></span></p>
+         <p><strong>Delivery Method:</strong> <span id="ro-tpl-deliveryMethod" style="font-weight:700;"></span></p>
          <p><strong>Description:</strong> <span id="ro-tpl-desc"></span></p>
          <p><strong>Created On:</strong> <span id="ro-tpl-created" style="color: #64748b; font-size:13px;"></span></p>
        </div>
@@ -332,76 +333,89 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group"><label>To Recipient Conditions *</label>
-            <select id="edt-tpl-to-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('to', this.value)">
-               <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
-               <option value="ALL_ACTIVE_USERS">All Active Users</option>
-               <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Manual To Emails (Optional)</label>
-            <input type="text" id="edt-tpl-to-manual" class="form-control" placeholder="external1@domain.com, external2@domain.com">
+          <div class="form-row" style="margin:0; width:100%; gap:20px;">
+            <div class="form-group"><label>To Recipient Conditions *</label>
+              <select id="edt-tpl-to-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('to', this.value)">
+                 <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
+                 <option value="ALL_ACTIVE_USERS">All Active Users</option>
+                 <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Manual To Emails (Optional)</label>
+              <input type="text" id="edt-tpl-to-manual" class="form-control" placeholder="external1@domain.com, external2@domain.com">
+            </div>
           </div>
         </div>
         
-        <div class="form-row">
-          <div class="form-group"><label>Dispatch Mode Configuration *</label>
-            <select id="edt-tpl-dispatchMode" class="form-control">
-               <option value="Individual">Send Individually (Separate Personalized Loops)</option>
-               <option value="Collective">Send Collectively (Single Combined Group Dispatch)</option>
-            </select>
-          </div>
-          <div class="form-group"></div>
-        </div>
-        
-        <div class="form-row" id="tpl-custom-to-lookup-group" style="display:none; margin-bottom:15px;">
+        <div class="form-row" id="tpl-custom-to-lookup-group" style="display:none; margin-bottom:25px; padding:20px; background:#f8fafc; border-left:4px solid var(--brand-primary); border-radius:0 8px 8px 0; margin-left:15px; box-sizing:border-box;">
           <div class="form-group">
-            <label>Select Specific Target To Recipients Matrix</label>
+            <label style="color:var(--brand-dark); font-weight:700;">Select Specific Target To Recipients Matrix</label>
             <div id="tpl-custom-to-ms-wrapper"></div>
           </div>
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label>Carbon Copy (CC) Conditions</label>
-            <select id="edt-tpl-cc-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('cc', this.value)">
-               <option value="NONE">None</option>
-               <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
-               <option value="ALL_ACTIVE_USERS">All Active Users</option>
-               <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Manual CC Emails (Optional)</label>
-            <input type="text" id="edt-tpl-cc-manual" class="form-control" placeholder="cc1@domain.com, cc2@domain.com">
+          <div class="form-row" style="margin:0; width:100%; gap:20px;">
+            <div class="form-group"><label>Dispatch Mode Configuration *</label>
+              <select id="edt-tpl-dispatchMode" class="form-control">
+                 <option value="Individual">Send Individually (Separate Personalized Loops)</option>
+                 <option value="Collective">Send Collectively (Single Combined Group Dispatch)</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Delivery Method *</label>
+              <select id="edt-tpl-deliveryMethod" class="form-control">
+                 <option value="Queue">Queue (Standard 5-min Interval)</option>
+                 <option value="Immediate">Immediate (Instant Dispatch)</option>
+              </select>
+            </div>
           </div>
         </div>
-        <div class="form-row" id="tpl-custom-cc-lookup-group" style="display:none; margin-bottom:15px;">
+
+        <div class="form-row">
+          <div class="form-row" style="margin:0; width:100%; gap:20px;">
+            <div class="form-group">
+              <label>Carbon Copy (CC) Conditions</label>
+              <select id="edt-tpl-cc-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('cc', this.value)">
+                 <option value="NONE">None</option>
+                 <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
+                 <option value="ALL_ACTIVE_USERS">All Active Users</option>
+                 <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Manual CC Emails (Optional)</label>
+              <input type="text" id="edt-tpl-cc-manual" class="form-control" placeholder="cc1@domain.com, cc2@domain.com">
+            </div>
+          </div>
+        </div>
+        <div class="form-row" id="tpl-custom-cc-lookup-group" style="display:none; margin-bottom:25px; padding:20px; background:#f8fafc; border-left:4px solid var(--brand-primary); border-radius:0 8px 8px 0; margin-left:15px; box-sizing:border-box;">
           <div class="form-group">
-            <label>Select Specific Target CC Recipients Matrix</label>
+            <label style="color:var(--brand-dark); font-weight:700;">Select Specific Target CC Recipients Matrix</label>
             <div id="tpl-custom-cc-ms-wrapper"></div>
           </div>
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <label>Blind Carbon Copy (BCC) Conditions</label>
-            <select id="edt-tpl-bcc-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('bcc', this.value)">
-               <option value="NONE">None</option>
-               <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
-               <option value="ALL_ACTIVE_USERS">All Active Users</option>
-               <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Manual BCC Emails (Optional)</label>
-            <input type="text" id="edt-tpl-bcc-manual" class="form-control" placeholder="bcc1@domain.com, bcc2@domain.com">
+          <div class="form-row" style="margin:0; width:100%; gap:20px;">
+            <div class="form-group">
+              <label>Blind Carbon Copy (BCC) Conditions</label>
+              <select id="edt-tpl-bcc-condition" class="form-control" onchange="evaluateTemplateRecipientConditionChange('bcc', this.value)">
+                 <option value="NONE">None</option>
+                 <option value="TRIGGER_DEFAULT">Trigger Default (Context Event Recipient)</option>
+                 <option value="ALL_ACTIVE_USERS">All Active Users</option>
+                 <option value="CUSTOM_LOOKUP">Custom Selected Directory...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Manual BCC Emails (Optional)</label>
+              <input type="text" id="edt-tpl-bcc-manual" class="form-control" placeholder="bcc1@domain.com, bcc2@domain.com">
+            </div>
           </div>
         </div>
-        <div class="form-row" id="tpl-custom-bcc-lookup-group" style="display:none; margin-bottom:15px;">
+        <div class="form-row" id="tpl-custom-bcc-lookup-group" style="display:none; margin-bottom:25px; padding:20px; background:#f8fafc; border-left:4px solid var(--brand-primary); border-radius:0 8px 8px 0; margin-left:15px; box-sizing:border-box;">
           <div class="form-group">
-            <label>Select Specific Target BCC Recipients Matrix</label>
+            <label style="color:var(--brand-dark); font-weight:700;">Select Specific Target BCC Recipients Matrix</label>
             <div id="tpl-custom-bcc-ms-wrapper"></div>
           </div>
         </div>
@@ -943,6 +957,7 @@
       document.getElementById('edt-tpl-status').value = data.status || "Draft";
       document.getElementById('edt-tpl-subject').value = data.subject || "";
       document.getElementById('edt-tpl-dispatchMode').value = data.dispatchMode || "Individual";
+      if(document.getElementById('edt-tpl-deliveryMethod')) document.getElementById('edt-tpl-deliveryMethod').value = data.deliveryMethod || "Queue";
       
       function unpackEcosystemRecipientRuleToUi(prefix, rawRule) {
         var conditionVal = (prefix === 'to') ? "TRIGGER_DEFAULT" : "NONE";
@@ -1029,6 +1044,7 @@
       document.getElementById('ro-tpl-recinc-view').innerText = data.recipientInclusions || "None";
       document.getElementById('ro-settings-rec-exc-view').innerText = data.recipientExclusions || "None";
       document.getElementById('ro-tpl-dispatchMode').innerText = data.dispatchMode === "Individual" ? "Send Separately (Personalized Loops)" : "Send Combined (Group Dispatch)";
+      if(document.getElementById('ro-tpl-deliveryMethod')) document.getElementById('ro-tpl-deliveryMethod').innerText = data.deliveryMethod === "Immediate" ? "Immediate (Instant Dispatch)" : "Queue (Standard 5-min Interval)";
 
       function formatEcosystemRecipientRuleForDisplay(rawRule, isToField) {
         if (!rawRule || rawRule.trim() === "" || rawRule === "NONE") return isToField ? "Default Trigger Recipient" : "None";
@@ -1278,6 +1294,7 @@
       cc: compileEcosystemRecipientRule('cc'),
       bcc: compileEcosystemRecipientRule('bcc'),
       dispatchMode: document.getElementById('edt-tpl-dispatchMode').value,
+      deliveryMethod: document.getElementById('edt-tpl-deliveryMethod') ? document.getElementById('edt-tpl-deliveryMethod').value : "Queue",
       triggerInclusions: document.getElementById('edt-tpl-trigger-inclusions').value.trim(),
       triggerExclusions: document.getElementById('edt-tpl-trigger-exclusions').value.trim(),
       recipientInclusions: document.getElementById('edt-tpl-recipient-inclusions').value.trim(),

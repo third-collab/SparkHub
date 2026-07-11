@@ -57,9 +57,7 @@ function Templates_getLookups() {
 
 function getDynamicTriggerRegistry() {
   var triggers = [];
-  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
-  
-  // Pulls the unified collection natively from our central config module service
+  var globalScope = (1, eval)("this");
   var activeModules = getActiveModules();
 
   // 3. Only execute triggers for active modules
@@ -82,8 +80,7 @@ function getDynamicTriggerRegistry() {
 
 function getPlaceholderSuggestions() {
   var placeholders = ["details", "systemName"];
-  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
-  
+  var globalScope = (1, eval)("this");
   // Pulls the unified collection natively from our central config module service
   var activeModules = getActiveModules();
   
@@ -145,7 +142,9 @@ function getQueueList() {
 }
 
 function sendHardcodedEmail(triggerHandle, toEmail, dataMap) {
-  enqueueEmailRow(triggerHandle, toEmail, "", "", dataMap, "Collective");
+  var immediateTriggers = ["System:INSTALL", "Users:RESET_REQUEST", "Users:PASSWORD_UPDATED"];
+  var delivery = (immediateTriggers.indexOf(triggerHandle) > -1) ? "Immediate" : "Queue";
+  enqueueEmailRow(triggerHandle, toEmail, "", "", dataMap, "Collective", delivery);
 }
 
 function legacySendHardcodedEmailBypass(triggerHandle, toEmail, dataMap) {
@@ -283,7 +282,8 @@ function getTemplatesList() {
         subject: row[7], wrapper: row[9], status: row[10],
         to: row[11] || "", cc: row[12] || "", bcc: row[13] || "", dispatchMode: row[14] || "Individual",
         triggerInclusions: row[15] || "", triggerExclusions: row[16] || "",
-        recipientInclusions: row[17] || "", recipientExclusions: row[18] || ""
+        recipientInclusions: row[17] || "", recipientExclusions: row[18] || "",
+        deliveryMethod: row[19] || "Queue"
       };
     });
   } catch (e) { return []; }
@@ -291,8 +291,8 @@ function getTemplatesList() {
 
 function getTemplateById(rowIndex) {
   try {
-    // Extends spreadsheet lookup range to 19 columns to safely process advanced values and exclusions
-    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 19).getDisplayValues()[0];
+    // Extends spreadsheet lookup range to 20 columns to safely process delivery method values
+    var row = getMainDb().getSheetByName("Templates").getRange(parseInt(rowIndex), 1, 1, 20).getDisplayValues()[0];
     var templateName = row[2];
     var lastUpdated = getEventTimestampFromLogs("Templates", "UPDATE", templateName);
     return {
@@ -301,6 +301,7 @@ function getTemplateById(rowIndex) {
       to: row[11] || "", cc: row[12] || "", bcc: row[13] || "", dispatchMode: row[14] || "Individual",
       triggerInclusions: row[15] || "", triggerExclusions: row[16] || "",
       recipientInclusions: row[17] || "", recipientExclusions: row[18] || "",
+      deliveryMethod: row[19] || "Queue",
       lastUpdated: lastUpdated
     };
   } catch (e) { return { error: e.message }; }
@@ -357,15 +358,16 @@ function saveTemplateRecord(data) {
       data.trigger, data.subject, data.body, data.wrapper, data.status,
       data.to || "", data.cc || "", data.bcc || "", data.dispatchMode || "Individual",
       data.triggerInclusions || "", data.triggerExclusions || "",
-      data.recipientInclusions || "", data.recipientExclusions || ""
+      data.recipientInclusions || "", data.recipientExclusions || "",
+      data.deliveryMethod || "Queue"
     ];
     var targetRow;
     var tplId = data.id || values[1];
     if (data.rowIndex) {
       targetRow = parseInt(data.rowIndex);
       var oldStatus = sheet.getRange(targetRow, 11).getValue();
-      // Expanded structural write array parameters to column index 19
-      sheet.getRange(targetRow, 1, 1, 19).setValues([values]);
+      // Expanded structural write array parameters to column index 20
+      sheet.getRange(targetRow, 1, 1, 20).setValues([values]);
       SystemEvent.emit("Templates", "UPDATE", "Edit Template", "INFO", tplId, "Template content or logic updated.", "", { targetName: data.name });
       // Granular Activation Logging
       if (oldStatus !== data.status) {

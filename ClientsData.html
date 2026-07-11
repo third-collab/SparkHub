@@ -37,19 +37,6 @@
   .fields-container { display:flex; flex-direction:column; gap:12px; margin-bottom:20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; min-height: 50px;}
   .core-row { background: #fff; border: 1px dashed #94a3b8; display:flex; justify-content:space-between; align-items:center; padding: 12px 20px; border-radius: 8px; }
   .cf-row { background: #fff; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; position: relative; }
-
-  /* --- Searchable Multi-Select UI Component Specs --- */
-  .searchable-multiselect-wrapper { position: relative; width: 100%; }
-  .multiselect-toggle-box { background: #fff; border: 1px solid #cbd5e1; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; color: #334155; display: flex; justify-content: space-between; align-items: center; min-height: 40px; box-sizing: border-box; }
-  .multiselect-dropdown-panel { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 2100; margin-top: 4px; padding: 12px; max-height: 280px; overflow-y: auto; box-sizing: border-box; }
-  .multiselect-search-input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; margin-bottom: 10px; box-sizing: border-box; }
-  .multiselect-search-input:focus { outline: none; border-color: var(--brand-primary); }
-  .multiselect-options-list { display: flex; flex-direction: column; gap: 4px; }
-  .multiselect-item-label { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; color: #334155; border-radius: 4px; cursor: pointer; transition: background 0.15s; }
-  .multiselect-item-label:hover { background: #f1f5f9; }
-
-  /* Enforce visibility overrides to prevent panel layout clipping on absolute dropdown vectors */
-  .panel { overflow: visible !important; }
   
   /* Layout margins prevent custom JSON labels from sticking to fields */
   .json-sf-row label { display: block !important; margin-bottom: 8px !important; font-weight: 600 !important; color: #475569 !important; }

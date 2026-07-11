@@ -91,7 +91,7 @@ function getSystemDynamicLookups() {
   var masterLookups = {};
   var activeModules = getActiveModules();
   
-  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
+  var globalScope = (1, eval)("this");
   activeModules.forEach(function(modName) {
     var funcName = modName + "_getLookups";
     if (typeof globalScope[funcName] === 'function') {
@@ -115,12 +115,10 @@ function getSystemDynamicLookups() {
  */
 function getDynamicPermissionMatrix() {
   var matrix = {};
-  
   // Explicitly seeds the fundamental baseline Core System settings group
   matrix["Core System"] = ["View Settings", "Manage Settings"];
-  
   var activeModules = getActiveModules();
-  var globalScope = typeof globalThis !== 'undefined' ? globalThis : this;
+  var globalScope = (1, eval)("this");
   
   activeModules.forEach(function(modName) {
     var funcName = modName + "_getPermissions";
