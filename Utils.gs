@@ -357,7 +357,44 @@ function enqueueEmailRow(templateId, toEmail, ccEmail, bccEmail, dataMap, dispat
     var sheet = getQueueDb().getSheetByName("Email Queue");
     if (!sheet) return;
     var queueId = "Q-" + Math.floor(100000 + Math.random() * 900000);
-    sheet.appendRow([new Date(), queueId, templateId, toEmail, ccEmail, bccEmail, JSON.stringify(dataMap), dispatchMode, "Pending", "", ""]);
+    
+    // Explicit high-priority system handles and template IDs that bypass background cron latency
+    var immediateTriggers = [
+      "System:INSTALL", "Users:RESET_REQUEST", "Users:PASSWORD_UPDATED",
+      "TPL-USER-NEW", "TPL-ROLE-NEW", "TPL-ADMIN-NEW", "TPL-PWD-RESET", "TPL-PWD-UPDATE"
+    ];
+    var status = "Pending";
+    var errMsg = "";
+    var sentDate = "";
+    
+    if (immediateTriggers.indexOf(templateId) > -1) {
+      try {
+        var settings = getSystemSettings();
+        var mainDb = getMainDb();
+        var wData = mainDb.getSheetByName("Wrappers").getDataRange().getValues();
+        var hardcodedTriggers = ["Logs:EXPORT", "Logs:PURGE", "Settings:UPDATE", "System:INSTALL", "System:MODULE_INSTALLED"];
+        
+        if (hardcodedTriggers.indexOf(templateId) > -1) {
+          executeSendHardcodedEmail(templateId, toEmail, dataMap, settings, wData);
+        } else {
+          var tData = mainDb.getSheetByName("Templates").getDataRange().getValues();
+          function isWrapperActive(wName) {
+            for (var w=1; w<wData.length; w++) {
+              if (wData[w][2] === wName && wData[w][5] === "Active") return true;
+            }
+            return false;
+          }
+          executeSendTemplateEmail(templateId, toEmail, ccEmail, bccEmail, dataMap, dispatchMode, tData, wData, settings, isWrapperActive);
+        }
+        status = "Sent";
+        sentDate = new Date();
+      } catch (err) {
+        status = "Failed";
+        errMsg = err.message;
+      }
+    }
+    
+    sheet.appendRow([new Date(), queueId, templateId, toEmail, ccEmail, bccEmail, JSON.stringify(dataMap), dispatchMode, status, errMsg, sentDate]);
     SpreadsheetApp.flush();
   } catch(e) {
     console.error("Failed to enqueue email row: " + e.message);
