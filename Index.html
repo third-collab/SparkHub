@@ -420,6 +420,7 @@
       
       google.script.run.withSuccessHandler(function(res) {
         if (res.includes("Success")) {
+          var url = res.split('|')[1];
           document.getElementById('wizardLoading').style.display = 'none';
           document.getElementById('wizardSuccess').style.display = 'block';
           
@@ -427,16 +428,11 @@
             var wizard = document.getElementById('installWizard');
             if (wizard) wizard.style.display = 'none';
             
-            document.getElementById('hub-system-name').innerText = sysNameInput;
-            document.getElementById('hub-window-title').innerText = sysNameInput;
-            
-            // Re-hydrate permissions as Admin for the post-install view
-            CURRENT_USER_PERMISSIONS = {"ALL":["ALL"]};
-            bootApplication();
-            
-            switchView('dashboardView');
+            showSystemConfirm("Installation Complete", "Core enterprise architecture successfully deployed. Click Confirm to launch your workspace dashboard.", function() {
+              window.open(url, '_top');
+            });
           }, 2000); 
-        } else { 
+        } else {
           showSystemModal("Installation Failed", "Installation Error: " + res); 
           document.getElementById('wizardContent').style.display = 'block';
           document.getElementById('wizardLoading').style.display = 'none';

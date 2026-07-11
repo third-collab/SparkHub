@@ -269,11 +269,7 @@
       
       document.getElementById('ro-settings-logo').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
       var envBox = document.getElementById('ro-settings-env-box');
-      if (envBox) {
-        var envVal = String(data.environment || 'Sandbox').trim();
-        var badgeClass = (envVal.toLowerCase() === 'production') ? 'badge-active' : 'badge-onboarding';
-        envBox.innerHTML = `<span class="badge ${badgeClass}">${envVal} Profile</span>`;
-      }
+      if (envBox) envBox.innerHTML = `<span class="badge ${data.environment === 'Production' ? 'badge-active' : 'badge-onboarding'}">${data.environment} Profile</span>`;
 
       document.getElementById('ro-settings-rootid').innerText = data.rootFolderId || 'Not Set';
       document.getElementById('ro-settings-dbid').innerText = data.mainDbId || 'Not Set';
