@@ -269,7 +269,11 @@
       
       document.getElementById('ro-settings-logo').src = data.systemLogoId ? data.systemLogoUrl : data.appFallbackLogo;
       var envBox = document.getElementById('ro-settings-env-box');
-      if (envBox) envBox.innerHTML = `<span class="badge ${data.environment === 'Production' ? 'badge-active' : 'badge-onboarding'}">${data.environment} Profile</span>`;
+      if (envBox) {
+        var envVal = String(data.environment || 'Sandbox').trim();
+        var badgeClass = (envVal.toLowerCase() === 'production') ? 'badge-active' : 'badge-onboarding';
+        envBox.innerHTML = `<span class="badge ${badgeClass}">${envVal} Profile</span>`;
+      }
 
       document.getElementById('ro-settings-rootid').innerText = data.rootFolderId || 'Not Set';
       document.getElementById('ro-settings-dbid').innerText = data.mainDbId || 'Not Set';
@@ -456,9 +460,10 @@
       .withSuccessHandler(function(res) {
         toggleSettingsOverlay('ro-settings-overlay', false);
         if (res.includes("Success")) {
-          showSystemModal("Module Installed", res + "\n\nThe ecosystem will now automatically restart to apply architectural changes.");
           google.script.run.withSuccessHandler(function(url) {
-             setTimeout(function() { window.top.location.href = url; }, 2500);
+            showSystemConfirm("Module Installed", res + "\n\nClick Confirm to restart the environment and apply updates.", function() {
+              window.open(url, '_top');
+            });
           }).getAppUrl();
         } else {
           showSystemModal("System Notice", res);
@@ -553,7 +558,10 @@
 
   function returnToWorkspaceHome() {
     google.script.run.withSuccessHandler(function(url) {
-      window.open(url, '_top');
+      if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', false);
+      showSystemConfirm("Restart Workspace", "Settings saved successfully. Click Confirm to reload the workspace tab.", function() {
+        window.open(url, '_top');
+      });
     }).getAppUrl();
   }
 
