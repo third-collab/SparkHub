@@ -120,8 +120,7 @@ function saveGeneralSettings(settings) {
 
     
     // 2. Database Validation (Infrastructure Check)
-    if (settings.mainDbId) validateDatabase(settings.mainDbId);
-    if (settings.logsDbId) validateLogsDatabase(settings.logsDbId);
+    if (settings.mainDbId) validateSpreadsheetSchema(settings.mainDbId, ["Users", "Templates"], "Main Database");
 
     // 3. Identity & Environment Save
     if (settings.environment) props.setProperty('ENVIRONMENT', settings.environment);
@@ -130,7 +129,6 @@ function saveGeneralSettings(settings) {
     if (settings.systemName) props.setProperty('SYSTEM_NAME', settings.systemName);
     if (settings.rootFolderId) props.setProperty('ROOT_FOLDER_ID', settings.rootFolderId);
     if (settings.mainDbId) props.setProperty('DATABASE_ID', settings.mainDbId);
-    if (settings.logsDbId) props.setProperty('LOGS_DATABASE_ID', settings.logsDbId);
     if (settings.fallbackLogoUrl) props.setProperty('EMAIL_FALLBACK_LOGO', settings.fallbackLogoUrl);
     if (settings.systemLogoId) props.setProperty('SYSTEM_LOGO_ID', settings.systemLogoId);
 
@@ -147,10 +145,11 @@ function saveGeneralSettings(settings) {
       "UPDATE", 
       "System Configuration", 
       "WARN", 
-      "General Settings", 
-      "Core system architecture, identity, or theme settings were modified via local save."
+      "-", 
+      "Core system architecture, identity, or theme settings were modified via local save.",
+      "",
+      { targetName: "Core Engine" }
     );
-
     return { success: true, message: "Success! General settings updated." };
 
   } catch (e) { 
@@ -205,12 +204,16 @@ function performModuleInstallation(moduleName) {
     } catch(e) { console.error("Template Seeding Error: " + e.message); }
 
     // 4. Dispatch the Event and the BCC Announcement
-    SystemEvent.emit("Settings", "UPDATE", "Module Installed", "INFO", mName, "The " + mName + " module was successfully provisioned.", "System", {});
+    SystemEvent.emit("Settings", "UPDATE", "Module Installed", "INFO", "-", "The " + mName + " module was successfully provisioned.", "System", { targetName: mName });
     try {
       var bccEmails = [];
       if (typeof getUsersList === 'function') {
         var usersRes = getUsersList();
-        if (usersRes && usersRes.data) bccEmails = usersRes.data.filter(function(u) { return u.status === 'Active' && u.email; }).map(function(u) { return u.email; });
+        bccEmails = usersRes.filter(function(u) { 
+          return u.status === 'Active' && (u.systemEmail || u.email); 
+        }).map(function(u) { 
+          return u.systemEmail || u.email; 
+        });
       }
       if (bccEmails.length > 0) {
         var bccString = bccEmails.join(',');
@@ -256,22 +259,20 @@ function performModuleInstallation(moduleName) {
 // 5. INTERNAL HELPERS
 // ========================================================================
 /**
- * Validates a Google Sheet ID structure.
+ * Generic structural schema verification utility for decoupling database references.
  */
-function validateDatabase(id) {
+function validateSpreadsheetSchema(id, requiredSheets, contextLabel) {
   try {
     var ss = SpreadsheetApp.openById(id);
-    if (!ss.getSheetByName("Users") || !ss.getSheetByName("Templates")) throw new Error("Missing Core Sheets.");
+    requiredSheets.forEach(function(sheetName) {
+      if (!ss.getSheetByName(sheetName)) {
+        throw new Error("Missing required table sheet: '" + sheetName + "'");
+      }
+    });
     return true;
-  } catch (e) { throw new Error("Database Validation Failed: " + e.message); }
-}
-
-function validateLogsDatabase(id) {
-  try {
-    var ss = SpreadsheetApp.openById(id);
-    if (!ss.getSheetByName("System Logs")) throw new Error("Missing System Logs Sheet.");
-    return true;
-  } catch (e) { throw new Error("Logs Database Validation Failed: " + e.message); }
+  } catch (e) {
+    throw new Error((contextLabel || "Spreadsheet") + " Validation Failed: " + e.message);
+  }
 }
 
 /**
@@ -279,6 +280,15 @@ function validateLogsDatabase(id) {
  */
 function getAppUrl() {
   return ScriptApp.getService().getUrl();
+}
+
+function Settings_getPlaceholderMetadata() {
+  return {
+    "systemName": { desc: "The organizational title or white-label brand name defined inside general system settings.", tag: "Core System" },
+    "systemLogoUrl": { desc: "The thumbnail file destination URL resolving the active primary header brand asset image.", tag: "Core System" },
+    "environment": { desc: "The profile context execution mode under which the platform is operating (e.g., Sandbox or Production).", tag: "Core System" },
+    "adminEmail": { desc: "The core administrative notification inbox address designated for high-priority security interventions.", tag: "Core System" }
+  };
 }
 
 /**

@@ -128,12 +128,14 @@ function getDynamicPermissionMatrix() {
         if (Array.isArray(perms)) {
           // Maps technical module handles dynamically into standard operational UI category labels
           var groupLabel = modName + " Module";
-          if (modName === "Users") groupLabel = "Access & Users";
-          else if (modName === "Templates") groupLabel = "Templates & Wrappers";
-          else if (modName === "Clients") groupLabel = "Clients & Services";
-          else if (modName === "Logs") groupLabel = "System Logs";
-          else if (modName === "System" || modName === "Settings") return; // Covered under Core System settings
+          var globalScope = (1, eval)("this");
           
+          if (typeof globalScope[modName + "_getModuleLabel"] === 'function') {
+            groupLabel = globalScope[modName + "_getModuleLabel"]();
+          } else if (modName === "System" || modName === "Settings") {
+            return; // Covered under Core System settings
+          }
+        
           matrix[groupLabel] = perms;
         }
       } catch(e) { console.warn("Permission matrix extraction bypassed for " + modName + ": " + e.message); }

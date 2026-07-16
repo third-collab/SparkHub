@@ -1454,7 +1454,7 @@
   function addClientCustomFieldRow(container, data = {}) {
     var div = document.createElement('div'); div.className = 'cf-row'; 
     var id = data.id || 'cf_' + Math.random().toString(36).substr(2, 9);
-    var typeOpts = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `<option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>`).join('');
+    var typeOpts = ['text', 'longtext', 'email', 'number', 'date', 'checkbox', 'select', 'textarea', 'richtext', 'json', 'file-single', 'file-multiple'].map(t => `<option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>`).join('');
     
     div.innerHTML = `
       <div style="position:absolute; top:15px; right:15px; display:flex; gap:5px;">
@@ -1501,7 +1501,7 @@
 
   function addJsonSubfieldRow(container, data = { label: '', type: 'text', options: '' }) {
     var div = document.createElement('div'); div.className = 'json-sf-row'; div.style.display = 'flex'; div.style.flexWrap = 'wrap'; div.style.gap = '15px'; div.style.alignItems = 'flex-start'; div.style.background = '#fff'; div.style.padding = '15px'; div.style.borderRadius = '6px'; div.style.border = '1px solid #e2e8f0'; div.style.position = 'relative';
-    var types = ['text', 'longtext', 'number', 'date', 'checkbox', 'select', 'textarea'].map(t => `<option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>`).join('');
+    var types = ['text', 'longtext', 'email', 'number', 'date', 'checkbox', 'select', 'textarea'].map(t => `<option value="${t}" ${data.type === t ? 'selected' : ''}>${t}</option>`).join('');
     
     div.innerHTML = `
       <button type="button" class="row-remove-btn" style="top:5px; right:5px; width:22px; height:22px; font-size:14px;" onclick="this.parentElement.remove()">&times;</button>
@@ -1704,6 +1704,11 @@
      ======================================================================== */
   function handleSaveClientsConfig(e) {
     if (e) e.preventDefault();
+    var form = document.getElementById('editSettingsForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     const accordionGroups = []; const customFields = []; var executionCrashed = false;
 
     document.querySelectorAll('.accordion-grp-row').forEach(function(groupRow) {

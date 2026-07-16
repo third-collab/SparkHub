@@ -178,45 +178,34 @@
 
       // Query the unified backend seeder to fetch active environment variables
       google.script.run.withSuccessHandler(function(allTokens) {
-        // Complete structural definitions dictionary map built natively to ensure zero loose strings
-        var descriptions = {
-          "systemName": "The organizational title or white-label brand name defined inside general system settings.",
-          "details": "A descriptive plain-text summary payload printed automatically by background actions.",
-          "username": contextType === 'clients' ? "The immutable unique ID string anchor allocated to the client record (e.g., C-1024)." : (dispatchMode === 'Individual' ? "Resolves dynamically to the authentic login account handle string of the user opening the email envelope." : "Overloaded Token: Displays the master subject entity context string parameter of the transaction event (e.g., Brand Company Name or unique User ID)."),
-          "firstName": dispatchMode === 'Individual' && contextType === 'templates' ? "<span style='color:#b91c1c; font-weight:600;'>Collision Warning:</span> This token gets overwritten inside personalized loops and defaults to the recipient's first name. Use <code>{{userFirst}}</code> instead to preserve structural layout mappings." : "The given first name string registered under the target profile column.",
-          "lastName": "The registered surname string mapped to the target access directory index cell row.",
-          "userFirst": dispatchMode === 'Individual' ? "The highly secure personalized name selector. Safely matches the first name string of the person opening their alert inbox." : "<span style='color:#b91c1c; font-weight:600;'>Unavailable:</span> Collective dispatch methods send group assets and cannot compute unique individual recipient names.",
-          "userEmail": dispatchMode === 'Individual' ? "Resolves natively to the active alerts inbox routing target address of the person opening the envelope." : "<span style='color:#b91c1c; font-weight:600;'>Unavailable:</span> Omitted from group communication payloads to prevent data cross-contamination.",
-          "role": "The technical security role string variable attached to the system account profile (e.g., Manager).",
-          "resetLink": "programmatically compiled unique temporary secure password recovery token redirect URL share hyperlink.",
-          "companyName": "The official institutional corporate registration title variable provided on the client card profile.",
-          "brandName": "The customer-facing white-label trading style name generated on onboarding accordions.",
-          "priFirstName": "The individual first name string of the designated principal operational client contact.",
-          "priContactFull": "The concatenated full string name variable assigned to the client contact principal.",
-          "priEmail": "The direct point-of-contact company routing email inbox address of the brand account.",
-          "services": "A text cell string list showing every active operational capability attached to the brand record.",
-          "rate": "The financial contractual retainer currency values mapped to the customer file.",
-          "contractStartDate": "The primary execution date object marking when operational partnership cycles initialize.",
-          "notes": "Narrative textual rows captured inside localized history trails.",
-          "core_assetFolderLink": "The authentic underlying live directory shared file location parameter link for the brand workspace."
-        };
+        google.script.run.withSuccessHandler(function(metaRegistry) {
+          var staticDescriptions = {
+            "systemName": "The organizational title or white-label brand name defined inside general system settings.",
+            "details": "A descriptive plain-text summary payload printed automatically by background actions."
+          };
 
-        tbody.innerHTML = allTokens.map(t => {
-          var desc = descriptions[t] || "A localized custom input variable or dynamic metadata field sink element managed by system properties.";
-          var moduleTag = "Core System";
-          if (t.startsWith('cf_') || t.startsWith('core_') || ["companyName", "brandName", "priFirstName", "priContactFull", "priEmail", "services", "rate", "contractStartDate"].includes(t)) {
-            moduleTag = "Clients Module";
-          } else if (["username", "firstName", "lastName", "role", "userFirst", "resetLink", "userEmail"].includes(t)) {
-            moduleTag = "Users Module";
-          }
-          
-          return `
-            <tr style="cursor:pointer;" onclick="copyGlobalGuidePlaceholderToken('{{${t}}}', this)">
-              <td style="font-family: monospace; font-size:12px; color:var(--brand-primary); font-weight:700;">{{${t}}}</td>
-              <td><span class="badge" style="background:#f1f5f9; color:#475569;">${moduleTag}</span></td>
-              <td style="font-size:13px; line-height:1.5; color:#334155;">${desc}</td>
-            </tr>`;
-        }).join('');
+          tbody.innerHTML = allTokens.map(t => {
+            var desc = "A localized custom input variable or dynamic metadata field sink element managed by system properties.";
+            var moduleTag = "Core System";
+            
+            if (metaRegistry[t]) {
+              desc = metaRegistry[t].desc;
+              moduleTag = metaRegistry[t].tag;
+            } else if (staticDescriptions[t]) {
+              desc = staticDescriptions[t];
+            } else if (t.startsWith('cf_')) {
+              moduleTag = "Clients Module";
+              desc = "Custom variable managed dynamically under Client profile configurations.";
+            }
+
+            return `
+              <tr style="cursor:pointer;" onclick="copyGlobalGuidePlaceholderToken('{{${t}}}', this)">
+                <td style="font-family: monospace; font-size:12px; color:var(--brand-primary); font-weight:700;">{{${t}}}</td>
+                <td><span class="badge" style="background:#f1f5f9; color:#475569;">${moduleTag}</span></td>
+                <td style="font-size:13px; line-height:1.5; color:#334155;">${desc}</td>
+              </tr>`;
+          }).join('');
+        }).getPlaceholderMetadataRegistry();
       }).getPlaceholderSuggestions();
     }
 

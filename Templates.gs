@@ -78,6 +78,23 @@ function getDynamicTriggerRegistry() {
   return [...new Set(triggers)].sort();
 }
 
+function getPlaceholderMetadataRegistry() {
+  var registry = {};
+  var globalScope = (1, eval)("this");
+  var activeModules = getActiveModules();
+  
+  activeModules.forEach(function(modName) {
+    var funcName = modName + "_getPlaceholderMetadata";
+    if (typeof globalScope[funcName] === 'function') {
+      var meta = globalScope[funcName]();
+      for (var token in meta) {
+        registry[token] = meta[token];
+      }
+    }
+  });
+  return registry;
+}
+
 function getPlaceholderSuggestions() {
   var placeholders = ["details", "systemName"];
   var globalScope = (1, eval)("this");
@@ -238,6 +255,11 @@ function saveTemplatesModuleConfig(payload) {
     if (!payload) throw new Error("No payload provided.");
     const props = PropertiesService.getScriptProperties();
     
+    // Verify target schema context natively inside the communication layer before persistence commit
+    if (payload.queueDbId) {
+      validateSpreadsheetSchema(payload.queueDbId, ["Email Queue"], "Email Queue Database");
+    }
+    
     props.setProperty('TPL_DEFAULT_WRAPPER', payload.defaultWrapper);
     props.setProperty('TPL_BCC_ARCHIVE', payload.bccArchive);
     props.setProperty('TPL_LINK_TRACKING', payload.linkTracking ? 'true' : 'false');
@@ -245,7 +267,7 @@ function saveTemplatesModuleConfig(payload) {
     props.setProperty('TPL_GLOBAL_SIGNATURE', payload.signature);
     if (payload.queueDbId) props.setProperty('QUEUE_DATABASE_ID', payload.queueDbId);
 
-    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Templates", "Template module settings updated locally.");
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "-", "Template module settings updated locally.", "", { targetName: "Templates" });
     return { success: true };
   } catch (e) {
     return { error: "Templates.gs: " + e.message };
@@ -475,6 +497,16 @@ function applyGlobalSignature(htmlBody) {
   var signatureBlock = '<div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">' + formattedSig + '</div>';
   return htmlBody + signatureBlock;
 }
+
+function Templates_getPlaceholderMetadata() {
+  return {
+    "templateName": { desc: "The customizable descriptive name assigned to an email template inside the library configuration panel.", tag: "Templates & Wrappers" },
+    "wrapperName": { desc: "The designated layout blueprint wrapping component attached to the template broadcast context.", tag: "Templates & Wrappers" },
+    "triggerEvent": { desc: "The specialized execution hook descriptor string mapping an action to a trigger (e.g., Users:CREATE).", tag: "Templates & Wrappers" }
+  };
+}
+
+function Templates_getModuleLabel() { return "Templates & Wrappers"; }
 
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]

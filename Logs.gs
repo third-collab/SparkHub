@@ -97,13 +97,16 @@ function getLogsList() {
 function saveLogsModuleConfig(payload) {
   try {
     var props = PropertiesService.getScriptProperties();
-    // Move the ID here and save the new retention policy
+    // Verify target schema context natively inside the logging layer before persistence commit
+    if (payload.logsDbId) {
+      validateSpreadsheetSchema(payload.logsDbId, ["System Logs"], "Logs Database");
+    }
     props.setProperty('LOGS_DATABASE_ID', payload.logsDbId);
     props.setProperty('LOGS_RETENTION_DAYS', payload.retentionDays);
     // Ensure the nightly trigger is active
     setupLogJanitorTrigger();
     // Group updates inside the primary 'System' routing layer per core directive standard
-    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Logs", "Logs registry and retention settings updated.");
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "-", "Logs registry and retention settings updated.", "", { targetName: "Logs" });
     return { success: true };
   } catch (e) { 
     return { error: "Logs.gs: " + e.message }; 
@@ -165,6 +168,19 @@ function getLogsModuleConfig() {
     return { logsDbId: '', logsRetentionDays: '90' };
   }
 }
+
+function Logs_getPlaceholderMetadata() {
+  return {
+    "logTimestamp": { desc: "The chronological date and time stamp logging precisely when an action transaction occurred.", tag: "System Logs" },
+    "logModule": { desc: "The specific architectural application layer or extension routing code that emitted the event log.", tag: "System Logs" },
+    "logAction": { desc: "The descriptive high-level operational verb or process handle recorded (e.g., User Status Changed).", tag: "System Logs" },
+    "logActor": { desc: "The identifier handle or user profile name of the account who physically authorized the system action.", tag: "System Logs" },
+    "logEntity": { desc: "The target object reference unique key identifier or name subjected to the action modification layer.", tag: "System Logs" },
+    "logDetails": { desc: "A narrative contextual log tracking exactly what attributes or fields were updated during the process cycle.", tag: "System Logs" }
+  };
+}
+
+function Logs_getModuleLabel() { return "System Logs"; }
 
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]

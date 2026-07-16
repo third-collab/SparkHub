@@ -134,11 +134,13 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       var incRule = tData[i][15] ? String(tData[i][15]).trim().toLowerCase() : "";
       var excRule = tData[i][16] ? String(tData[i][16]).trim().toLowerCase() : "";
       var contextValue = "";
+      var modPrefix = triggerHandle.split(':')[0];
+      var globalScope = (1, eval)("this");
       
-      if (triggerHandle.indexOf("Users:") === 0) {
-        contextValue = dataMap.target_role || dataMap.roleName || "";
-      } else if (triggerHandle.indexOf("Clients:") === 0) {
-        contextValue = dataMap.status || "";
+      if (typeof globalScope[modPrefix + "_getTriggerContextValue"] === 'function') {
+        contextValue = globalScope[modPrefix + "_getTriggerContextValue"](triggerHandle, dataMap);
+      } else {
+        contextValue = dataMap.status || dataMap.role || dataMap.target_role || dataMap.roleName || "";
       }
       contextValue = String(contextValue).trim().toLowerCase();
       
@@ -269,9 +271,14 @@ function sendTriggerEmail(triggerHandle, toEmail, dataMap) {
       for (var pIdx = 0; pIdx < resolvedProfiles.length; pIdx++) {
         var prof = resolvedProfiles[pIdx];
         var trackingRole = String(prof.role || "User").trim().toLowerCase();
-        var targetEmailMatch = String(dataMap.priEmail || dataMap.userEmail || "").trim().toLowerCase();
-        var currentProfileEmail = String(prof.systemEmail || "").trim().toLowerCase();
         
+        // Dynamically discover any email parameter inside the payload to prevent hardcoded module traces
+        var discoveredEmailKey = Object.keys(dataMap || {}).find(function(k) { 
+          return k.toLowerCase().includes('email'); 
+        });
+        var targetEmailMatch = String(discoveredEmailKey ? dataMap[discoveredEmailKey] : (toEmail || "")).trim().toLowerCase();
+        
+        var currentProfileEmail = String(prof.systemEmail || "").trim().toLowerCase();
         var isTargetUser = (targetEmailMatch !== "" && currentProfileEmail === targetEmailMatch);
         var evalMatchToken = isTargetUser ? "target_user" : trackingRole;
         

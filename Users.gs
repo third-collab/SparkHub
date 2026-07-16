@@ -19,7 +19,8 @@ function Users_getPlaceholders() {
   return [
     "username", "firstName", "lastName", "role", "userFirst", "resetLink",
     "userEmail", "userStatus", "userTimestamp",
-    "roleName", "roleDescription", "roleTimestamp"
+    "roleName", "roleDescription", "roleTimestamp",
+    "target_username", "target_firstName", "target_lastName", "target_role"
   ];
 }
 
@@ -104,12 +105,14 @@ function sendPasswordResetEmail(email) {
     var data = sheet.getDataRange().getValues();
     var userExists = false;
     var userFirst = "User";
-    var username = "User";
+    var userLast = "";
+    var userId = "";
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][3]).toLowerCase() === String(email).toLowerCase()) {
         userExists = true;
-        username = data[i][2];  // Index 2 maps to customizable Username handle string
-        userFirst = data[i][7]; // Index 7 maps to First Name string
+        userId = data[i][1];    // Column B maps to unique User ID string anchor
+        userFirst = data[i][7];  // Column H maps to First Name string
+        userLast = data[i][8];   // Column I maps to Last Name string
         break;
       }
     }
@@ -120,8 +123,7 @@ function sendPasswordResetEmail(email) {
     var tokenSheet = ensureTokensSheet();
     tokenSheet.appendRow([token, email, expiry]);
     var resetLink = ScriptApp.getService().getUrl() + "?token=" + token;
-
-    SystemEvent.emit("Users", "RESET_REQUEST", "Password Reset Request", "INFO", username, "User requested a password reset link.", email, { userFirst: userFirst, resetLink: resetLink });
+    SystemEvent.emit("Users", "RESET_REQUEST", "Password Reset Request", "INFO", userId, "User requested a password reset link.", email, { userFirst: userFirst, resetLink: resetLink, targetName: userFirst + " " + (userLast || "") });
     return "If that email is in our system, a reset link has been sent.";
   } catch(e) { return "Error: " + e.message; }
 }
@@ -164,10 +166,10 @@ function processPasswordReset(token, newPassword) {
     var username = userData[userRow-1][2]; // Index 2 maps to customizable Username handle string
     var userFirst = userData[userRow-1][7];
     var userLast = userData[userRow-1][8];
-    var userFullName = userFirst + " " + (userLast ? userLast.charAt(0).toUpperCase() + "." : "");
+    var userFullName = userFirst + " " + (userLast || "");
     var userIdColumnValue = userData[userRow-1][1];
     
-    SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", userIdColumnValue, "User reset their password via email link.", emailToReset, { userFirst: userFirst, targetName: userFullName });
+    SystemEvent.emit("Users", "PASSWORD_UPDATED", "Password Updated", "WARN", userIdColumnValue, "User reset their password via email link.", emailToReset, { userFirst: userFirst, targetName: userFullName.trim() });
     return { success: true, message: "Password updated successfully!" };
   } catch(e) { return { success: false, message: "Error: " + e.message };
   }
@@ -200,7 +202,7 @@ function saveUsersModuleConfig(payload) {
     if (payload.authMode) props.setProperty('AUTH_MODE', payload.authMode);
     
     // Group updates inside the primary 'System' routing layer per core directive standard
-    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Users", "User module settings updated locally.");
+    SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "-", "User module settings updated locally.", "", { targetName: "Users" });
     return { success: true, message: "User settings saved." };
   } catch (e) {
     return { error: "Users.gs: " + e.message };
@@ -430,12 +432,14 @@ function createUserRecord(obj, isAutomatedOnboarding) {
           suffixCounter++;
         }
       } else {
-        return { success: false, error: "Error: The username handle '" + baseUsername + "' is already allocated." };
+        return { success: false, error: "Error: The username handle '" + baseUsername + "' is already allocated."
+        };
       }
     }
     
     var generatedId = "U-" + Math.floor(1000 + Math.random() * 9000);
     var hashedPw = hashPassword(obj.password || Utilities.getUuid().substring(0, 10));
+    var defaultRoleFallback = PropertiesService.getScriptProperties().getProperty('CONF_USERS_DEFAULT_ROLE') || "User";
     
     // Map data fields strictly matching the optimized 12-column layout mapping rules
     var newRow = [
@@ -444,7 +448,7 @@ function createUserRecord(obj, isAutomatedOnboarding) {
       finalizedUsername,
       String(obj.email || "").trim(),       // Google Email (SSO Principal Check)
       String(obj.systemEmail || obj.email || "").trim(), // System Email (Outbound Routing Target)
-      obj.role || "Client",
+      obj.role || defaultRoleFallback,
       hashedPw,
       obj.firstName || "",
       obj.lastName || "",
@@ -461,11 +465,12 @@ function createUserRecord(obj, isAutomatedOnboarding) {
       username: finalizedUsername, 
       firstName: obj.firstName || "User", 
       lastName: obj.lastName || "", 
-      roleName: obj.role || "Client",
+      roleName: obj.role || defaultRoleFallback,
       target_username: finalizedUsername,
       target_firstName: obj.firstName || "User",
       target_lastName: obj.lastName || "",
-      target_role: obj.role || "Client"
+      target_role: obj.role || defaultRoleFallback,
+      targetName: (obj.firstName || "User") + " " + (obj.lastName || "")
     };
 
     // Packages detailed contextual data parameters into extraData to shield against placeholder collisions
@@ -542,7 +547,8 @@ function updateUserRecord(obj) {
       target_username: newUsername,
       target_firstName: obj.firstName,
       target_lastName: obj.lastName,
-      target_role: obj.role
+      target_role: obj.role,
+      targetName: (obj.firstName || "") + " " + (obj.lastName || "")
     };
 
     SystemEvent.emit("Users", "UPDATE", "Edit User", "INFO", existingUserId, "User access profile updated.", obj.email, dataContextMap);
@@ -667,6 +673,25 @@ function ensureTokensSheet() {
   }
   return sheet;
 }
+
+function Users_getPlaceholderMetadata() {
+  return {
+    "username": { desc: "Resolves dynamically to the authentic login account handle string of the user opening the email envelope.", tag: "Access & Users" },
+    "firstName": { desc: "The given first name string registered under the target profile column.", tag: "Access & Users" },
+    "lastName": { desc: "The registered surname string mapped to the target access directory index cell row.", tag: "Access & Users" },
+    "role": { desc: "The technical security role string variable attached to the system account profile (e.g., Manager).", tag: "Access & Users" },
+    "userFirst": { desc: "The highly secure personalized name selector. Safely matches the first name string of the person opening their alert inbox.", tag: "Access & Users" },
+    "userEmail": { desc: "Resolves natively to the active alerts inbox routing target address of the person opening the envelope.", tag: "Access & Users" },
+    "target_username": { desc: "The unique customized login handle of the user who triggered the current event context.", tag: "Access & Users" },
+    "target_firstName": { desc: "The authentic first name string of the specific subject user who triggered the transaction event.", tag: "Access & Users" },
+    "target_lastName": { desc: "The authentic last name string of the specific subject user who triggered the transaction event.", tag: "Access & Users" },
+    "target_role": { desc: "The security role profile name assigned to the target user account who triggered the transaction event.", tag: "Access & Users" },
+    "resetLink": { desc: "Programmatically compiled unique temporary secure password recovery token redirect URL share hyperlink.", tag: "Access & Users" }
+  };
+}
+
+function Users_getModuleLabel() { return "Access & Users"; }
+function Users_getTriggerContextValue(handle, dataMap) { return dataMap.target_role || dataMap.roleName || ""; }
 
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]

@@ -66,7 +66,7 @@
 
     <div class="form-group" style="margin-top:15px;">
       <label>Sandbox Whitelist (Comma separated)</label>
-      <input type="text" id="edt-settings-tpl-whitelist" class="form-control" placeholder="admin@sparkhub.com, dev@sparkhub.com">
+      <input type="email" multiple id="edt-settings-tpl-whitelist" class="form-control" placeholder="admin@sparkhub.com, dev@sparkhub.com">
       <small style="color:#64748b;">Only these emails receive dispatches when the System Sandbox is ON.</small>
     </div>
 
@@ -343,7 +343,7 @@
             </div>
             <div class="form-group">
               <label>Manual To Emails (Optional)</label>
-              <input type="text" id="edt-tpl-to-manual" class="form-control" placeholder="external1@domain.com, external2@domain.com">
+              <input type="email" multiple id="edt-tpl-to-manual" class="form-control" placeholder="external1@domain.com, external2@domain.com">
             </div>
           </div>
         </div>
@@ -385,7 +385,7 @@
             </div>
             <div class="form-group">
               <label>Manual CC Emails (Optional)</label>
-              <input type="text" id="edt-tpl-cc-manual" class="form-control" placeholder="cc1@domain.com, cc2@domain.com">
+              <input type="email" multiple id="edt-tpl-cc-manual" class="form-control" placeholder="cc1@domain.com, cc2@domain.com">
             </div>
           </div>
         </div>
@@ -409,7 +409,7 @@
             </div>
             <div class="form-group">
               <label>Manual BCC Emails (Optional)</label>
-              <input type="text" id="edt-tpl-bcc-manual" class="form-control" placeholder="bcc1@domain.com, bcc2@domain.com">
+              <input type="email" multiple id="edt-tpl-bcc-manual" class="form-control" placeholder="bcc1@domain.com, bcc2@domain.com">
             </div>
           </div>
         </div>
@@ -1230,6 +1230,11 @@
      ======================================================================== */
   function handleSaveTemplatesConfig(e) {
     if (e) e.preventDefault();
+    var form = document.getElementById('editSettingsForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving Template Settings...');
     
     const payload = {
@@ -1267,6 +1272,11 @@
 
   function handleTemplateSubmit(e) {
     if(e) e.preventDefault();
+    var form = document.getElementById('editTemplateForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     toggleTemplateOverlay('edit-template-overlay', true, 'Saving Template...');
     
     function compileEcosystemRecipientRule(prefix) {
@@ -1342,6 +1352,11 @@
   }
 
   function submitTestEmail() {
+    var emailInput = document.getElementById('test-email-address');
+    if (emailInput && !emailInput.checkValidity()) {
+      emailInput.reportValidity();
+      return;
+    }
     var rowIndex = document.getElementById('test-email-row-index').value;
     var email = document.getElementById('test-email-address').value;
     if (!email) return;

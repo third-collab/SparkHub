@@ -1067,6 +1067,11 @@
      ======================================================================== */
   function handleSaveUsersConfig(e) {
     if (e) e.preventDefault();
+    var emailInput = document.getElementById('edt-settings-email');
+    if (emailInput && !emailInput.checkValidity()) {
+      emailInput.reportValidity();
+      return;
+    }
     if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving User Access Settings...');
     const payload = {
       defaultRole: "Client",
@@ -1129,6 +1134,11 @@
 
   function handleAddUserSubmit(e) {
     if(e) e.preventDefault();
+    var form = document.getElementById('addUserForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     toggleUserOverlay('add-user-overlay', true, 'Creating Profile...');
     var btn = document.getElementById('add-user-submit');
     btn.disabled = true;
@@ -1155,6 +1165,11 @@
 
   function handleEditUserSubmit(e) {
     if(e) e.preventDefault();
+    var form = document.getElementById('editUserForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     toggleUserOverlay('edit-user-overlay', true, 'Saving Changes...');
     var btn = document.getElementById('edt-user-submit');
     btn.disabled = true;
@@ -1184,6 +1199,11 @@
 
   function handleEditMyProfileSubmit(e) {
     if(e) e.preventDefault();
+    var form = document.getElementById('editMyProfileForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     toggleUserOverlay('edit-my-profile-overlay', true, 'Saving Profile...');
     var btn = document.getElementById('edt-my-submit');
     btn.disabled = true;
@@ -1255,6 +1275,11 @@
   
   function handleForgotSubmit(e) {
     e.preventDefault();
+    var form = document.getElementById('forgotForm');
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
     var btn = document.getElementById('forgot-submit-btn');
     var msg = document.getElementById('forgot-msg');
     btn.innerText = "Sending..."; btn.disabled = true; msg.innerText = "";

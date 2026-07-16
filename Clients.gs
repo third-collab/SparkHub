@@ -123,7 +123,7 @@ function seedClientsTemplates(extWrapperName, intWrapperName) {
     
     // 1. Seed External Welcome Template for the incoming client target
     if (!tplList.some(function(t) { return t.name === "Client Welcome Email"; }) && typeof saveTemplateRecord === 'function') {
-      saveTemplateRecord({ name: "Client Welcome Email", description: "External welcome to the implementation.", category: "Operations", trigger: "Clients:CREATE", subject: "Welcome to {{systemName}} - {{brandName}}", body: "<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to {{systemName}}</h2><p>Hi {{priFirstName}},</p><p>We are thrilled to officially partner with <strong>{{brandName}}</strong>.</p><p>Your workspace logic for <strong style='color:#666DF2;'>{{services}}</strong> is provisioned.</p></div>", wrapper: extWrapperName, status: "Active", to: "TRIGGER_DEFAULT", dispatchMode: "Individual" });
+      saveTemplateRecord({ name: "Client Welcome Email", description: "External welcome to the implementation.", category: "Operations", trigger: "Clients:CREATE", subject: "Welcome to {{systemName}} - {{brandName}}", body: "<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to {{systemName}}</h2><p>Hi {{priFirstName}},</p><p>We are thrilled to officially partner with <strong>{{brandName}}</strong>.</p><p>Your client portal has been configured, and access to your <strong style='color:#666DF2;'>{{services}}</strong> has been successfully enabled.</p></div>", wrapper: extWrapperName, status: "Active", to: "TRIGGER_DEFAULT", dispatchMode: "Individual" });
     }
     
     // 2. Seed Internal Notification Template targeted at staff distribution cohorts using the 15-column schema matrix
@@ -265,7 +265,7 @@ function saveClientsModuleConfig(p) {
     PropertiesService.getScriptProperties().setProperty('CLIENTS_MODULE_CONFIG', JSON.stringify(p));
     // Emit active trace records straight to the central 'System' workspace block registry
     try {
-      SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "Clients", "Client module settings updated locally.");
+      SystemEvent.emit("System", "UPDATE", "Config Updated", "INFO", "-", "Client module settings updated locally.", "", { targetName: "Clients" });
     } catch(logErr) {}
     return { success: true };
   } catch(e) {
@@ -381,8 +381,7 @@ function createClientRecord(p) {
       }
 
       var sysName = getSystemSettings().systemName || "SparkHub";
-      var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName };
-      
+      var dataMap = { "companyName": p.companyName, "brandName": brand, "priFirstName": p.pFirstName, "priContactFull": p.pFirstName+" "+p.pLastName, "priEmail": p.pEmail, "services": p.services, "rate": p.rate, "contractStartDate": p.startDate, "systemName": sysName, "targetName": brand };
       // Unpack all custom fields and assets folder links stored in the addl metadata payload straight into dataMap tokens
       if (addl && typeof addl === 'object') {
         for (var key in addl) {
@@ -392,7 +391,7 @@ function createClientRecord(p) {
         }
       }
       
-      // Issues a single atomic transaction signal. Core lookup matrices handle internal/external routing automatically
+      // Issues a single atomic transaction signal.
       SystemEvent.emit("Clients", "CREATE", "New Client", "INFO", brand, "Client onboarded.", p.pEmail || "no-reply@local", dataMap);
     } catch(postError) {
       console.warn("Client saved, but post-save actions failed: " + postError.message);
@@ -615,28 +614,54 @@ function updateClientRecord(p) {
     // MANDATE: Generate global system-wide tracking logs for every profile or note modification
     try {
       var clientId = oldRow[1];
-      var brandName = p.companyName || "Unknown Brand";
+      var sysName = getSystemSettings().systemName || "SparkHub";
+      var actualBrandName = newAddl.brand_name || p.companyName || "Unknown Brand";
+      
+      // Assemble complete rich contextual payload mapping for notification engine symmetry
+      var dataMap = { 
+        "companyName": p.companyName || "", 
+        "brandName": actualBrandName, 
+        "priFirstName": p.pFirstName || "", 
+        "priContactFull": (p.pFirstName || "") + " " + (p.pLastName || ""), 
+        "priEmail": p.pEmail || "", 
+        "services": p.services || "", 
+        "rate": p.rate || "", 
+        "contractStartDate": p.currentStartDate || p.startDate || "", 
+        "systemName": sysName,
+        "targetName": actualBrandName
+      };
+      if (newAddl && typeof newAddl === 'object') {
+        for (var key in newAddl) {
+          if (newAddl.hasOwnProperty(key)) {
+            dataMap[key] = newAddl[key];
+          }
+        }
+      }
+
       var logAction = "Client Updated";
       var logDetails = "Client profile details updated.";
       // Interrogate calculated changes array to produce high-fidelity system logs
       var noteChange = changes.find(function(c) { return c.type === "note"; });
       if (noteChange) {
         logAction = "Client Note Modified";
-        // References newVal property correctly to avoid throwing fatal unhandled undefined property TypeError breaks
         logDetails = noteChange.newVal.replace(/<[^>]*>/g, "");
       } else if (changes.length > 0) {
         logDetails = "Updated fields: " + changes.map(function(c) { return c.field; }).join(", ");
       }
       
-      SystemEvent.emit("Clients", "UPDATE", logAction, "INFO", clientId, logDetails, p.pEmail || "system", { targetName: brandName });
+      SystemEvent.emit("Clients", "UPDATE", logAction, "INFO", clientId, logDetails, p.pEmail || "system", dataMap);
     } catch(logErr) {
       console.warn("Global system log emission failed for client update: " + logErr.message);
     }
 
     if (hasStatusChanged) {
       var clientId = oldRow[1];
-      const brand = p.companyName || "Unknown Brand";
-      SystemEvent.emit("Clients", "STATUS_CHANGE", "Client Status Updated", "WARN", clientId, `Status changed from ${oldStatus} to ${newStatus}.`, p.pEmail || "system", { oldStatus: oldStatus, newStatus: newStatus, targetName: brand });
+      // Inject identical contextual maps into adjacent operational state changes logs
+      if (dataMap) {
+        dataMap.oldStatus = oldStatus;
+        dataMap.newStatus = newStatus;
+      }
+      SystemEvent.emit("Clients", "STATUS_CHANGE", "Client Status Updated", "WARN", clientId, `Status changed from ${oldStatus} to ${newStatus}.`, p.pEmail || "system", dataMap || { oldStatus: oldStatus, newStatus: newStatus, targetName: actualBrandName });
     }
 
     return { success: true, message: "Updated successfully.", data: { operationalNotes: newRow[21], history: newRow[24] } };
@@ -694,9 +719,28 @@ function Clients_getLookups() {
         }
       }
     }
-  } catch(e) { console.warn("Services lookup broadcast failed: " + e.message); }
+  } catch(e) { console.warn("Services lookup broadcast failed: " + e.message);
+  }
   return vectors;
 }
+
+function Clients_getPlaceholderMetadata() {
+  return {
+    "companyName": { desc: "The official institutional corporate registration title variable provided on the client card profile.", tag: "Clients & Services" },
+    "brandName": { desc: "The customer-facing white-label trading style name generated on onboarding accordions.", tag: "Clients & Services" },
+    "priFirstName": { desc: "The individual first name string of the designated principal operational client contact.", tag: "Clients & Services" },
+    "priContactFull": { desc: "The concatenated full string name variable assigned to the client contact principal.", tag: "Clients & Services" },
+    "priEmail": { desc: "The direct point-of-contact company routing email inbox address of the brand account.", tag: "Clients & Services" },
+    "services": { desc: "A text cell string list showing every active operational capability attached to the brand record.", tag: "Clients & Services" },
+    "rate": { desc: "The financial contractual retainer currency values mapped to the customer file.", tag: "Clients & Services" },
+    "contractStartDate": { desc: "The primary execution date object marking when operational partnership cycles initialize.", tag: "Clients & Services" },
+    "notes": { desc: "Narrative textual rows captured inside localized history trails.", tag: "Clients & Services" },
+    "core_assetFolderLink": { desc: "The authentic underlying live directory shared file location parameter link for the brand workspace.", tag: "Clients & Services" }
+  };
+}
+
+function Clients_getModuleLabel() { return "Clients & Services"; }
+function Clients_getTriggerContextValue(handle, dataMap) { return dataMap.status || ""; }
 
 /**
  * [SPARKHUB INTEGRITY ANCHOR: END]

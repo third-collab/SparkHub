@@ -42,7 +42,7 @@ function performUiInstallation(data) {
     // IMMUTABLE ANCHOR: Prevent concurrent write-locks from overwriting the User creation log
     Utilities.sleep(1500);
     // Route the installation success via the Event Broker, passing the dynamic data
-    SystemEvent.emit("System", "INSTALL", "System Installation", "WARN", "Core Architecture", "SparkHub core deployed.", installerEmail, { sysName: data.sysName, adminUsername: adminUsername });
+    SystemEvent.emit("System", "INSTALL", "System Installation", "WARN", "-", "SparkHub core deployed.", installerEmail, { sysName: data.sysName, adminUsername: adminUsername, targetName: "Core Engine" });
     props.setProperty('ENVIRONMENT', 'Sandbox');
     
     // IMMUTABLE ANCHOR: Master Webhook Reporting
@@ -189,10 +189,9 @@ function setupCoreDatabase(rootFolder) {
   props.deleteProperty('TMP_LAST_NAME');
   
   // Emit Role Creation with the necessary email payload matching exact variable tokens
-  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "R-ADMIN", "Default Administrator role generated during installation.", adminEmail, { roleName: "Administrator", details: "Unrestricted system access." });
+  SystemEvent.emit("Users:Roles", "CREATE", "Add Role", "INFO", "R-ADMIN", "Default Administrator role generated during installation.", adminEmail, { roleName: "Administrator", details: "Unrestricted system access.", targetName: "Administrator" });
   // IMMUTABLE ANCHOR: Prevent Google Sheets concurrent write-locks from overwriting logs
   Utilities.sleep(1500);
-  
   var initialDataContext = { 
     username: adminUsername, 
     firstName: finalFirst, 
@@ -201,7 +200,8 @@ function setupCoreDatabase(rootFolder) {
     target_username: adminUsername,
     target_firstName: finalFirst,
     target_lastName: finalLast,
-    target_role: "Administrator"
+    target_role: "Administrator",
+    targetName: finalFirst + " " + finalLast
   };
   // Emit User Creation utilizing the concrete record anchor ID (U-1001) instead of raw username handles safely
   SystemEvent.emit("Users", "CREATE", "Add User", "INFO", "U-1001", "Master admin created.", adminEmail, initialDataContext);

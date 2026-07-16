@@ -394,5 +394,44 @@ function patch_v5_4_configureAdministrativeTemplates() {
 }
 
 /**
+ * Architectural Upgrade Patch v5.5
+ * Retroactively updates the existing Client Welcome Email template body inside your live database.
+ * @return {string} Migration outcome status metrics log narrative.
+ */
+function patch_v5_5_updateClientWelcomeTemplate() {
+  try {
+    var db = getMainDb();
+    var sheet = db.getSheetByName("Templates");
+    if (!sheet) return "Migration Aborted: Sheet 'Templates' not found.";
+
+    var data = sheet.getDataRange().getValues();
+    var updated = false;
+
+    for (var i = 1; i < data.length; i++) {
+      var templateName = data[i][2]; // Column C (Name)
+      
+      if (templateName === "Client Welcome Email") {
+        var updatedBodyHtml = "<div style='font-family: sans-serif; padding: 20px;'><h2>Welcome to {{systemName}}</h2><p>Hi {{priFirstName}},</p><p>We are thrilled to officially partner with <strong>{{brandName}}</strong>.</p><p>Your dedicated workspace for <strong style='color:#666DF2;'>{{services}}</strong> is fully prepared and ready for use.</p></div>";
+        
+        // Enforce the update cleanly on Column 9 (Column I: Body) without breaking recipient routing layout parameters
+        sheet.getRange(i + 1, 9).setValue(updatedBodyHtml);
+        updated = true;
+        break;
+      }
+    }
+
+    SpreadsheetApp.flush(); // Mandated race condition safeguard
+    
+    if (updated) {
+      return "Success: Client Welcome Email template text successfully migrated to reader-friendly corporate language.";
+    } else {
+      return "Notice: Client Welcome Email template record not found in database. No updates applied.";
+    }
+  } catch(e) {
+    return "Migration Failed: " + e.message;
+  }
+}
+
+/**
  * [SPARKHUB INTEGRITY ANCHOR: END]
  */
