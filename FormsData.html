@@ -1,0 +1,504 @@
+<!--
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: FormsData.html
+ * VERSION: 1.0
+ * SYNC STATUS: Fully Synchronized with Forms.gs
+-->
+
+<!-- ============================================================================
+     1. MODULE STYLES
+     ============================================================================ -->
+<style>
+  /* Forms Module Structural Layout */
+  .forms-container {
+    padding: 20px;
+    background-color: var(--brand-bg, #f8f9fa);
+  }
+
+  /* 3-Tier View Layout & Tab Navigation */
+  .forms-tab-nav {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 20px;
+  }
+
+  .forms-tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .forms-tab-btn:hover {
+    color: var(--brand-primary, #0d6efd);
+  }
+
+  .forms-tab-btn.active {
+    color: var(--brand-primary, #0d6efd);
+    border-bottom-color: var(--brand-primary, #0d6efd);
+  }
+
+  /* Grid Layout Rule (Section 5.G: 2-Column Max on Standard Displays) */
+  .forms-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+  }
+
+  .forms-full-width {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Question Builder Item Styles */
+  .question-item-card {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 12px;
+    position: relative;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .question-item-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  .question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .question-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #e9ecef;
+    color: #495057;
+    font-weight: 600;
+  }
+
+  /* Status Badges */
+  .badge-status {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+  }
+
+  .badge-status-active, .badge-status-completed, .badge-status-submitted {
+    background-color: #d1e7dd;
+    color: #0f5132;
+  }
+
+  .badge-status-pending, .badge-status-draft {
+    background-color: #fff3cd;
+    color: #664d03;
+  }
+
+  .badge-status-inactive, .badge-status-expired {
+    background-color: #f8d7da;
+    color: #842029;
+  }
+
+  /* Response Inspect Dashboard Widgets */
+  .forms-analytics-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+
+  .analytics-card {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 15px;
+    border-left: 4px solid var(--brand-primary, #0d6efd);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  .analytics-card h4 {
+    margin: 0 0 5px 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-transform: uppercase;
+  }
+
+  .analytics-card .analytics-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--brand-dark, #212529);
+  }
+</style>
+
+<!-- ============================================================================
+     2. DASHBOARD WIDGETS TEMPLATE
+     ============================================================================ -->
+<template class="module-card-template" id="forms-dashboard-widget">
+  <div class="card-span-2">
+    <div class="widget-header">
+      <i class="fas fa-file-alt"></i>
+      <span>Forms Engine Overview</span>
+    </div>
+    <div class="widget-body">
+      <div class="forms-analytics-summary">
+        <div class="analytics-card">
+          <h4>Active Templates</h4>
+          <div class="analytics-value" id="dash-forms-count-templates">0</div>
+        </div>
+        <div class="analytics-card">
+          <h4>Pending Requests</h4>
+          <div class="analytics-value" id="dash-forms-count-pending">0</div>
+        </div>
+        <div class="analytics-card">
+          <h4>Submissions</h4>
+          <div class="analytics-value" id="dash-forms-count-submitted">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- ============================================================================
+     3. SETTINGS FRAGMENTS
+     ============================================================================ -->
+<template id="tpl-settings-forms-ro">
+  <div class="form-group">
+    <label class="form-label">Automatic Monthly Generation</label>
+    <p class="form-control-static" id="ro-forms-auto-gen">Enabled (25th of every month)</p>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Default Respondent Expiration</label>
+    <p class="form-control-static" id="ro-forms-default-expiry">7 Days</p>
+  </div>
+</template>
+
+<template id="tpl-settings-forms-edt">
+  <div class="form-group">
+    <label class="form-label" for="edt-forms-auto-gen">Automatic Monthly Generation</label>
+    <select id="edt-forms-auto-gen" class="form-control">
+      <option value="enabled">Enabled (25th of every month)</option>
+      <option value="disabled">Disabled</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="edt-forms-default-expiry">Default Expiration (Days)</label>
+    <input type="number" id="edt-forms-default-expiry" class="form-control" value="7" min="1" max="30">
+  </div>
+</template>
+
+<!-- ============================================================================
+     4. GLOBAL OVERLAYS & MODALS
+     ============================================================================ -->
+<!-- Form Share Link Modal -->
+<div class="system-overlay" id="forms-share-modal" style="display: none;">
+  <div class="overlay-card" style="max-width: 550px;">
+    <div class="overlay-header">
+      <h3><i class="fas fa-share-alt"></i> Share Public Form</h3>
+      <button class="btn-close" onclick="FormsUI.closeShareModal()">&times;</button>
+    </div>
+    <div class="overlay-body">
+      <p>Use this public token URL to allow unauthenticated form responses:</p>
+      <div class="form-group">
+        <label for="forms-share-url-input">Direct Access URL</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="forms-share-url-input" class="form-control" readonly>
+          <button class="btn-primary" onclick="FormsUI.copyShareUrl()"><i class="fas fa-copy"></i> Copy</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="forms-share-target-email">Assign To Specific Respondent (Optional)</label>
+        <input type="email" id="forms-share-target-email" class="form-control" placeholder="user@company.com">
+      </div>
+    </div>
+    <div class="overlay-footer">
+      <button class="btn-dash-back" onclick="FormsUI.closeShareModal()">Close</button>
+      <button class="btn-primary" onclick="FormsUI.generateInstanceLink()">Generate Unique Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- Question Builder Editor Modal -->
+<div class="system-overlay" id="forms-question-modal" style="display: none;">
+  <div class="overlay-card" style="max-width: 650px;">
+    <div class="overlay-header">
+      <h3 id="question-modal-title"><i class="fas fa-plus-circle"></i> Add Question Node</h3>
+      <button class="btn-close" onclick="FormsUI.closeQuestionModal()">&times;</button>
+    </div>
+    <div class="overlay-body forms-grid-layout">
+      <input type="hidden" id="edt-q-index" value="-1">
+      
+      <div class="form-group forms-full-width">
+        <label class="form-label" for="edt-q-label">Question Label / Prompt *</label>
+        <input type="text" id="edt-q-label" class="form-control" placeholder="e.g. Choose a peer who demonstrated excellence..." required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edt-q-type">Input Field Type</label>
+        <select id="edt-q-type" class="form-control" onchange="FormsUI.handleQuestionTypeChange()">
+          <option value="text">Short Text</option>
+          <option value="paragraph">Paragraph / Long Text</option>
+          <option value="select">Dropdown Choice</option>
+          <option value="radio">Multiple Choice (Radio)</option>
+          <option value="rating">Rating Scale (1-5)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edt-q-required">Mandatory Requirement</label>
+        <select id="edt-q-required" class="form-control">
+          <option value="false">Optional Field</option>
+          <option value="true">Required (*)</option>
+        </select>
+      </div>
+
+      <!-- Dynamic Options Configuration Panel -->
+      <div id="forms-option-config-panel" class="forms-full-width" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #e9ecef;">
+        <h4>Option Data Source Configuration</h4>
+        <div class="forms-grid-layout">
+          <div class="form-group">
+            <label class="form-label" for="edt-q-option-source">Option Provider</label>
+            <select id="edt-q-option-source" class="form-control" onchange="FormsUI.toggleCustomOptionsInput()">
+              <option value="STATIC">Static Manual List</option>
+              <option value="SYS_LOOKUP:users">System Users (SYS_LOOKUP:users)</option>
+              <option value="SYS_LOOKUP:clients">System Clients (SYS_LOOKUP:clients)</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="group-exclude-user" style="display: none;">
+            <label class="form-label" for="edt-q-exclude-self">Self-Exclusion Rule</label>
+            <div style="margin-top: 8px;">
+              <input type="checkbox" id="edt-q-exclude-self">
+              <label for="edt-q-exclude-self" style="font-weight: normal;">Exclude Active Respondent</label>
+            </div>
+          </div>
+
+          <div class="form-group forms-full-width" id="group-static-options">
+            <label class="form-label" for="edt-q-static-choices">Choices (Comma Separated)</label>
+            <textarea id="edt-q-static-choices" class="form-control" rows="2" placeholder="Option 1, Option 2, Option 3"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="overlay-footer">
+      <button class="btn-dash-back" onclick="FormsUI.closeQuestionModal()">Cancel</button>
+      <button class="btn-primary" onclick="FormsUI.saveQuestionNode()">Save Question Node</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================================
+     5. MAIN DIRECTORY / LIST VIEWS
+     ============================================================================ -->
+<div id="forms-main-container" class="forms-container">
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2><i class="fas fa-poll-h"></i> Forms Engine & Dynamic Responses</h2>
+    <button class="btn-primary" onclick="FormsUI.openCreateTemplateForm()">
+      <i class="fas fa-plus"></i> Create Form Template
+    </button>
+  </div>
+
+  <!-- Tab Navigation for 3-Tier Views -->
+  <div class="forms-tab-nav">
+    <button class="forms-tab-btn active" id="tab-btn-templates" onclick="FormsUI.switchTab('templates')">Form Templates</button>
+    <button class="forms-tab-btn" id="tab-btn-instances" onclick="FormsUI.switchTab('instances')">Campaigns & Instances</button>
+    <button class="forms-tab-btn" id="tab-btn-responses" onclick="FormsUI.switchTab('responses')">Response Ledger</button>
+  </div>
+
+  <!-- Universal Filter Bar (Section 5.C Standard) -->
+  <div class="filter-wrapper" style="margin-bottom: 20px;">
+    <input type="text" id="filter-forms-search" class="filter-input" placeholder="Search templates, instances, or responses..." onkeyup="FormsUI.applyFilters()">
+    <button class="btn-filter-toggle" onclick="FormsUI.toggleFilter('adv-forms-filters')">Filters</button>
+    <div id="adv-forms-filters" class="filter-advanced" style="display: none;">
+      <div class="custom-dropdown">
+        <button class="dropdown-btn" onclick="FormsUI.toggleDropdown('drop-forms-status')">Status Filter ▼</button>
+        <div class="dropdown-content" id="drop-forms-status">
+          <label><input type="checkbox" value="Active" checked onchange="FormsUI.applyFilters()"> Active</label>
+          <label><input type="checkbox" value="Pending" checked onchange="FormsUI.applyFilters()"> Pending</label>
+          <label><input type="checkbox" value="Completed" checked onchange="FormsUI.applyFilters()"> Completed</label>
+          <label><input type="checkbox" value="Inactive" onchange="FormsUI.applyFilters()"> Inactive</label>
+        </div>
+      </div>
+      <button class="btn-reset-filters" onclick="FormsUI.resetFilters()">Reset Filters</button>
+    </div>
+  </div>
+
+  <!-- TAB 1: Form Templates Table -->
+  <div id="forms-view-templates" class="table-container" style="position: relative;">
+    <table class="system-table" id="table-form-templates">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Form Title</th>
+          <th>Category</th>
+          <th>Schedule Rule</th>
+          <th>Questions</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-form-templates">
+        <tr><td colspan="7" style="text-align: center; padding: 20px;">Loading form templates...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAB 2: Form Instances Table -->
+  <div id="forms-view-instances" class="table-container" style="display: none; position: relative;">
+    <table class="system-table" id="table-form-instances">
+      <thead>
+        <tr>
+          <th>Instance ID</th>
+          <th>Template ID</th>
+          <th>Target Respondent</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-form-instances">
+        <tr><td colspan="6" style="text-align: center; padding: 20px;">Loading campaign instances...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TAB 3: Form Responses Ledger Table -->
+  <div id="forms-view-responses" class="table-container" style="display: none; position: relative;">
+    <table class="system-table" id="table-form-responses">
+      <thead>
+        <tr>
+          <th>Response ID</th>
+          <th>Instance ID</th>
+          <th>Submitted By</th>
+          <th>Submission Date</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-form-responses">
+        <tr><td colspan="6" style="text-align: center; padding: 20px;">Loading responses...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================================
+     6. CORE RECORD VIEWS (3-Tier View Flow)
+     ============================================================================ -->
+
+<!-- TIER 2: Read-Only Dashboard View -->
+<div id="forms-readonly-view" class="forms-container" style="display: none;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div>
+      <button class="btn-dash-back" onclick="FormsUI.showListView()"><i class="fas fa-arrow-left"></i> Back to List</button>
+      <h2 id="ro-forms-title" style="margin-top: 10px;">Form Template Analytics</h2>
+    </div>
+    <div id="ro-forms-action-bar">
+      <!-- Actions injected dynamically -->
+    </div>
+  </div>
+
+  <div class="forms-analytics-summary">
+    <div class="analytics-card">
+      <h4>Template Category</h4>
+      <div class="analytics-value" id="ro-forms-category">-</div>
+    </div>
+    <div class="analytics-card">
+      <h4>Schedule Rule</h4>
+      <div class="analytics-value" id="ro-forms-schedule">-</div>
+    </div>
+    <div class="analytics-card">
+      <h4>Total Submissions</h4>
+      <div class="analytics-value" id="ro-forms-total-responses">0</div>
+    </div>
+  </div>
+
+  <div class="form-wrapper" style="margin-bottom: 25px;">
+    <h3><i class="fas fa-list-ol"></i> Configured Question Schema</h3>
+    <div id="ro-forms-questions-rendered" style="margin-top: 15px;">
+      <!-- Questions list rendered dynamically -->
+    </div>
+  </div>
+
+  <div class="form-wrapper">
+    <h3><i class="fas fa-history"></i> Received Submissions Summary</h3>
+    <div id="ro-forms-responses-summary" style="margin-top: 15px;">
+      <!-- Submitted responses rendered here -->
+    </div>
+  </div>
+</div>
+
+<!-- TIER 3: Form View (Add / Edit Form Template) -->
+<div id="forms-editor-view" class="forms-container" style="display: none;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 id="forms-editor-header-title"><i class="fas fa-edit"></i> Create Form Template</h2>
+    <button class="btn-dash-back" onclick="FormsUI.showListView()">Cancel & Return</button>
+  </div>
+
+  <form id="forms-template-form" onsubmit="FormsUI.handleTemplateFormSubmit(event)">
+    <input type="hidden" id="edt-forms-row-index" value="-1">
+    <input type="hidden" id="edt-forms-id" value="">
+
+    <div class="form-wrapper forms-grid-layout" style="margin-bottom: 20px;">
+      <div class="form-group forms-full-width">
+        <label class="form-label" for="edt-forms-title">Form Title *</label>
+        <input type="text" id="edt-forms-title" class="form-control" placeholder="e.g. Peer Recognition Form (Monthly)" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edt-forms-category">Category</label>
+        <select id="edt-forms-category" class="form-control">
+          <option value="Peer Recognition">Peer Recognition</option>
+          <option value="Onboarding">Onboarding</option>
+          <option value="General">General Feedback</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="edt-forms-schedule">Automated Schedule Rule</label>
+        <select id="edt-forms-schedule" class="form-control">
+          <option value="NONE">Manual / Event Driven Only</option>
+          <option value="MONTHLY_25">Monthly on the 25th</option>
+          <option value="EVENT_DRIVEN">Onboarding Trigger (Event Driven)</option>
+        </select>
+      </div>
+
+      <div class="form-group forms-full-width">
+        <label class="form-label" for="edt-forms-status">Template Status</label>
+        <select id="edt-forms-status" class="form-control">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Draft">Draft</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Question Schema List Builder Section -->
+    <div class="form-wrapper" style="margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3><i class="fas fa-tasks"></i> Form Questions & Input Fields</h3>
+        <button type="button" class="btn-edit" onclick="FormsUI.openQuestionModal(-1)">
+          <i class="fas fa-plus"></i> Add Question
+        </button>
+      </div>
+
+      <div id="forms-builder-questions-list">
+        <p style="color: #6c757d; font-style: italic;">No questions added yet. Click "Add Question" above to build the form schema.</p>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn-dash-back" onclick="FormsUI.showListView()">Cancel</button>
+      <button type="submit" id="btn-save-form-template" class="btn-primary">Save Form Template</button>
+    </div>
+  </form>
+</div>

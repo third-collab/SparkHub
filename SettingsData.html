@@ -40,7 +40,7 @@
     <div id="set-ro-core" class="tab-content" style="display: block;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
         <h2 class="settings-section-header" style="margin:0;">Core Engine Configuration</h2>
-        <button class="btn-primary perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Engine</button>
+        <button class="btn-primary perm-protected" onclick="openEditSettingsForm()" data-perm-category="Core System" data-perm-action="Manage Settings">Edit Core Settings</button>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; font-size: 14px; margin-top: 25px;">
          <div>
@@ -471,6 +471,19 @@
 
   function handleSaveGeneralSettings(e) {
     if(e) e.preventDefault();
+    var container = document.getElementById('set-edt-core');
+    if (container) {
+      var inputs = container.querySelectorAll('input, select, textarea');
+      var isValid = true;
+      for (var i = 0; i < inputs.length; i++) {
+        if (!inputs[i].checkValidity()) {
+          inputs[i].reportValidity();
+          isValid = false;
+          break;
+        }
+      }
+      if (!isValid) return;
+    }
     
     // 1. Gather all standard text/color inputs
     const payload = {

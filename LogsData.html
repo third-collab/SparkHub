@@ -236,6 +236,19 @@
 
   function handleSaveLogsConfig(e) {
     if (e) e.preventDefault();
+    var container = document.getElementById('set-edt-logs');
+    if (container) {
+      var inputs = container.querySelectorAll('input, select, textarea');
+      var isValid = true;
+      for (var i = 0; i < inputs.length; i++) {
+        if (!inputs[i].checkValidity()) {
+          inputs[i].reportValidity();
+          isValid = false;
+          break;
+        }
+      }
+      if (!isValid) return;
+    }
     if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving Logs Settings...');
     
     const payload = {

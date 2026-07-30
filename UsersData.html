@@ -23,7 +23,7 @@
   <div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 30px; border-bottom: 2px solid #E3E3E3; padding-bottom: 20px;">
       <h2 class="settings-section-header" style="margin:0;">User Access & Security</h2>
-      <button class="btn-primary perm-protected" onclick="openEditUsersConfig()" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Users Config</button>
+      <button class="btn-primary perm-protected" onclick="openEditUsersConfig()" data-perm-category="Access & Users" data-perm-action="Manage Users">Edit Users Settings</button>
     </div>
     <p><strong>Master Administrator Email:</strong><br><span id="ro-settings-email"></span></p>
     <p><strong>System Authentication Mode:</strong><br><span id="ro-settings-authmode"></span></p>
@@ -1067,10 +1067,18 @@
      ======================================================================== */
   function handleSaveUsersConfig(e) {
     if (e) e.preventDefault();
-    var emailInput = document.getElementById('edt-settings-email');
-    if (emailInput && !emailInput.checkValidity()) {
-      emailInput.reportValidity();
-      return;
+    var container = document.getElementById('set-edt-users');
+    if (container) {
+      var inputs = container.querySelectorAll('input, select, textarea');
+      var isValid = true;
+      for (var i = 0; i < inputs.length; i++) {
+        if (!inputs[i].checkValidity()) {
+          inputs[i].reportValidity();
+          isValid = false;
+          break;
+        }
+      }
+      if (!isValid) return;
     }
     if (typeof toggleSettingsOverlay === 'function') toggleSettingsOverlay('edt-settings-overlay', true, 'Saving User Access Settings...');
     const payload = {
