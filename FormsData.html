@@ -502,3 +502,614 @@
     </div>
   </form>
 </div>
+
+<script>
+/**
+ * [SPARKHUB INTEGRITY HEADER: START]
+ * FILE: FormsData.html (Part 2: JavaScript)
+ * VERSION: 1.0
+ * SYNC STATUS: Fully Synchronized with Forms.gs
+ */
+
+// ============================================================================
+// 1. GLOBAL STATE
+// ============================================================================
+var FORMS_GLOBAL_TEMPLATES = [];
+var FORMS_GLOBAL_INSTANCES = [];
+var FORMS_GLOBAL_RESPONSES = [];
+var FORMS_CURRENT_QUESTIONS = [];
+var FORMS_ACTIVE_SHARE_TEMPLATE_ID = null;
+
+// ============================================================================
+// 2. BOOTSTRAPPERS
+// ============================================================================
+document.addEventListener("DOMContentLoaded", function() {
+  initFormsModule();
+});
+
+function initFormsModule() {
+  loadFormTemplatesData();
+  loadFormInstancesData();
+  loadFormResponsesData();
+}
+
+// ============================================================================
+// 3. DATA LOADERS
+// ============================================================================
+function loadFormTemplatesData() {
+  var runner = google.script.run
+    .withSuccessHandler(function(response) {
+      if (response && response.error) {
+        alert(response.error);
+        return;
+      }
+      FORMS_GLOBAL_TEMPLATES = (response && response.data) ? response.data : [];
+      renderFormTemplatesTable(FORMS_GLOBAL_TEMPLATES);
+      updateDashboardWidgetCounts();
+    })
+    .withFailureHandler(function(err) {
+      alert("Failed to load form templates: " + err.message);
+    });
+
+  runner.getFormTemplatesList();
+}
+
+function loadFormInstancesData() {
+  var runner = google.script.run
+    .withSuccessHandler(function(response) {
+      if (response && response.error) {
+        alert(response.error);
+        return;
+      }
+      FORMS_GLOBAL_INSTANCES = (response && response.data) ? response.data : [];
+      renderFormInstancesTable(FORMS_GLOBAL_INSTANCES);
+      updateDashboardWidgetCounts();
+    })
+    .withFailureHandler(function(err) {
+      alert("Failed to load form instances: " + err.message);
+    });
+
+  runner.getFormInstancesList(null);
+}
+
+function loadFormResponsesData() {
+  var runner = google.script.run
+    .withSuccessHandler(function(response) {
+      if (response && response.error) {
+        alert(response.error);
+        return;
+      }
+      FORMS_GLOBAL_RESPONSES = (response && response.data) ? response.data : [];
+      renderFormResponsesTable(FORMS_GLOBAL_RESPONSES);
+      updateDashboardWidgetCounts();
+    })
+    .withFailureHandler(function(err) {
+      alert("Failed to load form responses: " + err.message);
+    });
+
+  runner.getFormResponsesList(null);
+}
+
+// ============================================================================
+// 4. DATA MANIPULATION & FILTERS
+// ============================================================================
+var FormsUI = {
+  switchTab: function(tabName) {
+    document.querySelectorAll(".forms-tab-btn").forEach(function(btn) { btn.classList.remove("active"); });
+    document.getElementById("forms-view-templates").style.display = "none";
+    document.getElementById("forms-view-instances").style.display = "none";
+    document.getElementById("forms-view-responses").style.display = "none";
+
+    if (tabName === "templates") {
+      document.getElementById("tab-btn-templates").classList.add("active");
+      document.getElementById("forms-view-templates").style.display = "block";
+    } else if (tabName === "instances") {
+      document.getElementById("tab-btn-instances").classList.add("active");
+      document.getElementById("forms-view-instances").style.display = "block";
+    } else if (tabName === "responses") {
+      document.getElementById("tab-btn-responses").classList.add("active");
+      document.getElementById("forms-view-responses").style.display = "block";
+    }
+  },
+
+  applyFilters: function() {
+    var searchVal = (document.getElementById("filter-forms-search").value || "").toLowerCase();
+    
+    var checkedStatuses = [];
+    document.querySelectorAll("#drop-forms-status input[type='checkbox']:checked").forEach(function(cb) {
+      checkedStatuses.push(cb.value);
+    });
+
+    // Filter Templates
+    var filteredTemplates = FORMS_GLOBAL_TEMPLATES.filter(function(t) {
+      var matchesSearch = (t.title || "").toLowerCase().includes(searchVal) || (t.id || "").toLowerCase().includes(searchVal) || (t.category || "").toLowerCase().includes(searchVal);
+      var matchesStatus = checkedStatuses.length === 0 || checkedStatuses.indexOf(t.status) !== -1;
+      return matchesSearch && matchesStatus;
+    });
+    renderFormTemplatesTable(filteredTemplates);
+
+    // Filter Instances
+    var filteredInstances = FORMS_GLOBAL_INSTANCES.filter(function(inst) {
+      var matchesSearch = (inst.id || "").toLowerCase().includes(searchVal) || (inst.targetRespondent || "").toLowerCase().includes(searchVal) || (inst.templateId || "").toLowerCase().includes(searchVal);
+      var matchesStatus = checkedStatuses.length === 0 || checkedStatuses.indexOf(inst.status) !== -1;
+      return matchesSearch && matchesStatus;
+    });
+    renderFormInstancesTable(filteredInstances);
+
+    // Filter Responses
+    var filteredResponses = FORMS_GLOBAL_RESPONSES.filter(function(r) {
+      var matchesSearch = (r.id || "").toLowerCase().includes(searchVal) || (r.respondent || "").toLowerCase().includes(searchVal) || (r.instanceId || "").toLowerCase().includes(searchVal);
+      var matchesStatus = checkedStatuses.length === 0 || checkedStatuses.indexOf(r.status) !== -1;
+      return matchesSearch && matchesStatus;
+    });
+    renderFormResponsesTable(filteredResponses);
+  },
+
+  resetFilters: function() {
+    document.getElementById("filter-forms-search").value = "";
+    document.querySelectorAll("#drop-forms-status input[type='checkbox']").forEach(function(cb) {
+      cb.checked = true;
+    });
+    FormsUI.applyFilters();
+  },
+
+  toggleFilter: function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
+  },
+
+  toggleDropdown: function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
+  },
+
+  // ============================================================================
+  // 5. RENDERERS & VIEW ROUTING
+  // ============================================================================
+  showListView: function() {
+    document.getElementById("forms-main-container").style.display = "block";
+    document.getElementById("forms-readonly-view").style.display = "none";
+    document.getElementById("forms-editor-view").style.display = "none";
+  },
+
+  openCreateTemplateForm: function() {
+    document.getElementById("forms-editor-header-title").innerHTML = '<i class="fas fa-plus-circle"></i> Create Form Template';
+    document.getElementById("edt-forms-row-index").value = "-1";
+    document.getElementById("edt-forms-id").value = "";
+    document.getElementById("edt-forms-title").value = "";
+    document.getElementById("edt-forms-category").value = "Peer Recognition";
+    document.getElementById("edt-forms-schedule").value = "NONE";
+    document.getElementById("edt-forms-status").value = "Active";
+    
+    FORMS_CURRENT_QUESTIONS = [];
+    renderQuestionsBuilderList();
+
+    document.getElementById("forms-main-container").style.display = "none";
+    document.getElementById("forms-readonly-view").style.display = "none";
+    document.getElementById("forms-editor-view").style.display = "block";
+  },
+
+  openEditTemplateForm: function(templateId) {
+    var template = FORMS_GLOBAL_TEMPLATES.find(function(t) { return t.id === templateId; });
+    if (!template) {
+      alert("Template not found.");
+      return;
+    }
+
+    document.getElementById("forms-editor-header-title").innerHTML = '<i class="fas fa-edit"></i> Edit Form Template (' + template.id + ')';
+    document.getElementById("edt-forms-row-index").value = template.rowIndex;
+    document.getElementById("edt-forms-id").value = template.id;
+    document.getElementById("edt-forms-title").value = template.title || "";
+    document.getElementById("edt-forms-category").value = template.category || "General";
+    document.getElementById("edt-forms-schedule").value = template.scheduleRule || "NONE";
+    document.getElementById("edt-forms-status").value = template.status || "Active";
+
+    FORMS_CURRENT_QUESTIONS = Array.isArray(template.questions) ? JSON.parse(JSON.stringify(template.questions)) : [];
+    renderQuestionsBuilderList();
+
+    document.getElementById("forms-main-container").style.display = "none";
+    document.getElementById("forms-readonly-view").style.display = "none";
+    document.getElementById("forms-editor-view").style.display = "block";
+  },
+
+  showReadOnlyView: function(templateId) {
+    var template = FORMS_GLOBAL_TEMPLATES.find(function(t) { return t.id === templateId; });
+    if (!template) {
+      alert("Template not found.");
+      return;
+    }
+
+    document.getElementById("ro-forms-title").textContent = template.title + " (" + template.id + ")";
+    document.getElementById("ro-forms-category").textContent = template.category || "General";
+    document.getElementById("ro-forms-schedule").textContent = template.scheduleRule || "NONE";
+
+    var matchingResponses = FORMS_GLOBAL_RESPONSES.filter(function(r) {
+      var matchingInst = FORMS_GLOBAL_INSTANCES.find(function(inst) { return inst.id === r.instanceId; });
+      return matchingInst && matchingInst.templateId === templateId;
+    });
+
+    document.getElementById("ro-forms-total-responses").textContent = matchingResponses.length;
+
+    var qContainer = document.getElementById("ro-forms-questions-rendered");
+    if (Array.isArray(template.questions) && template.questions.length > 0) {
+      var html = "";
+      template.questions.forEach(function(q, idx) {
+        html += '<div class="question-item-card">';
+        html += '<div class="question-header"><strong>' + (idx + 1) + '. ' + q.label + '</strong>';
+        html += '<span class="question-badge">' + q.type.toUpperCase() + '</span></div>';
+        if (q.optionSource) {
+          html += '<p style="font-size: 0.85rem; color: #6c757d; margin: 0;">Dynamic Source: ' + q.optionSource + (q.excludeCurrentUser ? ' (Self-Excluded)' : '') + '</p>';
+        } else if (q.options && q.options.length > 0) {
+          html += '<p style="font-size: 0.85rem; color: #6c757d; margin: 0;">Options: ' + q.options.join(", ") + '</p>';
+        }
+        html += '</div>';
+      });
+      qContainer.innerHTML = html;
+    } else {
+      qContainer.innerHTML = '<p style="color: #6c757d;">No questions configured in this template.</p>';
+    }
+
+    var respContainer = document.getElementById("ro-forms-responses-summary");
+    if (matchingResponses.length > 0) {
+      var rHtml = '<table class="system-table"><thead><tr><th>Response ID</th><th>Submitted By</th><th>Date</th></tr></thead><tbody>';
+      matchingResponses.forEach(function(resp) {
+        rHtml += '<tr><td>' + resp.id + '</td><td>' + resp.respondent + '</td><td>' + new Date(resp.timestamp).toLocaleDateString() + '</td></tr>';
+      });
+      rHtml += '</tbody></table>';
+      respContainer.innerHTML = rHtml;
+    } else {
+      respContainer.innerHTML = '<p style="color: #6c757d;">No submissions recorded for this template yet.</p>';
+    }
+
+    document.getElementById("ro-forms-action-bar").innerHTML = 
+      '<button class="btn-primary" onclick="FormsUI.openShareModal(\'' + template.id + '\')"><i class="fas fa-share-alt"></i> Share Link</button> ' +
+      '<button class="btn-edit" onclick="FormsUI.openEditTemplateForm(\'' + template.id + '\')"><i class="fas fa-edit"></i> Edit Template</button>';
+
+    document.getElementById("forms-main-container").style.display = "none";
+    document.getElementById("forms-editor-view").style.display = "none";
+    document.getElementById("forms-readonly-view").style.display = "block";
+  },
+
+  // ============================================================================
+  // 6. QUESTION BUILDER MODAL LOGIC
+  // ============================================================================
+  openQuestionModal: function(index) {
+    document.getElementById("edt-q-index").value = index;
+    if (index >= 0 && FORMS_CURRENT_QUESTIONS[index]) {
+      var q = FORMS_CURRENT_QUESTIONS[index];
+      document.getElementById("question-modal-title").innerHTML = '<i class="fas fa-edit"></i> Edit Question Node';
+      document.getElementById("edt-q-label").value = q.label || "";
+      document.getElementById("edt-q-type").value = q.type || "text";
+      document.getElementById("edt-q-required").value = q.required ? "true" : "false";
+      document.getElementById("edt-q-option-source").value = q.optionSource || "STATIC";
+      document.getElementById("edt-q-exclude-self").checked = !!q.excludeCurrentUser;
+      document.getElementById("edt-q-static-choices").value = Array.isArray(q.options) ? q.options.join(", ") : "";
+    } else {
+      document.getElementById("question-modal-title").innerHTML = '<i class="fas fa-plus-circle"></i> Add Question Node';
+      document.getElementById("edt-q-label").value = "";
+      document.getElementById("edt-q-type").value = "text";
+      document.getElementById("edt-q-required").value = "false";
+      document.getElementById("edt-q-option-source").value = "STATIC";
+      document.getElementById("edt-q-exclude-self").checked = false;
+      document.getElementById("edt-q-static-choices").value = "";
+    }
+
+    FormsUI.handleQuestionTypeChange();
+    document.getElementById("forms-question-modal").style.display = "flex";
+  },
+
+  closeQuestionModal: function() {
+    document.getElementById("forms-question-modal").style.display = "none";
+  },
+
+  handleQuestionTypeChange: function() {
+    var qType = document.getElementById("edt-q-type").value;
+    var panel = document.getElementById("forms-option-config-panel");
+    if (qType === "select" || qType === "radio") {
+      panel.style.display = "block";
+      FormsUI.toggleCustomOptionsInput();
+    } else {
+      panel.style.display = "none";
+    }
+  },
+
+  toggleCustomOptionsInput: function() {
+    var source = document.getElementById("edt-q-option-source").value;
+    var staticGrp = document.getElementById("group-static-options");
+    var excludeGrp = document.getElementById("group-exclude-user");
+
+    if (source === "STATIC") {
+      staticGrp.style.display = "block";
+      excludeGrp.style.display = "none";
+    } else {
+      staticGrp.style.display = "none";
+      excludeGrp.style.display = (source === "SYS_LOOKUP:users") ? "block" : "none";
+    }
+  },
+
+  saveQuestionNode: function() {
+    var label = document.getElementById("edt-q-label").value.trim();
+    if (!label) {
+      alert("Question Label is required.");
+      return;
+    }
+
+    var index = parseInt(document.getElementById("edt-q-index").value, 10);
+    var qType = document.getElementById("edt-q-type").value;
+    var isRequired = document.getElementById("edt-q-required").value === "true";
+    var optionSource = document.getElementById("edt-q-option-source").value;
+    var excludeSelf = document.getElementById("edt-q-exclude-self").checked;
+    
+    var staticChoicesRaw = document.getElementById("edt-q-static-choices").value;
+    var parsedOptions = staticChoicesRaw ? staticChoicesRaw.split(",").map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+    var questionNode = {
+      id: "q_" + Date.now(),
+      label: label,
+      type: qType,
+      required: isRequired,
+      optionSource: (qType === "select" || qType === "radio") ? (optionSource === "STATIC" ? null : optionSource) : null,
+      excludeCurrentUser: (qType === "select" || qType === "radio") && optionSource === "SYS_LOOKUP:users" ? excludeSelf : false,
+      options: (qType === "select" || qType === "radio") && optionSource === "STATIC" ? parsedOptions : []
+    };
+
+    if (index >= 0) {
+      FORMS_CURRENT_QUESTIONS[index] = questionNode;
+    } else {
+      FORMS_CURRENT_QUESTIONS.push(questionNode);
+    }
+
+    renderQuestionsBuilderList();
+    FormsUI.closeQuestionModal();
+  },
+
+  removeQuestionNode: function(index) {
+    if (confirm("Are you sure you want to remove this question?")) {
+      FORMS_CURRENT_QUESTIONS.splice(index, 1);
+      renderQuestionsBuilderList();
+    }
+  },
+
+  // ============================================================================
+  // 7. SHARING & INSTANCE LINK MODAL
+  // ============================================================================
+  openShareModal: function(templateId) {
+    FORMS_ACTIVE_SHARE_TEMPLATE_ID = templateId;
+    document.getElementById("forms-share-url-input").value = "";
+    document.getElementById("forms-share-target-email").value = "";
+    document.getElementById("forms-share-modal").style.display = "flex";
+  },
+
+  closeShareModal: function() {
+    document.getElementById("forms-share-modal").style.display = "none";
+  },
+
+  generateInstanceLink: function() {
+    if (!FORMS_ACTIVE_SHARE_TEMPLATE_ID) return;
+
+    var targetEmail = document.getElementById("forms-share-target-email").value.trim();
+    var dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 7);
+
+    var payload = {
+      templateId: FORMS_ACTIVE_SHARE_TEMPLATE_ID,
+      targetRespondent: targetEmail || "OPEN",
+      dueDate: dueDate.toISOString().split("T")[0],
+      status: "Pending"
+    };
+
+    var runner = google.script.run
+      .withSuccessHandler(function(response) {
+        if (response && response.error) {
+          alert(response.error);
+          return;
+        }
+
+        var baseUrl = window.location.href.split("?")[0];
+        var shareableUrl = baseUrl + "?view=public_form&token=" + response.token;
+        document.getElementById("forms-share-url-input").value = shareableUrl;
+        
+        loadFormInstancesData();
+      })
+      .withFailureHandler(function(err) {
+        alert("Failed to generate link: " + err.message);
+      });
+
+    runner.saveFormInstanceRecord(payload);
+  },
+
+  copyShareUrl: function() {
+    var input = document.getElementById("forms-share-url-input");
+    if (!input.value) {
+      alert("Please generate a link first.");
+      return;
+    }
+    input.select();
+    document.execCommand("copy");
+    alert("Public Form Link copied to clipboard!");
+  },
+
+  // ============================================================================
+  // 8. SUBMIT HANDLERS
+  // ============================================================================
+  handleTemplateFormSubmit: function(e) {
+    e.preventDefault();
+
+    var saveBtn = document.getElementById("btn-save-form-template");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving Template...";
+
+    var rowIndex = parseInt(document.getElementById("edt-forms-row-index").value, 10);
+    var templateId = document.getElementById("edt-forms-id").value;
+    var title = document.getElementById("edt-forms-title").value.trim();
+    var category = document.getElementById("edt-forms-category").value;
+    var scheduleRule = document.getElementById("edt-forms-schedule").value;
+    var status = document.getElementById("edt-forms-status").value;
+
+    var payload = {
+      rowIndex: rowIndex,
+      id: templateId,
+      title: title,
+      category: category,
+      scheduleRule: scheduleRule,
+      questions: FORMS_CURRENT_QUESTIONS,
+      status: status
+    };
+
+    var runner = google.script.run
+      .withSuccessHandler(function(response) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Form Template";
+
+        if (response && response.error) {
+          alert(response.error);
+          return;
+        }
+
+        loadFormTemplatesData();
+        FormsUI.showListView();
+      })
+      .withFailureHandler(function(err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Form Template";
+        alert("Failed to save template: " + err.message);
+      });
+
+    runner.saveFormTemplateRecord(payload);
+  }
+};
+
+// ============================================================================
+// 9. UI HELPERS & RENDER UTILITIES
+// ============================================================================
+
+function renderFormTemplatesTable(templates) {
+  var tbody = document.getElementById("tbody-form-templates");
+  if (!templates || templates.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #6c757d; padding: 20px;">No form templates found.</td></tr>';
+    return;
+  }
+
+  var html = "";
+  templates.forEach(function(t) {
+    var qCount = Array.isArray(t.questions) ? t.questions.length : 0;
+    var statusClass = "badge-status-" + (t.status || "active").toLowerCase();
+
+    html += "<tr>";
+    html += "<td><strong>" + t.id + "</strong></td>";
+    html += "<td>" + t.title + "</td>";
+    html += "<td>" + (t.category || "General") + "</td>";
+    html += "<td>" + (t.scheduleRule || "NONE") + "</td>";
+    html += "<td>" + qCount + " Field(s)</td>";
+    html += '<td><span class="badge-status ' + statusClass + '">' + t.status + "</span></td>";
+    html += '<td style="text-align: right;">';
+    html += '<button class="btn-primary" style="padding: 4px 8px; font-size: 0.8rem;" onclick="FormsUI.showReadOnlyView(\'' + t.id + '\')"><i class="fas fa-eye"></i> View</button> ';
+    html += '<button class="btn-edit" style="padding: 4px 8px; font-size: 0.8rem;" onclick="FormsUI.openEditTemplateForm(\'' + t.id + '\')"><i class="fas fa-edit"></i> Edit</button> ';
+    html += '<button class="btn-dash-back" style="padding: 4px 8px; font-size: 0.8rem;" onclick="FormsUI.openShareModal(\'' + t.id + '\')"><i class="fas fa-share-alt"></i> Share</button>';
+    html += "</td>";
+    html += "</tr>";
+  });
+
+  tbody.innerHTML = html;
+}
+
+function renderFormInstancesTable(instances) {
+  var tbody = document.getElementById("tbody-form-instances");
+  if (!instances || instances.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6c757d; padding: 20px;">No campaign instances active.</td></tr>';
+    return;
+  }
+
+  var html = "";
+  instances.forEach(function(inst) {
+    var statusClass = "badge-status-" + (inst.status || "pending").toLowerCase();
+    var baseUrl = window.location.href.split("?")[0];
+    var fullLink = baseUrl + "?view=public_form&token=" + inst.publicToken;
+
+    html += "<tr>";
+    html += "<td><strong>" + inst.id + "</strong></td>";
+    html += "<td>" + inst.templateId + "</td>";
+    html += "<td>" + (inst.targetRespondent || "OPEN") + "</td>";
+    html += "<td>" + (inst.dueDate || "N/A") + "</td>";
+    html += '<td><span class="badge-status ' + statusClass + '">' + inst.status + "</span></td>";
+    html += '<td style="text-align: right;">';
+    html += '<button class="btn-dash-back" style="padding: 4px 8px; font-size: 0.8rem;" onclick="navigator.clipboard.writeText(\'' + fullLink + '\'); alert(\'Link Copied!\');"><i class="fas fa-copy"></i> Copy Link</button>';
+    html += "</td>";
+    html += "</tr>";
+  });
+
+  tbody.innerHTML = html;
+}
+
+function renderFormResponsesTable(responses) {
+  var tbody = document.getElementById("tbody-form-responses");
+  if (!responses || responses.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6c757d; padding: 20px;">No responses submitted yet.</td></tr>';
+    return;
+  }
+
+  var html = "";
+  responses.forEach(function(resp) {
+    var statusClass = "badge-status-" + (resp.status || "submitted").toLowerCase();
+    var dateStr = resp.timestamp ? new Date(resp.timestamp).toLocaleDateString() : "N/A";
+
+    html += "<tr>";
+    html += "<td><strong>" + resp.id + "</strong></td>";
+    html += "<td>" + resp.instanceId + "</td>";
+    html += "<td>" + resp.respondent + "</td>";
+    html += "<td>" + dateStr + "</td>";
+    html += '<td><span class="badge-status ' + statusClass + '">' + resp.status + "</span></td>";
+    html += '<td style="text-align: right;">';
+    html += '<button class="btn-primary" style="padding: 4px 8px; font-size: 0.8rem;" onclick="alert(\'Response Payload: ' + JSON.stringify(resp.answers).replace(/'/g, "\\'") + '\')"><i class="fas fa-search"></i> Inspect</button>';
+    html += "</td>";
+    html += "</tr>";
+  });
+
+  tbody.innerHTML = html;
+}
+
+function renderQuestionsBuilderList() {
+  var container = document.getElementById("forms-builder-questions-list");
+  if (!FORMS_CURRENT_QUESTIONS || FORMS_CURRENT_QUESTIONS.length === 0) {
+    container.innerHTML = '<p style="color: #6c757d; font-style: italic;">No questions added yet. Click "Add Question" above to build the form schema.</p>';
+    return;
+  }
+
+  var html = "";
+  FORMS_CURRENT_QUESTIONS.forEach(function(q, idx) {
+    html += '<div class="question-item-card">';
+    html += '<div class="question-header">';
+    html += '<strong>' + (idx + 1) + '. ' + q.label + (q.required ? ' <span style="color: red;">*</span>' : '') + '</strong>';
+    html += '<div>';
+    html += '<span class="question-badge">' + q.type.toUpperCase() + '</span> ';
+    html += '<button type="button" class="btn-edit" style="padding: 2px 6px; font-size: 0.75rem;" onclick="FormsUI.openQuestionModal(' + idx + ')"><i class="fas fa-pen"></i></button> ';
+    html += '<button type="button" class="btn-dash-back" style="padding: 2px 6px; font-size: 0.75rem; color: red;" onclick="FormsUI.removeQuestionNode(' + idx + ')"><i class="fas fa-trash"></i></button>';
+    html += '</div>';
+    html += '</div>';
+
+    if (q.optionSource) {
+      html += '<p style="font-size: 0.8rem; color: #6c757d; margin: 0;">Source: <code>' + q.optionSource + '</code>' + (q.excludeCurrentUser ? ' (Self-Exclusion Active)' : '') + '</p>';
+    } else if (q.options && q.options.length > 0) {
+      html += '<p style="font-size: 0.8rem; color: #6c757d; margin: 0;">Static Choices: ' + q.options.join(", ") + '</p>';
+    }
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function updateDashboardWidgetCounts() {
+  var tEl = document.getElementById("dash-forms-count-templates");
+  var pEl = document.getElementById("dash-forms-count-pending");
+  var sEl = document.getElementById("dash-forms-count-submitted");
+
+  if (tEl) tEl.textContent = FORMS_GLOBAL_TEMPLATES.length;
+  if (pEl) pEl.textContent = FORMS_GLOBAL_INSTANCES.filter(function(i) { return i.status === "Pending"; }).length;
+  if (sEl) sEl.textContent = FORMS_GLOBAL_RESPONSES.length;
+}
+
+/**
+ * [SPARKHUB INTEGRITY ANCHOR: END]
+ */
+</script>
